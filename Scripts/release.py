@@ -29,36 +29,40 @@ VERSION = re.compile(r"\d+\.\d+\.\d+")
 PROJECT_VERSION = re.compile(r"^ProjectVersion=(.*)$", re.MULTILINE)
 
 NOTES = """\
-Weltall {version}, a native port of *Xenogears* (PlayStation, 1998). It contains no game data: it runs only with
-your own copy of the game, the USA release's two discs.
+Weltall {version} is a native port of *Xenogears* (PlayStation, 1998), rebuilt in Unreal Engine 5.
+You'll need your own copy of the USA release. No game data is included.
 
 ## Playing
 
-1. Download the archive for your system below and unpack it anywhere.
-2. Put your two disc images in its `Games` folder: BIN/CUE, or CHD made from it, is best (the movies keep their
-   sound); ISO/IMG works, with silent movies.
+1. Download the Windows or Linux zip below and unzip it wherever you want.
+2. Put both disc images in the `Games` folder. BIN/CUE and CHD preserve movie audio; ISO/IMG also work,
+   but the movies will be silent.
 3. Run `Weltall.exe` on Windows 10 or 11 (64-bit, DirectX 12), or `Weltall.sh` on Linux (64-bit, Vulkan).
 
-Settings and saves are kept in `%LOCALAPPDATA%\\Weltall` on Windows, and on Linux in `~/.config/Weltall` and
-`~/.local/share/Weltall/Saves`. Saves from a PlayStation memory card image can be copied in on the Options' Saves page.
-The README has the controls and the rest.
+On Windows, settings and saves are in `%LOCALAPPDATA%\\Weltall`. On Linux, settings are in
+`~/.config/Weltall` and saves are in `~/.local/share/Weltall/Saves`. You can import PlayStation memory-card
+saves from the Saves page in Options. See the [README](https://github.com/Roman215/Weltall#playing) for
+controls and more details.
 
 ## What to expect
 
-This is the first release, and the whole game plays, both discs, every part checked against the original's own code.
-So far it has been played by hand for over ten hours without a hang, and that playthrough is still going; automated
-play covers the rest of the story: expect to play it through from start to finish. The Linux build has only been run inside
-Windows' own Linux subsystem so far, drawn by the processor rather than a graphics card: on a Linux machine, please
-report whatever goes wrong.
+This is the first release. Both discs are playable, and gameplay behavior has been checked against the
+original game's code. My own playthrough is still in progress, with over ten hours played without a hang.
+Automated tests have run every map and story battle, along with long stretches of the story from save to
+save. You should be able to play from start to finish, and I'm fixing reported issues as they come in.
 
-If the game stops, the screen says why and names its log file: please attach that file to an issue, with a few words
-on what you were doing. If it crashes instead, zip and attach the newest folder in
-`%LOCALAPPDATA%\\Weltall\\Saved\\Crashes` (on Linux, `~/.config/Epic/Weltall/Saved/Crashes`).
-Reported issues are being fixed as they come in.
+The Linux build has only been tested in Windows Subsystem for Linux (WSL), using software rendering.
+It still needs testing on a Linux system with a graphics card. If you try it, please report any problems
+you run into.
 
-Not in this release: the Japanese discs, playing the second disc without the first one in the `Games` folder, a
-message log, auto-advancing text, a quick save, analog movement, and the Battling arena's El-Fenrir and analog
-steering.
+If the game stops with an error on screen, attach the log file it names to a
+[bug report](https://github.com/Roman215/Weltall/issues/new?template=bug_report.md) and describe what you
+were doing. If it crashes, zip and attach the newest folder in `%LOCALAPPDATA%\\Weltall\\Saved\\Crashes`
+(Windows) or `~/.config/Epic/Weltall/Saved/Crashes` (Linux). A save from just before the problem helps too.
+
+This release doesn't support the Japanese discs or starting Disc 2 without Disc 1 in the `Games`
+folder. It also doesn't include a message log, auto-advancing text, quick saves, analog movement, or
+El-Fenrir and analog steering in the Battling arena.
 """
 
 

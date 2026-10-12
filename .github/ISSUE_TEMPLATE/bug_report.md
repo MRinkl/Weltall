@@ -1,23 +1,23 @@
 ---
 name: Bug report
-about: The game stopped, crashed, or did something the original game does not
+about: Report a crash, a game error, or behavior that differs from the original
 labels: bug
 ---
 
 **What happened**
-What you saw, and what you expected instead.
+Describe the problem and what you expected to happen.
 
 **What you were doing**
-Where you were in the game, and what you had just done or pressed.
+Where were you in the game? What did you do just before the problem? Include steps to reproduce it if you can.
 
-**The version**
-The archive's name, for example `Weltall-0.8.0-Windows.zip`.
+**Game version**
+Which build are you using? The download's filename is enough, for example `Weltall-0.8.0-Windows.zip`.
 
-**The log**
-If the game stopped, the screen named its log file: please attach that file. If it crashed, zip the newest folder in `%LOCALAPPDATA%\Weltall\Saved\Crashes` (on Linux, `~/.config/Epic/Weltall/Saved/Crashes`) and attach that.
+**Log or crash report**
+If the game stopped with an error on screen, attach the log file it names. If it crashed, zip and attach the newest folder in `%LOCALAPPDATA%\Weltall\Saved\Crashes` (Windows) or `~/.config/Epic/Weltall/Saved/Crashes` (Linux).
 
 **A save**
-If it happens at one place in the game, a save from just before it helps most: zip its file from `%LOCALAPPDATA%\Weltall\Saves` (on Linux, `~/.local/share/Weltall/Saves`), for example `Card1\No04.sav`, and attach that.
+If you have a save from just before the problem, please zip and attach it. Save files are in `%LOCALAPPDATA%\Weltall\Saves` (Windows) or `~/.local/share/Weltall/Saves` (Linux), for example `Card1\No04.sav`.
 
 **Your system**
-Windows or Linux, and your graphics card.
+Which operating system and graphics card are you using?

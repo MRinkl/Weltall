@@ -1,13 +1,12 @@
 # A battle's narration
 
-Many of the second disc's battles open with a narration: pages told over the battle before it begins. Where a stretch
-of your own has just shown what the first pages tell, the narration should begin later, and perhaps with a page of
-your own that bridges from your scene. A document that begins `battle event N` does that, for battle event N (the
-number a formation names).
+Many Disc 2 battles start with narration over the battle scene. If your playable sequence already
+covers part of that narration, you can skip those pages and optionally add a transition. Use a
+`battle event N` document, where N is the event number referenced by the battle formation.
 
-Example: `Content/Story/disc2/rematch-narration.txt`. The lead-in above the forest has already told the meeting with
-Ramsus (it shows the narration's first page itself, in Fei's cockpit, by naming the disc's own page), so the battle's
-narration begins at its second page, after a page of the port's own:
+`Content/Story/disc2/rematch-narration.txt` is an example. The lead-in scene above the forest has
+already shown the meeting with Ramsus, using the first narration page in Fei's cockpit. The battle
+therefore starts at page 2, after a new transition page:
 
 ```
 battle event 19
@@ -20,21 +19,22 @@ I could not shake him.{wait 1E}
 }
 ```
 
-- `message K from page P`: message K begins at its page P.
-- `after` and a text between braces: these pages are told first, then the disc's own from page P on.
+- `message K from page P` starts message K at page P.
+- Adding `after` and text in braces displays that text first, followed by the original message from page P.
 
-What you tell first is typed in the message's own window: its width and lines as the battle's table gives them (here
-24 plain characters a line, 4 lines). A page that does not fit leaves the document out, and the tests fail on it.
+New pages use the original message window's dimensions. In this example, that means 24 plain
+characters per line and four lines per page. If a page doesn't fit, the document is rejected and the
+tests fail.
 
-The disc's words are never in the document: only where they begin and what is told before them.
+Reference the original narration by message and page number. Only new text belongs in the document.
 
-## Telling a page of the disc's elsewhere
+## Reusing a narration page in a map
 
-A map's document can name one of a battle's messages, or one page of it, instead of carrying its words:
+A map document can reference a battle message or one of its pages without copying the text:
 
 ```
 message Met from event 19 message 0 page 1
 ```
 
-`Content/Story/disc2/rematch-lead-in.txt` tells the meeting this way in the sky, in the disc's own words, read from your
-disc as the map loads.
+`Content/Story/disc2/rematch-lead-in.txt` uses this to show the meeting in the sky scene. The original
+text is read from your disc when the map loads.

@@ -1,10 +1,10 @@
 # The world map
 
-A document that begins `world map E` adds to the world map of era E (0 to 8; the second disc's world is era 8's) as
-the world map reads its scene: places the party can enter, their names, arrivals for maps that lead out onto it, dots
-on the minimap, and story values at which the party's ship is elsewhere.
+A `world map E` document adds locations, names, arrival points and minimap dots to era E. Eras range
+from 0 to 8; Disc 2 uses era 8. It can also temporarily hide the party's ship at specified story values.
+The additions load with the world map scene.
 
-Example: `Content/Story/disc2/mass-driver-world-map.txt`, the Mass Driver's ruins on Taura's land.
+`Content/Story/disc2/mass-driver-world-map.txt` adds the Mass Driver ruins on Taura's land:
 
 ```
 world map 8
@@ -22,48 +22,55 @@ arrival 40 x 29700 z 16620
 dot 21
 ```
 
-## Places
+## Locations
 
-`place on foot x X z Z width W height H to map M entrance E name N`: a rectangle of the world (whole units, its edges
-included) that the party enters with the confirm button, leading to field map M by entrance E. `in gears` or `in
-vehicle` instead of `on foot` puts it on the list for those ways of travelling; `on touch` before `to` enters it as
-soon as the party stands there, on foot only.
+`place on foot x X z Z width W height H to map M entrance E name N` defines a rectangular entry area.
+Coordinates use whole world units, and the rectangle includes its edges. Pressing confirm inside it
+enters field map M through entrance E.
 
-The rectangle must hold ground the party can stand on. A town's or a ruin's own block is not walkable; the game's own
-places take in the ground around it, and so should yours. Where two places overlap, the game's own wins.
+Replace `on foot` with `in gears` or `in vehicle` for those travel modes. Add `on touch` before `to`
+to enter automatically when the party reaches the area; this works only on foot.
 
-The name is a message of the document (one line, 16 letters at most), shown as the party stands in the place, or one
-of the scene's own names by number (`name #20`).
+Include walkable ground in the rectangle. Town and ruin models aren't walkable, so entry areas need
+to cover the surrounding ground, as the original locations do. Original locations take priority if
+areas overlap.
 
-## Arrivals
+The name can reference a message in your document or an existing scene name by number (`name #20`).
+It appears while the party is inside the area and must fit on one line, up to 16 letters.
 
-`arrival N x X z Z`: where a field map's way out by `ExitToWorldMap #1024 #N` puts the party. Use a number the scene
-does not have; put it just outside your place, as the game's own arrivals sit just outside theirs, so that leaving does
-not stand the party where pressing the button would enter again.
+## Arrival points
 
-## Dots on the minimap
+`arrival N x X z Z` sets the position used when a field script exits with `ExitToWorldMap #1024 #N`.
+Choose an unused arrival number and place it just outside your entry area, so pressing confirm after
+leaving doesn't immediately send the player back in.
 
-`dot N`: the minimap (Select shows and hides it) marks one of its places with its yellow dot wherever the document is
-added. The game has 24 places with a dot each, 0 to 23, at spots of their own, and shows each once a map's scripts have
-set its bit (`SetVarBit var[1FC] #N`, or `var[1FE] #N-16` from 16). Four are never shown by the game: 14, 19, 21
-and 22. Dot 21 lies on the Mass Driver's ruins, so the Mass Driver's document shows it.
+## Minimap dots
 
-Show a dot with this line rather than by setting its bit from a script: a bit set in the game would still be set
-where your stretch leads back into the original's story, which must find the game as it left it.
+`dot N` shows an existing yellow minimap dot while the document is active. Select toggles the
+minimap. The game has 24 dots, numbered 0 to 23, at fixed positions. Normally, scripts enable them
+with `SetVarBit var[1FC] #N`, or `var[1FE] #N-16` for dots 16 and above.
 
-A dot cannot yet be put anywhere else: a place of your own away from the game's dots has none.
+The original game never enables dots 14, 19, 21 or 22. Dot 21 is at the Mass Driver ruins, so the
+Mass Driver document uses it.
 
-## The ship away
+Use `dot N` instead of setting the saved flag in a script. A saved flag would remain set after your
+sequence ends, changing the state expected by the original story.
 
-`vehicle away at story S` (or `S-T`): while the game's story is at those values, the world map behaves as if the party's
-ship were elsewhere. None is drawn or boarded, its dot is not on the map, and the party walks (or rides its gears)
-wherever it would otherwise have started aboard. The ship's place and state in the game are left alone, so it is
-where it was when the story brings it back.
+You can't move a dot or add one at a new position yet. A location away from the existing dots won't
+have a minimap marker.
 
-The errand to the Mass Driver needs it: the first disc's end leaves the party aboard the flying ship by Taura's
-forest, and the world map would start Elly and Emeralda in it.
+## Temporarily hiding the ship
 
-## The walk
+`vehicle away at story S` hides the ship at story value S. Use `S-T` for a range. During those values,
+the ship isn't drawn, can't be boarded and has no minimap dot. If the party would normally start
+aboard it, they start on foot or in Gears instead. The saved ship position and state remain unchanged,
+so the ship returns where it was when the story brings it back.
 
-The land's own random battles go on as the scene has them for the story's band. Taura's land is one region, whose
-battles at that point of the story are the first disc's weakest; a place of your own cannot yet choose others.
+The Mass Driver sequence uses this because Disc 1 ends with the party aboard the flying ship near
+Taura's forest. Without it, Elly and Emeralda would start their trip aboard the ship.
+
+## Random encounters
+
+Random battles use the region's original encounter table for the current story progress. Taura's
+land is one region, and its encounters at this point are the weakest from Disc 1. New world map
+locations can't override that table yet.

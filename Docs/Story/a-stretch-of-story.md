@@ -1,79 +1,76 @@
 # A stretch of story
 
-The `disc2` pack tells two of the second disc's narrated stretches as play: the rematch with Ramsus above the forest,
-and Elly's errand to the Mass Driver. Each leaves the original's story at one point, plays its own scenes and maps,
-and leads back into the original's at another, so that the rest of the game goes on exactly as it would have. This
-is how they are put together.
+The `disc2` pack turns two narrated sections into playable sequences: the rematch with Ramsus above
+the forest, and Elly's trip to the Mass Driver. Each branches from the original story, adds scenes
+and maps, then rejoins it with the same game state. Here's how that works.
 
-## The pack and the mode
+## Enabling the pack
 
-The `disc2` pack is played only in a game whose player chose "Extended" as the second disc began; in any other game
-its patches are not applied, its maps do not exist and its world map places are not there. A release leaves the pack
-out (the main README's packaging), so a player sees none of it unless they build with `--expansion`.
+The `disc2` pack is active only when the player chooses "Extended" at the start of Disc 2. Otherwise,
+its patches, maps and world map locations aren't used. Release packages leave the pack out; build
+with `--expansion` to include it (see Packaging in the main README).
 
-## The story's progress
+## Story progress
 
-The game's progress is event variable 0 (`var[000]`). The original sets a value at each step of the story, and the
-maps test it. Many values are never set by the original: the Mass Driver's errand runs at 253, which nothing of the
-original uses. Running at a value of your own lets your patches tell your stretch from the original's moments in the
-same maps, and lets a save know where it was made.
+Event variable 0 (`var[000]`) tracks story progress. Original scripts set it as the story advances,
+and maps use it to decide which events to run. Some values are unused: the Mass Driver sequence uses
+253, for example. A separate value lets patches distinguish your sequence from the original events
+in the same maps, and identifies saves made during it.
 
-## Leaving the original
+## Branching from the original story
 
-A patch of the map where the story should part: at the moment of parting, its course goes to your first map instead
-of the original's next.
+Patch the map where your sequence starts so it sends the player to your first map:
 
-- `Content/Story/disc2/rematch-parting.txt`: the Ministry's scene, which in the original starts the rematch's battle,
-  fades and changes to map 730 instead (one `detour` on the instruction where the battle begins).
-- `Content/Story/disc2/rematch-aftermath.txt`: after the battle, the sky again (map 731), and from there Taura's house
-  (`ChangeMap #616 #1`) where the original goes to the chair.
-- `Content/Story/disc2/mass-driver-setting-out.txt`: the scene at Taura's house sets the story to 253 as it begins.
+- `Content/Story/disc2/rematch-parting.txt` changes the Ministry scene to fade out and enter map 730
+  instead of starting the rematch battle. It uses one `detour` at the battle instruction.
+- `Content/Story/disc2/rematch-aftermath.txt` returns to the sky after the battle (map 731), then enters
+  Taura's house with `ChangeMap #616 #1`, where the original would return to the chair narration.
+- `Content/Story/disc2/mass-driver-setting-out.txt` starts the new sequence at Taura's house and sets
+  story progress to 253.
 
-## Leading back
+## Returning to the original story
 
-Where a stretch ends, the game must stand exactly where the original stands at that point: the same story value, the
-same flags, the same map entered the same way. Then everything after is the original's.
+At the end, restore the state the original story expects: story progress, flags, map and entrance.
 
-- The rematch leads into the original's own battle: the lead-in starts the same formation with the same kind and
-  song the original's scene does.
-- The Mass Driver's errand leads into the original's scene of the launch on the world map. The original tells the
-  errand as a narration (map 617 by entrance 2) that, at its end, sets a flag (`SetVarBit var[248] #2`) and leaves for
-  that scene (`ExitToWorldMap #1024 #4095 #-1 #17`); the scene brings the game back to the narration, whose second pass
-  tells of what follows. The errand's control room does the same three things (the flag, the story back to 252, the
-  scene), so the original goes on from there. The narration's first pass, which tells what the errand has just played,
-  is never seen.
+The rematch lead-in starts the original battle with the same formation, battle type and music.
 
-Read the original's own scripts where you rejoin: what does it set just before, and how does it go on? Do the same,
-in the same order.
+The Mass Driver sequence returns to the original world map launch scene. In the original, the
+narration on map 617, entrance 2, sets `SetVarBit var[248] #2` and leaves with
+`ExitToWorldMap #1024 #4095 #-1 #17`. After the launch, the game returns to the narration for its
+second pass. The new control room sets the same flag, restores story progress to 252 and starts the
+same launch scene. This skips the first narration pass because the player has just played those events.
 
-**Prove it with a test.** `Tests/WeltallCore/Story/StoryContentTests.cpp` plays the original's scenes and the expanded
-game's from the same point, each as far as the place they meet, and compares every saved variable of the two games,
-apart from those that only say where the field stood and for how long. A stretch that leaves a flag set, or forgets one
-the original sets, fails it. The walks in between are tested by walking them
-(`Tests/WeltallCore/Story/MassDriverContentTests.cpp` steers the leader by the pad through every door).
+Read the original scripts at the point where you rejoin. Restore the values they set and perform
+the transitions in the same order.
 
-## Saves: the way back
+`Tests/WeltallCore/Story/StoryContentTests.cpp` verifies this by running the original and expanded
+scenes from the same starting state to the point where they rejoin. It compares every saved variable
+except those recording field position and elapsed time. Missing or extra flags fail the test.
+`Tests/WeltallCore/Story/MassDriverContentTests.cpp` also walks the leader through every door using
+normal movement input.
 
-A player may save in the middle of your stretch and later load that save in a game that does not have it: the
-original's second disc, or the original game itself. `Content/Story/disc2/way-back.txt` says, for each story value
-your stretches run at, which point of the original matches what the player has seen:
+## Save compatibility
+
+A save made during an expansion sequence needs a fallback for playing without the expansion,
+including in the original game. `Content/Story/disc2/way-back.txt` maps each new story value to a
+compatible point in the original story:
 
 ```
 way back
 story 253 to map 617 entrance 2 story 252
 ```
 
-A save made at 253 is, for any game but an expanded one, a save at map 617 by entrance 2 with the story at 252: the
-narration of the errand, before the launch. The game's own place is kept beside it in the save, and Weltall, loading it
-as an expanded game, goes on where the player was. The same table puts the game there when the player turns the
-expansion off from the options.
+A save at story value 253 falls back to map 617, entrance 2, at story value 252: the Mass Driver
+narration before the launch. The save also keeps the player's position in the expansion, so loading
+it with the expansion enabled resumes there. The same table handles turning the expansion off in Options.
 
-Give every value your stretch sets a row; a value no row names is taken to be the original's own.
+Add a row for every story value your sequence sets. Values without a row are treated as original
+story values.
 
-## The pieces
+## Related guides
 
-- [Changing a map](changing-a-map.md): parting, opening a way the original keeps shut, a scene in a map of the game.
-- [A map of your own](a-map-of-your-own.md): scenes over a map's staging, rooms of a dungeon.
-- [The world map](the-world-map.md): a place to walk to, and the walk itself.
-- [A battle's narration](a-battles-narration.md): a battle told from where your scene left off.
-- [Subtitles](subtitles.md): a title for your stretch inside the original's chapter.
+- [Changing a map](changing-a-map.md): branch from the story, open an exit or add a scene to an existing map.
+- [A map of your own](a-map-of-your-own.md): reuse a scene's staging or create dungeon rooms.
+- [The world map](the-world-map.md): add a destination and travel to it.
+- [A battle's narration](a-battles-narration.md): continue narration from where your scene ends.
+- [Subtitles](subtitles.md): add a title within an original chapter.

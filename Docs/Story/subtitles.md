@@ -1,12 +1,13 @@
 # Subtitles
 
-The original names each stretch of its story with a chapter, and shows its title in a save's slot; Weltall also shows
-it on a card as the chapter begins. The expanded second disc keeps those chapters as they are, and gives its own
-stretches titles of their own inside them: subtitles. Each is shown once, on a card of its own, when the player first
-has control under it, numbered inside its chapter by a letter: "Chapter 57a: Secret Battleship", "Chapter 57b: Soylent
-System".
+Xenogears shows chapter titles in its save slots. Weltall also displays them on screen when a chapter
+begins. The Disc 2 expansion keeps those chapters and adds titles for sequences within them, called
+subtitles.
 
-Example: `Content/Story/disc2/subtitles.txt`.
+A subtitle appears once, when the player first has control in that sequence. Letters distinguish it
+within the chapter, for example "Chapter 57a: Secret Battleship" and "Chapter 57b: Soylent System".
+
+`Content/Story/disc2/subtitles.txt` defines the examples:
 
 ```
 subtitles
@@ -14,16 +15,15 @@ story 254 Secret Battleship
 story 258 Soylent System
 ```
 
-- `story S Words`: from the story's value S on, until the next subtitle or the next chapter, the stretch is under this
-  subtitle. The values rise from line to line.
-- A subtitle is the message font's plain characters, 24 at most: with "Chapter 57a: " before it, the card's line is
-  then as wide as the screen.
-- A subtitle belongs to the chapter its value lies in, and takes its letter there: the chapter's first subtitle is
-  "a", the next "b".
-- Where a chapter's own card begins with the story already under a subtitle, the subtitle's card follows it; a game
-  loaded under a subtitle shows no card for it.
-- Only the expanded second disc has subtitles: there is one such document, in its pack. A save's title stays the
-  original's chapter.
+- `story S Words` sets the subtitle from story value S until the next subtitle or chapter. List story
+  values in increasing order.
+- Titles use plain characters from the message font, with a maximum of 24. This leaves room for the
+  prefix, such as "Chapter 57a: ", on one line.
+- The chapter containing S determines the chapter number. Its first subtitle gets `a`, the next `b`, etc.
+- If a chapter starts with a subtitle already active, the subtitle card follows the chapter card.
+  Loading a save during a sequence doesn't display its subtitle card.
+- Subtitles are only used in the expanded Disc 2, with one document in the pack. Save slots still
+  display the original chapter title.
 
-To see a subtitle's card in a picture, the editor's `RenderScreen` takes `-Card=57,254` (the chapter, and the subtitle
-by its first value) with `-CardAt=S` for when it begins.
+To capture a subtitle card with the editor's `RenderScreen` commandlet, use `-Card=57,254`: the
+chapter number followed by the subtitle's starting story value. `-CardAt=S` sets when the card appears.
