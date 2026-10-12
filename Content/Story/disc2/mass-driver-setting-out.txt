@@ -1,0 +1,200 @@
+; Elly sets out for the Mass Driver. After the rematch the expanded second disc comes back to Taura's house, where
+; Taura gives her the pod of Nanoassemblers and Emeralda goes with her. The aftermath enters the house by the
+; entrance Fei woke by, which nothing else takes past the first disc's end; the story's progress becomes 253 as the
+; scene begins, so every save from here to the launch maps back to the chair's narration of it.
+map 616
+
+message Leaving
+{
+Taura
+"So{wait 05}...{wait 0A} you're off."
+}
+
+message GoneAhead
+{
+Elly
+"Fei has gone on ahead
+to Ignas.{page}We can't stay behind
+and just wait."
+}
+
+message Pod
+{
+Taura
+"Then take this with you.{page}The pod with the
+Nanoassemblers.{wait 0A}
+Don't you go dropping it!"
+}
+
+message Carry
+{
+Emeralda
+"Emeralda carry it."
+}
+
+message GotIt
+{
+Elly
+"It's alright,{wait 05}
+I have it."
+}
+
+message North
+{
+Taura
+"The old installation is
+at the north end of
+this land.{page}Follow the forest north
+and you can't miss it."
+}
+
+message Citan
+{
+Taura
+"Citan has gone to Shevat
+for his Gear.{page}He said he'd meet
+you there."
+}
+
+message Hurry
+{
+Emeralda
+"Emeralda go first.{wait 0A}
+Elly, hurry."
+}
+
+message Thanks
+{
+Elly
+"Taura{wait 05}...{wait 0A}
+Thank you.{wait 0A}
+For everything."
+}
+
+; The two in the party, whoever was in it before: Fei is flying to Ignas.
+detour @0x0025 to Party If var[002] == #2 else @0x003B
+Party:
+    If var[000] == #252 else Kept
+    If var[002] == #1 else Kept
+    PartyRemove 255
+    PartyRemove 254
+    PartyRemove 253
+    PartyAdd 1
+    PartyAddWait
+    PartyAdd 6
+    PartyAddWait
+Kept:
+    If var[002] == #2 else @0x003B
+    Jump @0x002D
+
+; The Nanoreactors empty and Citan gone, as the house stands after the story has moved on.
+detour @0x0A94 to Emptied IfAccGreater #299 @0x0AA4
+Emptied:
+    If var[000] == #253 else Arriving
+    Jump @0x0A99
+Arriving:
+    If var[000] == #252 else Revisit
+    If var[002] == #1 else Revisit
+    Jump @0x0A99
+Revisit:
+    IfAccGreater #299 @0x0AA4
+    Jump @0x0A99
+
+; Fei's waking scene stays the first disc's: past the setting out, its entrance plays nothing.
+detour @0x03E5 to Woken If var[002] == #1 else @0x03F0
+Woken:
+    If var[000] == #253 else Waking
+    Jump @0x03F0
+Waking:
+    If var[002] == #1 else @0x03F0
+    Jump @0x03F2
+
+; Taura's farewell, his own words to a visitor, whenever he is spoken to afterwards.
+detour @0x028D to Farewell IfAccGreater #299 @0x02DE
+Farewell:
+    If var[000] == #253 else Asking
+    Jump @0x029A
+Asking:
+    IfAccGreater #299 @0x02DE
+    Jump @0x0292
+
+detour @0x03F8 to SettingOut TurnActor actor16 #0
+SettingOut:
+    If var[000] == #252 else Wake
+    SetVar var[000] #253
+    StartScriptWaitEnd actor16 script13@1
+    CameraSet #0 #25 #512
+    CameraFollowMode #15
+    Wait #20
+    StartScript actor7 script8@3
+    StartScriptWaitEnd actor2 script8@3
+    TurnToActor actor16 actor2
+    Wait #20
+    MessageAtActorPortrait actor16 Leaving 0
+    WaitMessageClosed
+    Wait #10
+    MessageAtActorPortrait actor2 GoneAhead 0
+    WaitMessageClosed
+    Wait #10
+    MessageAtActorPortrait actor16 Pod 0
+    WaitMessageClosed
+    PlaySound #55
+    Wait #20
+    TurnToActor actor7 actor2
+    MessageAtActorPortrait actor7 Carry 0
+    WaitMessageClosed
+    TurnToActor actor2 actor7
+    Wait #10
+    MessageAtActorPortrait actor2 GotIt 0
+    WaitMessageClosed
+    TurnToActor actor2 actor16
+    TurnToActor actor7 actor16
+    Wait #10
+    MessageAtActorPortrait actor16 North 0
+    WaitMessageClosed
+    Wait #10
+    MessageAtActorPortrait actor16 Citan 0
+    WaitMessageClosed
+    Wait #10
+    StartScriptWaitEnd actor7 script9@3
+    MessageAtActorPortrait actor7 Hurry 0
+    WaitMessageClosed
+    Wait #10
+    TurnToActor actor2 actor16
+    MessageAtActorPortrait actor2 Thanks 0
+    WaitMessageClosed
+    Wait #10
+    MessageAtActorPortrait actor16 msg2 0
+    WaitMessageClosed
+    Wait #10
+    SetVarFalse var[402]
+    PartyGather
+    EnablePlayer
+    StopAndHalt
+Wake:
+    TurnActor actor16 #0
+    Jump @0x03FC
+
+; Taura in the passage before the Nanoreactors, waiting for them.
+actor 16 script 13:
+    SetPosition #-150 #-172
+    Turn #6
+    End
+
+; Elly comes round from the door, up to him.
+actor 2 script 8:
+    WalkTo #-385 #-110
+    WalkTo #-270 #-168
+    FaceActor actor16
+    End
+
+; Emeralda behind her; then a few steps toward the way out.
+actor 7 script 8:
+    WalkTo #-385 #-90
+    WalkTo #-330 #-160
+    FaceActor actor16
+    End
+actor 7 script 9:
+    WalkTo #-385 #-120
+    FaceActor actor2
+    End

@@ -1,0 +1,9 @@
+; Where the expanded second disc first parts from the original: the Ministry's scene after Fei's
+; launch ends in the sky above the forest instead of in the rematch itself.
+map 273
+detour @0x1AA2 to Parting SetSlotInGear #0
+Parting:
+    ScreenFade #2 #255 #255 #255 #120
+    Wait #120
+    ChangeMap #730 #0
+    End

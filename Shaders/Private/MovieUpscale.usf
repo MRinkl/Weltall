@@ -1,0 +1,315 @@
+// The movie upscaler's steps, each in the same integer arithmetic as its twin in the core's MovieUpscale.cpp
+// (GuideChroma's two halves, Double's two, SharpenEdges' three, DisplayPixel), so that every GPU draws the pixels the
+// core computes. Samples carry the MDEC's four fraction bits; each pass draws its whole target.
+
+#include "/Engine/Public/Platform.ush"
+
+#define WEIGHT_BITS 12
+#define WEIGHT_ONE 4096
+// MovieUpscale.cpp says what each of these is.
+#define CHROMA_LIMIT 4095
+#define GUIDE_SPREAD_SQUARED 25600u
+#define GUIDE_DIFFERENCE_LIMIT 1023
+#define EDGE_LIMIT 1024
+#define WARP_DIVISOR 16
+#define WARP_LIMIT 32
+
+// The picture as decoded: luma, and Cb and Cr at half size.
+Texture2D<int> Luma;
+Texture2D<int4> Chroma;
+// The image a step reads, its size, and for the steps that need them the luma's blurred edge strength or the
+// noise floor that tells no direction.
+Texture2D<int4> Image;
+Texture2D<int> Strength;
+int2 ImageSize;
+int NoiseFloor;
+// How far a chroma sample may lie from its pixels' colour by its quantization alone.
+int ChromaNoise;
+// The blur's direction: (1, 0) across, (0, 1) down.
+int2 Direction;
+// The display step: the game screen's rectangle in the target (x, y, width, height), the screen's size in its own
+// pixels, and the picture's shown part on it (x, y, width, height).
+int4 DisplayRect;
+int2 ScreenSize;
+int4 Placement;
+
+int DivideRounded(int Numerator, int Denominator)
+{
+	const uint Magnitude = (uint(abs(Numerator)) + uint(Denominator / 2)) / uint(Denominator);
+	return Numerator < 0 ? -int(Magnitude) : int(Magnitude);
+}
+
+int Mirror(int Index, int Size)
+{
+	return Index < 0 ? -Index : (Index >= Size ? 2 * Size - 2 - Index : Index);
+}
+
+int4 MirroredAt(int X, int Y)
+{
+	return Image.Load(int3(Mirror(X, ImageSize.x), Mirror(Y, ImageSize.y), 0));
+}
+
+int4 ClampedAt(int X, int Y)
+{
+	return Image.Load(int3(clamp(X, 0, ImageSize.x - 1), clamp(Y, 0, ImageSize.y - 1), 0));
+}
+
+int ChromaTap(int Index, int Odd)
+{
+	// 1 10 15 5 on an even row or column, 5 15 10 1 on an odd one.
+	const int Tap = Odd != 0 ? 3 - Index : Index;
+	return Tap == 0 ? 1 : (Tap == 1 ? 10 : (Tap == 2 ? 15 : 5));
+}
+
+int Likeness(int Difference)
+{
+	const uint Ratio = (uint(Difference * Difference) << 8) / GUIDE_SPREAD_SQUARED;
+	const uint RatioSquared = (Ratio * Ratio) >> 8;
+	return 1 + int((31u << 8) / (256u + RatioSquared));
+}
+
+int4 GuidePS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int X = int(SvPosition.x);
+	const int Y = int(SvPosition.y);
+	const int2 ChromaSize = ImageSize / 2;
+	const int FirstRow = (Y >> 1) - 2 + (Y & 1);
+	const int FirstColumn = (X >> 1) - 2 + (X & 1);
+	const int Own = Luma.Load(int3(X, Y, 0));
+	int WeightSum = 0;
+	int BlueSum = 0;
+	int RedSum = 0;
+	[unroll]
+	for (int TapY = 0; TapY < 4; ++TapY)
+	{
+		[unroll]
+		for (int TapX = 0; TapX < 4; ++TapX)
+		{
+			const int2 At = clamp(int2(FirstColumn + TapX, FirstRow + TapY), 0, ChromaSize - 1);
+			const int StandsFor = (Luma.Load(int3(2 * At.x, 2 * At.y, 0)) + Luma.Load(int3(2 * At.x + 1, 2 * At.y, 0))
+				+ Luma.Load(int3(2 * At.x, 2 * At.y + 1, 0)) + Luma.Load(int3(2 * At.x + 1, 2 * At.y + 1, 0)) + 2) >> 2;
+			const int Weight = ChromaTap(TapY, Y & 1) * ChromaTap(TapX, X & 1) * Likeness(min(abs(Own - StandsFor), GUIDE_DIFFERENCE_LIMIT));
+			const int4 Sample = clamp(Chroma.Load(int3(At, 0)), -CHROMA_LIMIT, CHROMA_LIMIT);
+			WeightSum += Weight;
+			BlueSum += Weight * Sample.x;
+			RedSum += Weight * Sample.y;
+		}
+	}
+	return int4(Own, DivideRounded(BlueSum, WeightSum), DivideRounded(RedSum, WeightSum), 0);
+}
+
+int Shrink(int Value, int Amount)
+{
+	return Value > Amount ? Value - Amount : (Value < -Amount ? Value + Amount : 0);
+}
+
+// The guided chroma (Image) with each 2x2's mean brought back towards its coded sample past the quantization's noise.
+int4 KeepColourPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int X = int(SvPosition.x);
+	const int Y = int(SvPosition.y);
+	const int4 Own = Image.Load(int3(X, Y, 0));
+	const int4 Mean = (Image.Load(int3(X & ~1, Y & ~1, 0)) + Image.Load(int3(X | 1, Y & ~1, 0)) + Image.Load(int3(X & ~1, Y | 1, 0))
+		+ Image.Load(int3(X | 1, Y | 1, 0)) + 2) >> 2;
+	const int4 Coded = clamp(Chroma.Load(int3(X >> 1, Y >> 1, 0)), -CHROMA_LIMIT, CHROMA_LIMIT);
+	return int4(Own.x, Own.y + Shrink(Coded.x - Mean.y, ChromaNoise), Own.z + Shrink(Coded.y - Mean.z, ChromaNoise), 0);
+}
+
+int FifthPower(int Fraction)
+{
+	const int Square = (Fraction * Fraction) >> WEIGHT_BITS;
+	const int Fourth = (Square * Square) >> WEIGHT_BITS;
+	return (Fourth * Fraction) >> WEIGHT_BITS;
+}
+
+int DirectionWeight(int ChangeA, int ChangeB)
+{
+	const uint ForA = uint(ChangeB + NoiseFloor);
+	const uint Total = uint(ChangeA + ChangeB + 2 * NoiseFloor);
+	const int ShareA = int((ForA << WEIGHT_BITS) / Total);
+	const int PowerA = FifthPower(ShareA);
+	const int PowerB = FifthPower(WEIGHT_ONE - ShareA);
+	return int((uint(PowerA) << WEIGHT_BITS) / uint(PowerA + PowerB));
+}
+
+int4 Cubic(int4 A, int4 B, int4 C, int4 D)
+{
+	return (-A + 9 * B + 9 * C - D + 8) >> 4;
+}
+
+int4 Blend(int Weight, int4 A, int4 B)
+{
+	return (Weight * A + (WEIGHT_ONE - Weight) * B + WEIGHT_ONE / 2) >> WEIGHT_BITS;
+}
+
+int4 Within(int4 Value, int4 A, int4 B, int4 C, int4 D)
+{
+	return clamp(Value, min(min(A, B), min(C, D)), max(max(A, B), max(C, D)));
+}
+
+// Doubling, first half: the image's pixels at the even places of a target twice its size, and between each four
+// of them, diagonally, the cubic along the diagonal the luma changes least along. The rest the second half fills.
+int4 DiagonalsPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int OutX = int(SvPosition.x);
+	const int OutY = int(SvPosition.y);
+	const int X = OutX >> 1;
+	const int Y = OutY >> 1;
+	if (((OutX | OutY) & 1) == 0)
+	{
+		return Image.Load(int3(X, Y, 0));
+	}
+	if ((OutX & OutY & 1) == 0)
+	{
+		return int4(0, 0, 0, 0);
+	}
+	int Rising = 0;
+	int Falling = 0;
+	[unroll]
+	for (int Row = -1; Row <= 1; ++Row)
+	{
+		[unroll]
+		for (int Column = -1; Column <= 1; ++Column)
+		{
+			Rising += abs(MirroredAt(X + Column, Y + Row + 1).x - MirroredAt(X + Column + 1, Y + Row).x);
+			Falling += abs(MirroredAt(X + Column, Y + Row).x - MirroredAt(X + Column + 1, Y + Row + 1).x);
+		}
+	}
+	const int Weight = DirectionWeight(Rising, Falling);
+	const int4 AlongRising = Cubic(MirroredAt(X - 1, Y + 2), MirroredAt(X, Y + 1), MirroredAt(X + 1, Y), MirroredAt(X + 2, Y - 1));
+	const int4 AlongFalling = Cubic(MirroredAt(X - 1, Y - 1), MirroredAt(X, Y), MirroredAt(X + 1, Y + 1), MirroredAt(X + 2, Y + 2));
+	const int4 Value = Within(Blend(Weight, AlongRising, AlongFalling), MirroredAt(X, Y), MirroredAt(X + 1, Y), MirroredAt(X, Y + 1), MirroredAt(X + 1, Y + 1));
+	return int4(Value.xyz, 0);
+}
+
+int ChangeAcross(int X, int Y)
+{
+	return abs(MirroredAt(X - 1, Y).x - MirroredAt(X + 1, Y).x) + abs(MirroredAt(X, Y - 1).x - MirroredAt(X + 2, Y - 1).x)
+		+ abs(MirroredAt(X - 2, Y - 1).x - MirroredAt(X, Y - 1).x) + abs(MirroredAt(X, Y + 1).x - MirroredAt(X + 2, Y + 1).x)
+		+ abs(MirroredAt(X - 2, Y + 1).x - MirroredAt(X, Y + 1).x) + abs(MirroredAt(X + 1, Y).x - MirroredAt(X + 3, Y).x)
+		+ abs(MirroredAt(X - 3, Y).x - MirroredAt(X - 1, Y).x) + abs(MirroredAt(X - 1, Y - 2).x - MirroredAt(X + 1, Y - 2).x)
+		+ abs(MirroredAt(X - 1, Y + 2).x - MirroredAt(X + 1, Y + 2).x);
+}
+
+int ChangeDown(int X, int Y)
+{
+	return abs(MirroredAt(X, Y - 1).x - MirroredAt(X, Y + 1).x) + abs(MirroredAt(X - 1, Y).x - MirroredAt(X - 1, Y + 2).x)
+		+ abs(MirroredAt(X - 1, Y - 2).x - MirroredAt(X - 1, Y).x) + abs(MirroredAt(X + 1, Y).x - MirroredAt(X + 1, Y + 2).x)
+		+ abs(MirroredAt(X + 1, Y - 2).x - MirroredAt(X + 1, Y).x) + abs(MirroredAt(X, Y + 1).x - MirroredAt(X, Y + 3).x)
+		+ abs(MirroredAt(X, Y - 3).x - MirroredAt(X, Y - 1).x) + abs(MirroredAt(X - 2, Y - 1).x - MirroredAt(X - 2, Y + 1).x)
+		+ abs(MirroredAt(X + 2, Y - 1).x - MirroredAt(X + 2, Y + 1).x);
+}
+
+// Doubling, second half: Image is the first half's target; the places whose row and column differ in parity take
+// the cubic across or down, by where the luma changes least.
+int4 RestPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int X = int(SvPosition.x);
+	const int Y = int(SvPosition.y);
+	if (((X + Y) & 1) == 0)
+	{
+		return Image.Load(int3(X, Y, 0));
+	}
+	const int Weight = DirectionWeight(ChangeAcross(X, Y), ChangeDown(X, Y));
+	const int4 Left = MirroredAt(X - 1, Y);
+	const int4 Right = MirroredAt(X + 1, Y);
+	const int4 Up = MirroredAt(X, Y - 1);
+	const int4 Down = MirroredAt(X, Y + 1);
+	const int4 Across = Cubic(MirroredAt(X - 3, Y), Left, Right, MirroredAt(X + 3, Y));
+	const int4 Downward = Cubic(MirroredAt(X, Y - 3), Up, Down, MirroredAt(X, Y + 3));
+	const int4 Value = Within(Blend(Weight, Across, Downward), Left, Right, Up, Down);
+	return int4(Value.xyz, 0);
+}
+
+// The luma's edge strength: the Sobel operator's two responses' magnitudes, to a ceiling.
+int EdgesPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int X = int(SvPosition.x);
+	const int Y = int(SvPosition.y);
+	const int Across = ClampedAt(X + 1, Y - 1).x + 2 * ClampedAt(X + 1, Y).x + ClampedAt(X + 1, Y + 1).x
+		- ClampedAt(X - 1, Y - 1).x - 2 * ClampedAt(X - 1, Y).x - ClampedAt(X - 1, Y + 1).x;
+	const int Down = ClampedAt(X - 1, Y + 1).x + 2 * ClampedAt(X, Y + 1).x + ClampedAt(X + 1, Y + 1).x
+		- ClampedAt(X - 1, Y - 1).x - 2 * ClampedAt(X, Y - 1).x - ClampedAt(X + 1, Y - 1).x;
+	return min(abs(Across) + abs(Down), EDGE_LIMIT);
+}
+
+int StrengthAt(int2 At)
+{
+	return Strength.Load(int3(clamp(At, 0, ImageSize - 1), 0));
+}
+
+// The edge strength blurred by 1 4 6 4 1 in Direction.
+int BlurPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int2 At = int2(SvPosition.xy);
+	return (StrengthAt(At - 2 * Direction) + 4 * StrengthAt(At - Direction) + 6 * StrengthAt(At) + 4 * StrengthAt(At + Direction)
+		+ StrengthAt(At + 2 * Direction) + 8) >> 4;
+}
+
+// Each pixel's colour taken from a little way down the slope of the blurred edge strength, bilinearly in sixteenths.
+int4 WarpPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int X = int(SvPosition.x);
+	const int Y = int(SvPosition.y);
+	const int ShiftX = clamp(-DivideRounded(StrengthAt(int2(X + 1, Y)) - StrengthAt(int2(X - 1, Y)), WARP_DIVISOR), -WARP_LIMIT, WARP_LIMIT);
+	const int ShiftY = clamp(-DivideRounded(StrengthAt(int2(X, Y + 1)) - StrengthAt(int2(X, Y - 1)), WARP_DIVISOR), -WARP_LIMIT, WARP_LIMIT);
+	const int FromX = X * 16 + ShiftX;
+	const int FromY = Y * 16 + ShiftY;
+	const int Left = FromX >> 4;
+	const int Top = FromY >> 4;
+	const int FractionX = FromX & 15;
+	const int FractionY = FromY & 15;
+	const int4 Value = (ClampedAt(Left, Top) * ((16 - FractionX) * (16 - FractionY)) + ClampedAt(Left + 1, Top) * (FractionX * (16 - FractionY))
+		+ ClampedAt(Left, Top + 1) * ((16 - FractionX) * FractionY) + ClampedAt(Left + 1, Top + 1) * (FractionX * FractionY) + 128) >> 8;
+	return int4(Value.xyz, 0);
+}
+
+int4 CatmullRom(int Fraction)
+{
+	const int Square = Fraction * Fraction;
+	const int Cube = Square * Fraction;
+	const int First = DivideRounded(-Cube + 512 * Square - 65536 * Fraction, 1 << 13);
+	const int Third = DivideRounded(-3 * Cube + 1024 * Square + 65536 * Fraction, 1 << 13);
+	const int Fourth = DivideRounded(Cube - 256 * Square, 1 << 13);
+	return int4(First, WEIGHT_ONE - First - Third - Fourth, Third, Fourth);
+}
+
+int ToUnsigned8(int Sample)
+{
+	return clamp((Sample + 8) >> 4, -128, 127) + 128;
+}
+
+// The upscaled image on the display: each pixel a Catmull-Rom of it, converted as the MDEC converts.
+float4 DisplayPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const uint Column = uint(int(SvPosition.x) - DisplayRect.x);
+	const uint Row = uint(int(SvPosition.y) - DisplayRect.y);
+	const int PictureX = int((2 * Column + 1) * uint(ScreenSize.x) * 128 / uint(DisplayRect.z)) - Placement.x * 256;
+	const int PictureY = int((2 * Row + 1) * uint(ScreenSize.y) * 128 / uint(DisplayRect.w)) - Placement.y * 256;
+	if (PictureX < 0 || PictureY < 0 || PictureX >= Placement.z * 256 || PictureY >= Placement.w * 256)
+	{
+		discard;
+	}
+	const int GridX = 4 * (PictureX - 128);
+	const int GridY = 4 * (PictureY - 128);
+	const int4 WeightsX = CatmullRom(GridX & 255);
+	const int4 WeightsY = CatmullRom(GridY & 255);
+	int3 Sum = int3(0, 0, 0);
+	[unroll]
+	for (int TapY = 0; TapY < 4; ++TapY)
+	{
+		const int TapRow = (GridY >> 8) - 1 + TapY;
+		int3 RowSum = int3(0, 0, 0);
+		[unroll]
+		for (int TapX = 0; TapX < 4; ++TapX)
+		{
+			RowSum += WeightsX[TapX] * ClampedAt((GridX >> 8) - 1 + TapX, TapRow).xyz;
+		}
+		Sum += WeightsY[TapY] * int3(DivideRounded(RowSum.x, WEIGHT_ONE), DivideRounded(RowSum.y, WEIGHT_ONE), DivideRounded(RowSum.z, WEIGHT_ONE));
+	}
+	const int Y = DivideRounded(Sum.x, WEIGHT_ONE);
+	const int Blue = DivideRounded(Sum.y, WEIGHT_ONE);
+	const int Red = DivideRounded(Sum.z, WEIGHT_ONE);
+	const int3 Rgb = int3(ToUnsigned8(Y + ((359 * Red + 128) >> 8)), ToUnsigned8(Y + ((-88 * Blue - 183 * Red + 128) >> 8)), ToUnsigned8(Y + ((454 * Blue + 128) >> 8)));
+	return float4(Rgb / 255.0, 1.0);
+}

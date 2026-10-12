@@ -1,0 +1,96 @@
+#pragma once
+
+#include "Foundation/Types.h"
+#include "Game/PlayerSettings.h"
+#include "Input/ButtonGlyphs.h"
+
+#include <array>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace Weltall
+{
+	/** The options screen's pages: the four L1 and R1 turn through, then the fixes' own list, opened from Fixes. */
+	enum class ESettingsPage : uint8
+	{
+		Display,
+		Sound,
+		Camera,
+		Fixes,
+		Custom,
+	};
+
+	/** How many pages L1 and R1 turn through, from Display. */
+	inline constexpr int32 TurnedSettingsPages = 4;
+
+	/** The fixes' presets: every fix on (the default), every fix off, or the player's own choice of each. */
+	enum class EFixesPreset : uint8
+	{
+		PortEnhancements,
+		Original,
+		Custom,
+	};
+
+	/** What a row does when confirmed. */
+	enum class ESettingsAction : uint8
+	{
+		/** Nothing: the row is changed with Left and Right. */
+		None,
+		/** The fixes' own list opens. */
+		OpenCustom,
+		/** The row put its settings back to their defaults. */
+		Reset,
+	};
+
+	/** A row of a page as the screen shows it: its label and value, and three lines on what it does. */
+	struct FSettingsRow
+	{
+		std::string Label;
+		std::string Value;
+		std::array<std::string, 3> Help{};
+		/** A heading over the rows after it, which the cursor passes over. */
+		bool bHeading = false;
+		/** A row shown as it is, which the cursor passes over too. */
+		bool bReadOnly = false;
+		/** Keys shown as their pictures in the value's place, side by side (an empty Icon a free place); none for a value. */
+		std::vector<FButtonGlyph> Cells{};
+	};
+
+	/**
+	 * The options screen's pages over the player's settings: what each row shows, and what Left, Right and
+	 * Confirm do to the settings there. The screen keeps nothing else, except whether the player has picked
+	 * Custom while the fixes still match a preset (the preset shown is otherwise read from the fixes).
+	 */
+	class FSettingsPages
+	{
+	public:
+		WELTALLCORE_API static std::string_view Title(ESettingsPage Page);
+		/** The page's rows; the Display page has its window size's row only where Modes offers sizes. */
+		WELTALLCORE_API static int32 RowCount(ESettingsPage Page, const FDisplayModes& Modes = {});
+
+		/** Row of Page as Settings has it; bCustomPicked shows the Fixes page's preset as Custom whatever the fixes. */
+		WELTALLCORE_API static FSettingsRow Row(ESettingsPage Page, int32 Row, const FPlayerSettings& Settings, bool bCustomPicked = false,
+			const FDisplayModes& Modes = {});
+
+		/**
+		 * Left (-1) or Right (+1) on a row: its setting moved to the previous or next choice, wrapping, a
+		 * number stepped within its range. False where nothing changed. On the preset row, Custom keeps the
+		 * fixes as they are and sets bCustomPicked; the other two set every fix and clear it. The window's
+		 * size goes to the next smaller or larger of Modes', from the window's own until one is chosen.
+		 */
+		WELTALLCORE_API static bool Step(ESettingsPage Page, int32 Row, int32 Direction, FPlayerSettings& Settings, bool& bCustomPicked,
+			const FDisplayModes& Modes = {});
+
+		/** Confirm on a row. */
+		WELTALLCORE_API static ESettingsAction Activate(ESettingsPage Page, int32 Row, FPlayerSettings& Settings, bool bCustomPicked);
+
+		/** The preset the fixes match, Custom when they match neither. */
+		WELTALLCORE_API static EFixesPreset Preset(const FGameFixes& Fixes);
+		/** Every fix as the preset has it (Custom changes nothing). */
+		WELTALLCORE_API static void ApplyPreset(EFixesPreset Preset, FGameFixes& Fixes);
+
+		/** The fixes the Custom page lists, each once. */
+		WELTALLCORE_API static int32 FixCount();
+	};
+}

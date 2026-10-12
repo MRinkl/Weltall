@@ -1,0 +1,16 @@
+// The arena's demonstration: the frame before drawn under the next, as its sprites copy the other draw buffer, each 5-bit
+// channel at 70h/80h of its value; a black pixel is a texel of 0, which the GPU leaves out.
+
+#include "/Engine/Public/Platform.ush"
+
+Texture2D Source;
+
+float4 MainPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const float3 Five = floor(saturate(Source.Load(int3(SvPosition.xy, 0)).rgb) * 31.0 + 0.5);
+	if (all(Five == 0.0))
+	{
+		discard;
+	}
+	return float4(floor(Five * 112.0 / 128.0) / 31.0, 1.0);
+}

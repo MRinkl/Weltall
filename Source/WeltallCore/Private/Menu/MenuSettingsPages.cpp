@@ -1,0 +1,481 @@
+#include "Menu/MenuSettingsPages.h"
+
+#include "Menu/OptionsText.h"
+
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+namespace Weltall
+{
+	namespace
+	{
+		namespace FixGroup = OptionsText::FixGroups;
+		namespace FixText = OptionsText::Fix;
+
+		/** A fix the Custom page lists: the heading it shows under, its words, and its switch. */
+		struct FFixEntry
+		{
+			std::string_view Group;
+			const OptionsText::FRow& Text;
+			bool& (*Switch)(FGameFixes&);
+		};
+
+		// The fixes by where they show, each group's heading the first entry's Group.
+		const std::array<FFixEntry, 62> FixTable = {{
+			{FixGroup::Field, FixText::HpRecovery, [](FGameFixes& F) -> bool& { return F.Field.bRecoverPartyHpGivesHp; }},
+			{FixGroup::Field, FixText::InstantFades, [](FGameFixes& F) -> bool& { return F.Field.bZeroFrameFadeSnaps; }},
+			{FixGroup::Field, FixText::SlowFades, [](FGameFixes& F) -> bool& { return F.Field.bFadesRiseFromBlack; }},
+			{FixGroup::Field, FixText::MovieMapChange, [](FGameFixes& F) -> bool& { return F.Field.bChangeMapWaitsWhole; }},
+			{FixGroup::Field, FixText::GearAnimations, [](FGameFixes& F) -> bool& { return F.Field.bGearChannelPoolGrows; }},
+			{FixGroup::Field, FixText::ScrollingTextures, [](FGameFixes& F) -> bool& { return F.Field.bScrollsWrapWithinWidth; }},
+			{FixGroup::Field, FixText::EntryCamera, [](FGameFixes& F) -> bool& { return F.Field.bInitTurnSetsTurningYaw; }},
+			{FixGroup::Field, FixText::ScreenShakes, [](FGameFixes& F) -> bool& { return F.Field.bShakeDepthFromItsOwn; }},
+			{FixGroup::Field, FixText::Ladders, [](FGameFixes& F) -> bool& { return F.Field.bLadderOnlyWithItsAnimation; }},
+			{FixGroup::Field, FixText::BledavikHotel, [](FGameFixes& F) -> bool& { return F.Field.bHotelCountsWholeParty; }},
+			{FixGroup::Field, FixText::RamsusShip, [](FGameFixes& F) -> bool& { return F.Field.bShipSoundsAtTheirVolume; }},
+			{FixGroup::Field, FixText::LacanMemories, [](FGameFixes& F) -> bool& { return F.Field.bMemoryAmbienceFades; }},
+			{FixGroup::Field, FixText::WidescreenCharacters, [](FGameFixes& F) -> bool& { return F.Field.bActorsRunInWideView; }},
+			{FixGroup::Field, FixText::PartySprites, [](FGameFixes& F) -> bool& { return F.Field.bPartySpritesFollowTheirFile; }},
+			{FixGroup::Field, FixText::RpsHelp, [](FGameFixes& F) -> bool& { return F.Field.bRpsHelper; }},
+			{FixGroup::Field, FixText::ScenePictures, [](FGameFixes& F) -> bool& { return F.Field.bScenePictures; }},
+			{FixGroup::Field, FixText::WidescreenStaging, [](FGameFixes& F) -> bool& { return F.Field.bWideViewStaging; }},
+			{FixGroup::Field, FixText::SwimStroke, [](FGameFixes& F) -> bool& { return F.Field.bSwimStrokeAfterWading; }},
+			{FixGroup::Field, FixText::MoonGlow, [](FGameFixes& F) -> bool& { return F.Field.bMoonGlowFades; }},
+			{FixGroup::Sound, FixText::SilentSongs, [](FGameFixes& F) -> bool& { return F.Music.bStartOnlyForItsSong; }},
+			{FixGroup::Sound, FixText::SoundPanning, [](FGameFixes& F) -> bool& { return F.SoundDriver.bPanSlidesEndOnTarget; }},
+			{FixGroup::Sound, FixText::HighNotes, [](FGameFixes& F) -> bool& { return F.SoundDriver.bHighNotesStayHigh; }},
+			{FixGroup::Loading, FixText::GearWeight, [](FGameFixes& F) -> bool& { return F.Load.bPenaltyFromSavedTolerance; }},
+			{FixGroup::Loading, FixText::GearDeathblows, [](FGameFixes& F) -> bool& { return F.Load.bDeathblowsFromGearInUse; }},
+			{FixGroup::Menus, FixText::AgilityShown, [](FGameFixes& F) -> bool& { return F.Menu.bAgilityShownCapped; }},
+			{FixGroup::Menus, FixText::DeathblowBar, [](FGameFixes& F) -> bool& { return F.Menu.bDeathblowBarWhole; }},
+			{FixGroup::Menus, FixText::BillyAmmo, [](FGameFixes& F) -> bool& { return F.Menu.bAmmunitionKept; }},
+			{FixGroup::Menus, FixText::EtherHealing, [](FGameFixes& F) -> bool& { return F.Menu.bEtherHealsAsBattle; }},
+			{FixGroup::Menus, FixText::FixFrameHp, [](FGameFixes& F) -> bool& { return F.Menu.bGearRepairOwnGear; }},
+			{FixGroup::Menus, FixText::NamesEndingInS, [](FGameFixes& F) -> bool& { return F.Menu.bNamesKeepTrailingS; }},
+			{FixGroup::Menus, FixText::GearShopParts, [](FGameFixes& F) -> bool& { return F.Menu.bGearShopPartsAsMenu; }},
+			{FixGroup::Menus, FixText::GearShopPace, [](FGameFixes& F) -> bool& { return F.Menu.bGearModelFieldPace; }},
+			{FixGroup::Menus, FixText::SellingEquipped, [](FGameFixes& F) -> bool& { return F.Menu.bSaleRecomputesEquipment; }},
+			{FixGroup::Menus, FixText::NewGameClock, [](FGameFixes& F) -> bool& { return F.Menu.bNewGameClockFromZero; }},
+			{FixGroup::Battle, FixText::InfinityChance, [](FGameFixes& F) -> bool& { return F.BattleRules.bInfinityByDamageAlone; }},
+			{FixGroup::Battle, FixText::ItemBuffs, [](FGameFixes& F) -> bool& { return F.BattleRules.bItemBuffsByItsUser; }},
+			{FixGroup::Battle, FixText::EpAtLevel99, [](FGameFixes& F) -> bool& { return F.BattleRules.bEpGrowsAtLastLevel; }},
+			{FixGroup::Battle, FixText::EtherBuffs, [](FGameFixes& F) -> bool& { return F.BattleRules.bEtherBuffsSetDirectly; }},
+			{FixGroup::Battle, FixText::BuffsWearOff, [](FGameFixes& F) -> bool& { return F.BattleRules.bEveryBuffExpires; }},
+			{FixGroup::Battle, FixText::DefUpOnFoot, [](FGameFixes& F) -> bool& { return F.BattleRules.bDefUpOnFoot; }},
+			{FixGroup::Battle, FixText::DefDownOnFoot, [](FGameFixes& F) -> bool& { return F.BattleRules.bDefDownOnFoot; }},
+			{FixGroup::Battle, FixText::MissedStatusMoves, [](FGameFixes& F) -> bool& { return F.BattleRules.bFailedStatusKeepsCount; }},
+			{FixGroup::Battle, FixText::ImmunityItems, [](FGameFixes& F) -> bool& { return F.BattleRules.bImmunityItemsWork; }},
+			{FixGroup::Battle, FixText::GearElements, [](FGameFixes& F) -> bool& { return F.BattleRules.bGearElementsExpire; }},
+			{FixGroup::Battle, FixText::GearStop, [](FGameFixes& F) -> bool& { return F.BattleRules.bGearStopEnds; }},
+			{FixGroup::Battle, FixText::GearPowerLoss, [](FGameFixes& F) -> bool& { return F.BattleRules.bGearPowerLoss; }},
+			{FixGroup::Battle, FixText::LargeGearNumbers, [](FGameFixes& F) -> bool& { return F.BattleRules.bWholeAmounts; }},
+			{FixGroup::Battle, FixText::Counters, [](FGameFixes& F) -> bool& { return F.BattleRules.bCounterKeepsGroupAttack; }},
+			{FixGroup::Battle, FixText::LastBossHp, [](FGameFixes& F) -> bool& { return F.BattleRules.bDeusSecondFormHp; }},
+			{FixGroup::Battle, FixText::HiddenEnemies, [](FGameFixes& F) -> bool& { return F.BattleRules.bRevealKeepsGroup; }},
+			{FixGroup::Battle, FixText::WeaponTrails, [](FGameFixes& F) -> bool& { return F.BattleShow.bTrailsBlend; }},
+			{FixGroup::Battle, FixText::SpellLighting, [](FGameFixes& F) -> bool& { return F.BattleShow.bUnlitModelsTakeStageLight; }},
+			{FixGroup::Battle, FixText::StageColors, [](FGameFixes& F) -> bool& { return F.BattleShow.bTintKeepsStagePalettes; }},
+			{FixGroup::Battle, FixText::BattleEvents, [](FGameFixes& F) -> bool& { return F.BattleEvents.bWaitedStartNamesActor; }},
+			{FixGroup::Battle, FixText::EventDefeats, [](FGameFixes& F) -> bool& { return F.BattleEvents.bUnscriptedDefeatIsLost; }},
+			{FixGroup::WorldMap, FixText::Landmarks, [](FGameFixes& F) -> bool& { return F.WorldMap.bStoryObjectBackAfterBattle; }},
+			{FixGroup::WorldMap, FixText::SeaBlastSound, [](FGameFixes& F) -> bool& { return F.WorldMap.bScene14SweepHeard; }},
+			{FixGroup::WorldMap, FixText::MahanonFalls, [](FGameFixes& F) -> bool& { return F.WorldMap.bScene18EffectsWait; }},
+			{FixGroup::WorldMap, FixText::OverlappingTrees, [](FGameFixes& F) -> bool& { return F.WorldMap.bTreesInDepthOrder; }},
+			{FixGroup::Arena, FixText::CpuRangedMoves, [](FGameFixes& F) -> bool& { return F.Battling.bRangedMovesByOwnState; }},
+			{FixGroup::Arena, FixText::PracticeOpponents, [](FGameFixes& F) -> bool& { return F.Battling.bPracticeComputerAtStyleLevel; }},
+			{FixGroup::Arena, FixText::PracticeFrameRate, [](FGameFixes& F) -> bool& { return F.Battling.bPracticeFrameRateAsLabelled; }},
+		}};
+
+		/** A fix's switch as the fixes have it (the table's accessors take the fixes to change). */
+		bool IsOn(const FFixEntry& Fix, const FGameFixes& Of)
+		{
+			return Fix.Switch(const_cast<FGameFixes&>(Of));
+		}
+
+		/** The Custom page's rows: a heading before each group (-1 - its first fix), then each fix by its index. */
+		const std::vector<int32>& CustomRows()
+		{
+			static const std::vector<int32> Rows = []
+			{
+				std::vector<int32> Made;
+				for (int32 Fix = 0; Fix < static_cast<int32>(FixTable.size()); ++Fix)
+				{
+					if (Fix == 0 || FixTable[static_cast<std::size_t>(Fix)].Group != FixTable[static_cast<std::size_t>(Fix - 1)].Group)
+					{
+						Made.push_back(-1 - Fix);
+					}
+					Made.push_back(Fix);
+				}
+				return Made;
+			}();
+			return Rows;
+		}
+
+		/** A row's setting among choices named in order. */
+		template <typename TEnum>
+		bool StepChoice(TEnum& Value, int32 Direction, int32 Count)
+		{
+			Value = static_cast<TEnum>((static_cast<int32>(Value) + Direction + Count) % Count);
+			return true;
+		}
+
+		template <typename TEnum, std::size_t Count>
+		std::string ChoiceName(TEnum Value, const std::array<std::string_view, Count>& Names)
+		{
+			return std::string(Names[static_cast<std::size_t>(Value)]);
+		}
+
+		std::string OnOff(bool bOn)
+		{
+			return std::string(bOn ? OptionsText::On : OptionsText::Off);
+		}
+
+		/** A row as the screen shows it: the words' label and help, and its value. */
+		FSettingsRow Shown(const OptionsText::FRow& Text, std::string Value)
+		{
+			return {std::string(Text.Label), std::move(Value), OptionsText::Fill(Text.Help)};
+		}
+
+		namespace Sound
+		{
+			enum : int32 { Output, InBackground, Count };
+		}
+
+		namespace Display
+		{
+			enum : int32 { FullScreen, WindowSize, Aspect, Sorting, SceneryFilter, SpriteFilter, MovieFilter, AntiAliasing, Culling, Pilots, Gears, ChapterCards, TextSpeed, BattleSpeed,
+				BackgroundPause, Count };
+
+			/** The window's rows (full screen, its size) are not there where the game has no window of its own: the rows after them move up. */
+			int32 Hidden(const FDisplayModes& Modes)
+			{
+				return Modes.WindowSizes.empty() ? Aspect : 0;
+			}
+
+			/** The size shown: the player's choice, the window's own until there is one. */
+			FDisplaySize ShownSize(const FPlayerSettings& Settings, const FDisplayModes& Modes)
+			{
+				return Settings.Display.WindowSize.IsSet() ? Settings.Display.WindowSize : Modes.Window;
+			}
+		}
+
+		namespace Camera
+		{
+			enum : int32 { Zoom, Tilt, YieldsToScenes, Follow, Reset, Count };
+			/** The zoom in whole percent, a step of 5; the tilt in whole degrees. */
+			constexpr int32 ZoomStep = 5;
+		}
+
+		int32 ZoomPercent(float Zoom)
+		{
+			return static_cast<int32>(std::lround(Zoom * 100.0f));
+		}
+	}
+
+	std::string_view FSettingsPages::Title(ESettingsPage Page)
+	{
+		switch (Page)
+		{
+		case ESettingsPage::Display:
+			return OptionsText::Titles::Display;
+		case ESettingsPage::Sound:
+			return OptionsText::Titles::Sound;
+		case ESettingsPage::Camera:
+			return OptionsText::Titles::Camera;
+		case ESettingsPage::Fixes:
+			return OptionsText::Titles::Fixes;
+		case ESettingsPage::Custom:
+			return OptionsText::Titles::CustomFixes;
+		}
+		return {};
+	}
+
+	int32 FSettingsPages::RowCount(ESettingsPage Page, const FDisplayModes& Modes)
+	{
+		switch (Page)
+		{
+		case ESettingsPage::Display:
+			return Display::Count - Display::Hidden(Modes);
+		case ESettingsPage::Sound:
+			return Sound::Count;
+		case ESettingsPage::Camera:
+			return Camera::Count;
+		case ESettingsPage::Fixes:
+			return 1;
+		case ESettingsPage::Custom:
+			return static_cast<int32>(CustomRows().size());
+		}
+		return 0;
+	}
+
+	FSettingsRow FSettingsPages::Row(ESettingsPage Page, int32 Row, const FPlayerSettings& Settings, bool bCustomPicked, const FDisplayModes& Modes)
+	{
+		namespace Text = OptionsText;
+		switch (Page)
+		{
+		case ESettingsPage::Display:
+			switch (Row + Display::Hidden(Modes))
+			{
+			case Display::FullScreen:
+				return Shown(Text::Display::FullScreen, OnOff(Settings.Display.bFullScreen));
+			case Display::WindowSize:
+			{
+				const FDisplaySize Size = Display::ShownSize(Settings, Modes);
+				return Shown(Text::Display::Resolution, Text::Fill(Text::Display::ResolutionValue, {std::to_string(Size.Width), std::to_string(Size.Height)}));
+			}
+			case Display::Aspect:
+				return Shown(Text::Display::Aspect, ChoiceName(Settings.Display.Aspect, Text::Display::AspectValues));
+			case Display::Sorting:
+				return Shown(Text::Display::Sorting, ChoiceName(Settings.Field.Sorting, Text::Display::SortingValues));
+			case Display::SceneryFilter:
+				return Shown(Text::Display::SceneryFilter, ChoiceName(Settings.Field.Filter, Text::Display::FilterValues));
+			case Display::SpriteFilter:
+				return Shown(Text::Display::SpriteFilter, ChoiceName(Settings.Field.SpriteFilter, Text::Display::FilterValues));
+			case Display::MovieFilter:
+				return Shown(Text::Display::MovieFilter, ChoiceName(Settings.Field.MovieFilter, Text::Display::MovieFilterValues));
+			case Display::AntiAliasing:
+				return Shown(Text::Display::AntiAliasing, ChoiceName(Settings.Field.AntiAliasing, Text::Display::AntiAliasingValues));
+			case Display::Culling:
+				return Shown(Text::Display::Culling, ChoiceName(Settings.Field.Culling, Text::Display::CullingValues));
+			case Display::Pilots:
+				return Shown(Text::Display::Pilots, std::string(Text::Display::PilotsValues[Settings.Field.bDetailedPilots ? 0 : 1]));
+			case Display::Gears:
+				return Shown(Text::Display::Gears, ChoiceName(Settings.Field.GearModels, Text::Display::GearsValues));
+			case Display::ChapterCards:
+				return Shown(Text::Display::ChapterCards, OnOff(Settings.bChapterCards));
+			case Display::TextSpeed:
+				return Shown(Text::Display::TextSpeed, ChoiceName(Settings.TextSpeed, Text::Display::TextSpeedValues));
+			case Display::BattleSpeed:
+				return Shown(Text::Display::BattleSpeed, ChoiceName(Settings.BattleSpeed, Text::Display::BattleSpeedValues));
+			default:
+				return Shown(Text::Display::PauseInBackground, OnOff(Settings.Display.bPauseInBackground));
+			}
+		case ESettingsPage::Sound:
+			if (Row == Sound::InBackground)
+			{
+				return Shown(Text::Sound::InBackground, OnOff(Settings.Display.bSoundInBackground));
+			}
+			return Shown(Text::Sound::Output, ChoiceName(Settings.SoundOutput, Text::Sound::OutputValues));
+		case ESettingsPage::Camera:
+			switch (Row)
+			{
+			case Camera::Zoom:
+				return Shown(Text::Camera::Zoom, Text::Fill(Text::Camera::ZoomValue, {std::to_string(ZoomPercent(Settings.Camera.Zoom))}));
+			case Camera::Tilt:
+			{
+				const int32 Degrees = static_cast<int32>(std::lround(Settings.Camera.Tilt));
+				return Shown(Text::Camera::Tilt, (Degrees > 0 ? "+" : "") + std::to_string(Degrees));
+			}
+			case Camera::YieldsToScenes:
+				return Shown(Text::Camera::Scenes, std::string(Text::Camera::ScenesValues[Settings.Camera.bYieldsToScenes ? 0 : 1]));
+			case Camera::Follow:
+				return Shown(Text::Camera::Follow, std::string(Text::Camera::FollowValues[Settings.Camera.bSteadyFollow ? 0 : 1]));
+			default:
+				return Shown(Text::Camera::Reset, "");
+			}
+		case ESettingsPage::Fixes:
+		{
+			const EFixesPreset Preset = bCustomPicked ? EFixesPreset::Custom : FSettingsPages::Preset(Settings.Fixes);
+			const std::size_t Index = static_cast<std::size_t>(Preset);
+			return {std::string(Text::Fixes::Label), std::string(Text::Fixes::PresetValues[Index]), Text::Fill(Text::Fixes::PresetHelp[Index])};
+		}
+		case ESettingsPage::Custom:
+		{
+			const int32 Entry = CustomRows()[static_cast<std::size_t>(Row)];
+			if (Entry < 0)
+			{
+				FSettingsRow Heading;
+				Heading.Label = std::string(FixTable[static_cast<std::size_t>(-1 - Entry)].Group);
+				Heading.bHeading = true;
+				return Heading;
+			}
+			const FFixEntry& Fix = FixTable[static_cast<std::size_t>(Entry)];
+			return Shown(Fix.Text, std::string(IsOn(Fix, Settings.Fixes) ? Text::Fixes::FixOn : Text::Fixes::FixOff));
+		}
+		}
+		return {};
+	}
+
+	bool FSettingsPages::Step(ESettingsPage Page, int32 Row, int32 Direction, FPlayerSettings& Settings, bool& bCustomPicked, const FDisplayModes& Modes)
+	{
+		switch (Page)
+		{
+		case ESettingsPage::Display:
+			switch (Row + Display::Hidden(Modes))
+			{
+			case Display::FullScreen:
+				Settings.Display.bFullScreen = !Settings.Display.bFullScreen;
+				return true;
+			case Display::WindowSize:
+			{
+				// The size shown need not be one of the display's: the next one past it, round to the other end past the last.
+				const std::vector<FDisplaySize>& Sizes = Modes.WindowSizes;
+				const FDisplaySize Shown = Display::ShownSize(Settings, Modes);
+				FDisplaySize Next = Direction > 0 ? Sizes.front() : Sizes.back();
+				if (Direction > 0)
+				{
+					const auto Larger = std::upper_bound(Sizes.begin(), Sizes.end(), Shown);
+					Next = Larger != Sizes.end() ? *Larger : Next;
+				}
+				else
+				{
+					const auto NotSmaller = std::lower_bound(Sizes.begin(), Sizes.end(), Shown);
+					Next = NotSmaller != Sizes.begin() ? *(NotSmaller - 1) : Next;
+				}
+				if (Next == Settings.Display.WindowSize)
+				{
+					return false;
+				}
+				Settings.Display.WindowSize = Next;
+				return true;
+			}
+			case Display::Aspect:
+				return StepChoice(Settings.Display.Aspect, Direction, 3);
+			case Display::Sorting:
+				return StepChoice(Settings.Field.Sorting, Direction, 3);
+			case Display::SceneryFilter:
+				return StepChoice(Settings.Field.Filter, Direction, 4);
+			case Display::SpriteFilter:
+				return StepChoice(Settings.Field.SpriteFilter, Direction, 4);
+			case Display::MovieFilter:
+				return StepChoice(Settings.Field.MovieFilter, Direction, 2);
+			case Display::AntiAliasing:
+				return StepChoice(Settings.Field.AntiAliasing, Direction, 3);
+			case Display::Culling:
+				return StepChoice(Settings.Field.Culling, Direction, 2);
+			case Display::Pilots:
+				Settings.Field.bDetailedPilots = !Settings.Field.bDetailedPilots;
+				return true;
+			case Display::Gears:
+				return StepChoice(Settings.Field.GearModels, Direction, 3);
+			case Display::ChapterCards:
+				Settings.bChapterCards = !Settings.bChapterCards;
+				return true;
+			case Display::TextSpeed:
+				return StepChoice(Settings.TextSpeed, Direction, 4);
+			case Display::BattleSpeed:
+				return StepChoice(Settings.BattleSpeed, Direction, BattleSpeedCount);
+			default:
+				Settings.Display.bPauseInBackground = !Settings.Display.bPauseInBackground;
+				return true;
+			}
+		case ESettingsPage::Sound:
+			if (Row == Sound::InBackground)
+			{
+				Settings.Display.bSoundInBackground = !Settings.Display.bSoundInBackground;
+				return true;
+			}
+			return StepChoice(Settings.SoundOutput, Direction, 3);
+		case ESettingsPage::Camera:
+		{
+			FFieldCameraOffsets& Camera = Settings.Camera;
+			switch (Row)
+			{
+			case Camera::Zoom:
+			{
+				const int32 MinPercent = ZoomPercent(FFieldCameraOffsets::MinZoom);
+				const int32 MaxPercent = ZoomPercent(FFieldCameraOffsets::MaxZoom);
+				// A zoom between steps (the mouse's wheel) goes to the step on the side asked for.
+				const int32 Percent = ZoomPercent(Camera.Zoom);
+				const int32 Below = Percent / Camera::ZoomStep * Camera::ZoomStep;
+				const int32 Next = Direction > 0 ? Below + Camera::ZoomStep : (Below == Percent ? Below - Camera::ZoomStep : Below);
+				const int32 Stepped = std::clamp(Next, MinPercent, MaxPercent);
+				if (Stepped == Percent)
+				{
+					return false;
+				}
+				Camera.Zoom = static_cast<float>(Stepped) / 100.0f;
+				return true;
+			}
+			case Camera::Tilt:
+			{
+				const float Stepped = std::clamp(std::round(Camera.Tilt) + static_cast<float>(Direction), FFieldCameraOffsets::MinTilt, FFieldCameraOffsets::MaxTilt);
+				if (Stepped == Camera.Tilt)
+				{
+					return false;
+				}
+				Camera.Tilt = Stepped;
+				return true;
+			}
+			case Camera::YieldsToScenes:
+				Camera.bYieldsToScenes = !Camera.bYieldsToScenes;
+				return true;
+			case Camera::Follow:
+				Camera.bSteadyFollow = !Camera.bSteadyFollow;
+				return true;
+			default:
+				return false;
+			}
+		}
+		case ESettingsPage::Fixes:
+		{
+			const EFixesPreset Shown = bCustomPicked ? EFixesPreset::Custom : Preset(Settings.Fixes);
+			const EFixesPreset Next = static_cast<EFixesPreset>((static_cast<int32>(Shown) + Direction + 3) % 3);
+			ApplyPreset(Next, Settings.Fixes);
+			bCustomPicked = Next == EFixesPreset::Custom;
+			return true;
+		}
+		case ESettingsPage::Custom:
+		{
+			const int32 Entry = CustomRows()[static_cast<std::size_t>(Row)];
+			if (Entry < 0)
+			{
+				return false;
+			}
+			bool& Switch = FixTable[static_cast<std::size_t>(Entry)].Switch(Settings.Fixes);
+			Switch = !Switch;
+			return true;
+		}
+		}
+		return false;
+	}
+
+	ESettingsAction FSettingsPages::Activate(ESettingsPage Page, int32 Row, FPlayerSettings& Settings, bool bCustomPicked)
+	{
+		if (Page == ESettingsPage::Camera && Row == Camera::Reset)
+		{
+			Settings.Camera = FFieldCameraOffsets::Defaults();
+			return ESettingsAction::Reset;
+		}
+		if (Page == ESettingsPage::Fixes && (bCustomPicked || Preset(Settings.Fixes) == EFixesPreset::Custom))
+		{
+			return ESettingsAction::OpenCustom;
+		}
+		return ESettingsAction::None;
+	}
+
+	EFixesPreset FSettingsPages::Preset(const FGameFixes& Fixes)
+	{
+		FGameFixes Enhanced;
+		FGameFixes Original;
+		ApplyPreset(EFixesPreset::Original, Original);
+		const auto Matches = [&Fixes](const FGameFixes& Preset)
+		{
+			return std::all_of(FixTable.begin(), FixTable.end(), [&](const FFixEntry& Fix) { return IsOn(Fix, Fixes) == IsOn(Fix, Preset); });
+		};
+		if (Matches(Enhanced))
+		{
+			return EFixesPreset::PortEnhancements;
+		}
+		return Matches(Original) ? EFixesPreset::Original : EFixesPreset::Custom;
+	}
+
+	void FSettingsPages::ApplyPreset(EFixesPreset Preset, FGameFixes& Fixes)
+	{
+		if (Preset == EFixesPreset::Custom)
+		{
+			return;
+		}
+		const FGameFixes Enhanced;
+		for (const FFixEntry& Fix : FixTable)
+		{
+			Fix.Switch(Fixes) = Preset == EFixesPreset::PortEnhancements && IsOn(Fix, Enhanced);
+		}
+	}
+
+	int32 FSettingsPages::FixCount()
+	{
+		return static_cast<int32>(FixTable.size());
+	}
+}

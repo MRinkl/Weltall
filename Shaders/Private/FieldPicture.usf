@@ -1,0 +1,52 @@
+// Draws a picture already drawn at the display's resolution again, over quads: the field's picture of
+// the screen (scaled about the screen's centre, faded by its brightness, added or opaque) and the
+// screen wave's grid (each cell showing its own piece of the scene drawn so far), and the battle's
+// opening transitions (each triangle its piece of the picture, each corner at its own brightness). Positions and the
+// places they show are in one space each, which Placement and SourcePlacement map to target pixels
+// and to the picture's UVs.
+
+#include "/Engine/Public/Platform.ush"
+
+// Each vertex: where it is drawn (xy) and which place of the picture it shows (zw).
+StructuredBuffer<float4> Vertices;
+// Maps a vertex's position to target pixels (scale xy, offset zw), and its place to the picture's UV.
+float4 Placement;
+float4 SourcePlacement;
+float2 TargetSize;
+// Each vertex's own modulation of the texels, when the picture has them.
+StructuredBuffer<float> Shades;
+uint bShaded;
+
+Texture2D Source;
+SamplerState SourceSampler;
+// The texels' modulation: brightness / 128.
+float ColorScale;
+// An opaque picture lets through its black pixels, as the GPU does its texel 0.
+uint bBlackIsTransparent;
+// The alpha written, which a picture averaged with what lies behind it blends by.
+float OutputAlpha;
+
+void MainVS(
+	uint VertexId : SV_VertexID,
+	out float4 OutPosition : SV_POSITION,
+	noperspective out float2 OutUv : TEXCOORD0,
+	noperspective out float OutShade : TEXCOORD1)
+{
+	const float4 Vertex = Vertices[VertexId];
+	const float2 Pixel = Vertex.xy * Placement.xy + Placement.zw;
+	const float2 Ndc = Pixel / TargetSize * 2.0 - 1.0;
+	OutPosition = float4(Ndc.x, -Ndc.y, 0.0, 1.0);
+	OutUv = Vertex.zw * SourcePlacement.xy + SourcePlacement.zw;
+	OutShade = bShaded != 0 ? Shades[VertexId] : 1.0;
+}
+
+float4 MainPS(float4 SvPosition : SV_POSITION, noperspective float2 Uv : TEXCOORD0, noperspective float Shade : TEXCOORD1) : SV_Target0
+{
+	const float3 Texel = Source.SampleLevel(SourceSampler, Uv, 0).rgb;
+	// The frame buffer's 5 bits a channel: a pixel whose channels all round down to 0 there is its black.
+	if (bBlackIsTransparent != 0 && all(Texel < 8.0 / 255.0))
+	{
+		discard;
+	}
+	return float4(saturate(Texel * ColorScale * Shade), OutputAlpha);
+}

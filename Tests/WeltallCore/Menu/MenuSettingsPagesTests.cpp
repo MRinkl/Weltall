@@ -1,0 +1,374 @@
+#include "Menu/MenuSettingsPages.h"
+#include "Menu/OptionsText.h"
+#include "Support/GameDiscs.h"
+#include "Support/GameText.h"
+#include "Text/MesGlyphs.h"
+
+#include <catch_amalgamated.hpp>
+
+#include <set>
+#include <sstream>
+
+using namespace Weltall;
+
+namespace
+{
+	constexpr std::array<ESettingsPage, 5> Pages = {ESettingsPage::Display, ESettingsPage::Sound, ESettingsPage::Camera, ESettingsPage::Fixes,
+		ESettingsPage::Custom};
+	namespace Text = OptionsText;
+
+	/** The settings text's lines that name a fix, as "key = value". */
+	std::set<std::string> FixLines(const FPlayerSettings& Settings)
+	{
+		std::set<std::string> Lines;
+		std::istringstream Text(WritePlayerSettings(Settings));
+		for (std::string Line; std::getline(Text, Line);)
+		{
+			if (Line.rfind("fix.", 0) == 0)
+			{
+				Lines.insert(Line);
+			}
+		}
+		return Lines;
+	}
+
+	/** A display's sizes, the widest a row need show among them, and a window of none of them. */
+	const FDisplayModes WideDisplay{{{1280, 720}, {1920, 1080}, {3840, 2160}, {7680, 4320}}, {1600, 900}};
+
+	int32 CustomRowOfFix(int32 Fix)
+	{
+		int32 Seen = 0;
+		for (int32 Row = 0; Row < FSettingsPages::RowCount(ESettingsPage::Custom); ++Row)
+		{
+			if (!FSettingsPages::Row(ESettingsPage::Custom, Row, {}).bHeading && Seen++ == Fix)
+			{
+				return Row;
+			}
+		}
+		return -1;
+	}
+}
+
+TEST_CASE("The fixes' list holds every fix the settings keep, each once", "[Menu]")
+{
+	const FPlayerSettings Defaults;
+	const std::set<std::string> Before = FixLines(Defaults);
+	REQUIRE(static_cast<int32>(Before.size()) == FSettingsPages::FixCount());
+	std::set<std::string> Changed;
+	for (int32 Fix = 0; Fix < FSettingsPages::FixCount(); ++Fix)
+	{
+		FPlayerSettings Settings;
+		bool bCustomPicked = false;
+		const int32 Row = CustomRowOfFix(Fix);
+		REQUIRE(Row >= 0);
+		REQUIRE(FSettingsPages::Step(ESettingsPage::Custom, Row, 1, Settings, bCustomPicked));
+		// One line of the text changes, and no other fix's.
+		const std::set<std::string> After = FixLines(Settings);
+		std::vector<std::string> Different;
+		for (const std::string& Line : After)
+		{
+			if (!Before.contains(Line))
+			{
+				Different.push_back(Line.substr(0, Line.find(' ')));
+			}
+		}
+		REQUIRE(Different.size() == 1);
+		Changed.insert(Different.front());
+	}
+	CHECK(static_cast<int32>(Changed.size()) == FSettingsPages::FixCount());
+}
+
+TEST_CASE("The fixes' preset is read from the fixes and sets them", "[Menu]")
+{
+	FPlayerSettings Settings;
+	CHECK(FSettingsPages::Preset(Settings.Fixes) == EFixesPreset::PortEnhancements);
+	CHECK(FSettingsPages::Row(ESettingsPage::Fixes, 0, Settings).Value == Text::Fixes::PresetValues[0]);
+
+	// Right: Original, every fix off.
+	bool bCustomPicked = false;
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Fixes, 0, 1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Preset(Settings.Fixes) == EFixesPreset::Original);
+	for (const std::string& Line : FixLines(Settings))
+	{
+		CHECK(Line.ends_with("= false"));
+	}
+	CHECK(FSettingsPages::Activate(ESettingsPage::Fixes, 0, Settings, bCustomPicked) == ESettingsAction::None);
+
+	// Right again: Custom keeps the fixes as they were and opens their list.
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Fixes, 0, 1, Settings, bCustomPicked));
+	CHECK(bCustomPicked);
+	CHECK(FSettingsPages::Preset(Settings.Fixes) == EFixesPreset::Original);
+	CHECK(FSettingsPages::Row(ESettingsPage::Fixes, 0, Settings, bCustomPicked).Value == Text::Fixes::PresetValues[2]);
+	CHECK(FSettingsPages::Activate(ESettingsPage::Fixes, 0, Settings, bCustomPicked) == ESettingsAction::OpenCustom);
+
+	// And round to Port Enhancements: every fix as a new player's, the gear shop's pace among them off.
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Fixes, 0, 1, Settings, bCustomPicked));
+	CHECK_FALSE(bCustomPicked);
+	CHECK(FixLines(Settings) == FixLines(FPlayerSettings{}));
+	CHECK_FALSE(Settings.Fixes.Menu.bGearModelFieldPace);
+
+	// One fix changed in the list: Custom, without picking it.
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Custom, CustomRowOfFix(0), 1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Preset(Settings.Fixes) == EFixesPreset::Custom);
+	CHECK(FSettingsPages::Row(ESettingsPage::Fixes, 0, Settings).Value == Text::Fixes::PresetValues[2]);
+	CHECK(FSettingsPages::Activate(ESettingsPage::Fixes, 0, Settings, false) == ESettingsAction::OpenCustom);
+	// Left from Custom: Original.
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Fixes, 0, -1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Preset(Settings.Fixes) == EFixesPreset::Original);
+}
+
+TEST_CASE("The fixes' list shows each fix on or as the original, under the headings of where it shows", "[Menu]")
+{
+	FPlayerSettings Settings;
+	const FSettingsRow First = FSettingsPages::Row(ESettingsPage::Custom, 0, Settings);
+	CHECK(First.bHeading);
+	CHECK(First.Label == Text::FixGroups::Field);
+	CHECK(FSettingsPages::Row(ESettingsPage::Custom, 1, Settings).Label == Text::Fix::HpRecovery.Label);
+	bool bCustomPicked = false;
+	CHECK_FALSE(FSettingsPages::Step(ESettingsPage::Custom, 0, 1, Settings, bCustomPicked));
+	const int32 Row = CustomRowOfFix(0);
+	CHECK(FSettingsPages::Row(ESettingsPage::Custom, Row, Settings).Value == Text::Fixes::FixOn);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Custom, Row, -1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Row(ESettingsPage::Custom, Row, Settings).Value == Text::Fixes::FixOff);
+	CHECK_FALSE(Settings.Fixes.Field.bRecoverPartyHpGivesHp);
+	int32 Headings = 0;
+	for (int32 At = 0; At < FSettingsPages::RowCount(ESettingsPage::Custom); ++At)
+	{
+		Headings += FSettingsPages::Row(ESettingsPage::Custom, At, Settings).bHeading ? 1 : 0;
+	}
+	CHECK(Headings == 7);
+	CHECK(FSettingsPages::RowCount(ESettingsPage::Custom) == FSettingsPages::FixCount() + Headings);
+}
+
+TEST_CASE("The options' choices wrap, and their numbers step within their ranges", "[Menu]")
+{
+	FPlayerSettings Settings;
+	bool bCustomPicked = false;
+	CHECK(FSettingsPages::Row(ESettingsPage::Sound, 0, Settings).Value == Text::Sound::OutputValues[0]);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Sound, 0, -1, Settings, bCustomPicked));
+	CHECK(Settings.SoundOutput == ESoundOutput::Mono);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Sound, 0, 1, Settings, bCustomPicked));
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Sound, 0, 1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Row(ESettingsPage::Sound, 0, Settings).Value == "Wide-Stereo");
+	CHECK(FSettingsPages::Row(ESettingsPage::Sound, 0, Settings).Label == Text::Sound::Output.Label);
+
+	// The scenery's and the sprites' filters, each its own: Sharp, Crisp, Smooth and the upscaler, round to Sharp.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 2, Settings).Label == Text::Display::SceneryFilter.Label);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 2, Settings).Value == "Sharp");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 2, -1, Settings, bCustomPicked));
+	CHECK(Settings.Field.Filter == EFieldTextureFilter::Upscaled);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 2, Settings).Value == "Upscaled");
+	CHECK(Settings.Field.SpriteFilter == EFieldTextureFilter::Nearest);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 2, 1, Settings, bCustomPicked));
+	CHECK(Settings.Field.Filter == EFieldTextureFilter::Nearest);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 3, Settings).Label == Text::Display::SpriteFilter.Label);
+	for (int32 Step = 0; Step < 3; ++Step)
+	{
+		REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 3, 1, Settings, bCustomPicked));
+	}
+	CHECK(Settings.Field.SpriteFilter == EFieldTextureFilter::Upscaled);
+	CHECK(Settings.Field.Filter == EFieldTextureFilter::Nearest);
+	Settings.Field.SpriteFilter = EFieldTextureFilter::Nearest;
+
+	// The movies: today's filter, then the upscaler, round to today's.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 4, Settings).Label == Text::Display::MovieFilter.Label);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 4, Settings).Value == "Smooth");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 4, 1, Settings, bCustomPicked));
+	CHECK(Settings.Field.MovieFilter == EMovieFilter::Upscaled);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 4, Settings).Value == "Upscaled");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 4, 1, Settings, bCustomPicked));
+	CHECK(Settings.Field.MovieFilter == EMovieFilter::Smooth);
+
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 5, 1, Settings, bCustomPicked));
+	CHECK(Settings.Field.AntiAliasing == EFieldAntiAliasing::Supersampling);
+
+	// The pilots in gears: the members' own sprites, or the map's.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 7, Settings).Label == Text::Display::Pilots.Label);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 7, Settings).Value == "Detailed");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 7, 1, Settings, bCustomPicked));
+	CHECK_FALSE(Settings.Field.bDetailedPilots);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 7, Settings).Value == "Original");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 7, -1, Settings, bCustomPicked));
+	CHECK(Settings.Field.bDetailedPilots);
+
+	// The gears the field draws as sprites: their battle models but in cutscenes (the default), their models always, their sprites.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 8, Settings).Label == Text::Display::Gears.Label);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 8, Settings).Value == "3D in play");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 8, 1, Settings, bCustomPicked));
+	CHECK(Settings.Field.GearModels == EFieldGearModels::Everywhere);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 8, Settings).Value == "3D always");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 8, 1, Settings, bCustomPicked));
+	CHECK(Settings.Field.GearModels == EFieldGearModels::Off);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 8, Settings).Value == "Original");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 8, 1, Settings, bCustomPicked));
+	CHECK(Settings.Field.GearModels == EFieldGearModels::OutsideCutscenes);
+
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 9, 1, Settings, bCustomPicked));
+	CHECK_FALSE(Settings.bChapterCards);
+
+	// The text speed: twice the original's at first; the original's, then twice, four times and a page at once, round
+	// to the original.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 10, Settings).Value == "2x");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 10, -1, Settings, bCustomPicked));
+	CHECK(Settings.TextSpeed == EMesTextSpeed::Original);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 10, Settings).Value == Text::Display::TextSpeedValues[0]);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 10, -1, Settings, bCustomPicked));
+	CHECK(Settings.TextSpeed == EMesTextSpeed::Instant);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 10, 1, Settings, bCustomPicked));
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 10, 1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 10, Settings).Value == "2x");
+
+	// The battle speed: the game's own, then twice and four times it, round to the game's own.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 11, Settings).Label == Text::Display::BattleSpeed.Label);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 11, Settings).Value == Text::Display::BattleSpeedValues[0]);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 11, 1, Settings, bCustomPicked));
+	CHECK(Settings.BattleSpeed == EBattleSpeed::Double);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 11, Settings).Value == "2x");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 11, 1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 11, Settings).Value == "4x");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 11, 1, Settings, bCustomPicked));
+	CHECK(Settings.BattleSpeed == EBattleSpeed::Normal);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 11, -1, Settings, bCustomPicked));
+	CHECK(Settings.BattleSpeed == EBattleSpeed::Quadruple);
+
+	// In the background the game stops and is silent, unless set otherwise.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 12, Settings).Value == Text::On);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 12, 1, Settings, bCustomPicked));
+	CHECK_FALSE(Settings.Display.bPauseInBackground);
+	CHECK(FSettingsPages::Row(ESettingsPage::Sound, 1, Settings).Value == Text::Off);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Sound, 1, 1, Settings, bCustomPicked));
+	CHECK(Settings.Display.bSoundInBackground);
+	CHECK(Settings.SoundOutput == ESoundOutput::WideStereo);
+
+	// The picture's shape: the window's, then 16:9 and 4:3.
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 0, Settings).Value == Text::Display::AspectValues[0]);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 0, 1, Settings, bCustomPicked));
+	CHECK(Settings.Display.Aspect == EDisplayAspect::Wide);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 0, Settings).Value == "16:9");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 0, 1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 0, Settings).Value == "4:3");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 0, 1, Settings, bCustomPicked));
+	CHECK(Settings.Display.Aspect == EDisplayAspect::Window);
+
+	// The zoom from 125% by fives, to 200% and no further; a zoom between steps goes to the step on the side asked for.
+	CHECK(FSettingsPages::Row(ESettingsPage::Camera, 0, Settings).Value == "125%");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Camera, 0, 1, Settings, bCustomPicked));
+	CHECK(Settings.Camera.Zoom == Catch::Approx(1.3f));
+	Settings.Camera.Zoom = 2.0f;
+	CHECK_FALSE(FSettingsPages::Step(ESettingsPage::Camera, 0, 1, Settings, bCustomPicked));
+	Settings.Camera.Zoom = 1.23f;
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Camera, 0, -1, Settings, bCustomPicked));
+	CHECK(Settings.Camera.Zoom == Catch::Approx(1.2f));
+	Settings.Camera.Zoom = 1.23f;
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Camera, 0, 1, Settings, bCustomPicked));
+	CHECK(Settings.Camera.Zoom == Catch::Approx(1.25f));
+
+	// The tilt by degrees, to +20; shown signed.
+	Settings.Camera.Tilt = 19.0f;
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Camera, 1, 1, Settings, bCustomPicked));
+	CHECK(FSettingsPages::Row(ESettingsPage::Camera, 1, Settings).Value == "+20");
+	CHECK_FALSE(FSettingsPages::Step(ESettingsPage::Camera, 1, 1, Settings, bCustomPicked));
+
+	// The reset: the framing a player starts with.
+	CHECK(FSettingsPages::Row(ESettingsPage::Camera, 3, Settings).Value == Text::Camera::FollowValues[0]);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Camera, 3, 1, Settings, bCustomPicked));
+	CHECK_FALSE(Settings.Camera.bSteadyFollow);
+	CHECK(FSettingsPages::Row(ESettingsPage::Camera, 3, Settings).Value == Text::Camera::FollowValues[1]);
+	CHECK(FSettingsPages::Activate(ESettingsPage::Camera, 4, Settings, false) == ESettingsAction::Reset);
+	CHECK(Settings.Camera == FFieldCameraOffsets::Defaults());
+	CHECK(FSettingsPages::Activate(ESettingsPage::Camera, 0, Settings, false) == ESettingsAction::None);
+}
+
+TEST_CASE("The window's size is chosen among the display's, from the window's own", "[Menu]")
+{
+	// No window's rows where the display offers no sizes: the page begins with the picture's shape.
+	CHECK(FSettingsPages::RowCount(ESettingsPage::Display, WideDisplay) == FSettingsPages::RowCount(ESettingsPage::Display) + 2);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 0, {}).Label == Text::Display::Aspect.Label);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 2, {}, false, WideDisplay).Label == Text::Display::Aspect.Label);
+
+	// Full screen, off at first, toggles.
+	FPlayerSettings Settings;
+	bool bCustomPicked = false;
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 0, Settings, false, WideDisplay).Label == Text::Display::FullScreen.Label);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 0, Settings, false, WideDisplay).Value == Text::Off);
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 0, 1, Settings, bCustomPicked, WideDisplay));
+	CHECK(Settings.Display.bFullScreen);
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 0, Settings, false, WideDisplay).Value == Text::On);
+	Settings.Display.bFullScreen = false;
+
+	// Until one is chosen the size's row shows the window as it is, whichever size that is, and steps from it.
+	const FSettingsRow Unchosen = FSettingsPages::Row(ESettingsPage::Display, 1, Settings, false, WideDisplay);
+	CHECK(Unchosen.Label == Text::Display::Resolution.Label);
+	CHECK(Unchosen.Value == "1600 x 900");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 1, 1, Settings, bCustomPicked, WideDisplay));
+	CHECK(Settings.Display.WindowSize == FDisplaySize{1920, 1080});
+	Settings.Display.WindowSize = {};
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 1, -1, Settings, bCustomPicked, WideDisplay));
+	CHECK(Settings.Display.WindowSize == FDisplaySize{1280, 720});
+
+	// Past either end it goes round to the other.
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 1, -1, Settings, bCustomPicked, WideDisplay));
+	CHECK(Settings.Display.WindowSize == FDisplaySize{7680, 4320});
+	CHECK(FSettingsPages::Row(ESettingsPage::Display, 1, Settings, false, WideDisplay).Value == "7680 x 4320");
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Display, 1, 1, Settings, bCustomPicked, WideDisplay));
+	CHECK(Settings.Display.WindowSize == FDisplaySize{1280, 720});
+
+	// A display with the one size, already chosen, has nothing to change to.
+	const FDisplayModes Single{{{1280, 720}}, {1280, 720}};
+	CHECK_FALSE(FSettingsPages::Step(ESettingsPage::Display, 1, 1, Settings, bCustomPicked, Single));
+	CHECK_FALSE(FSettingsPages::Step(ESettingsPage::Display, 1, -1, Settings, bCustomPicked, Single));
+}
+
+TEST_CASE("Every row's words are in the game's font and fit their places on the options screen", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const FMesResident Text = Testing::LoadMesResident(*Disc);
+	// In pixels: a row's label from its place, a gap, then its value ending at the list's inner edge; a help line in
+	// its strip's typing.
+	constexpr int32 LabelX = 0x28;
+	constexpr int32 ValueRight = 0x128;
+	constexpr int32 Gap = 8;
+	constexpr int32 HelpWidth = 0x3D * 4;
+	const auto Width = [&Text](std::string_view Words)
+	{
+		int32 Units = 0;
+		for (const char Character : Words)
+		{
+			const std::optional<FMesCode> Code = MesCodeOfCharacter(Character);
+			CHECK(Code.has_value());
+			Units += Code ? Text.Font.WidthUnits(*Code) : 0;
+		}
+		return Units * 4;
+	};
+	FPlayerSettings Settings;
+	FPlayerSettings Original;
+	FSettingsPages::ApplyPreset(EFixesPreset::Original, Original.Fixes);
+	for (const ESettingsPage Page : Pages)
+	{
+		INFO(FSettingsPages::Title(Page));
+		CHECK(Width(FSettingsPages::Title(Page)) <= ValueRight - LabelX);
+		for (int32 Row = 0; Row < FSettingsPages::RowCount(Page, WideDisplay); ++Row)
+		{
+			for (const FPlayerSettings* From : {&Settings, &Original})
+			{
+				// Each of the row's choices: four steps reach every one.
+				FPlayerSettings Shown = *From;
+				for (int32 Step = 0; Step < 5; ++Step)
+				{
+					bool bCustomPicked = false;
+					if (Step > 0 && !FSettingsPages::Step(Page, Row, 1, Shown, bCustomPicked, WideDisplay))
+					{
+						break;
+					}
+					const FSettingsRow Words = FSettingsPages::Row(Page, Row, Shown, bCustomPicked, WideDisplay);
+					INFO(std::string(Words.Label) + " = " + Words.Value);
+					CHECK(LabelX + Width(Words.Label) + Gap <= ValueRight - Width(Words.Value));
+					for (const std::string_view Line : Words.Help)
+					{
+						CHECK(Width(Line) <= HelpWidth);
+					}
+				}
+			}
+		}
+	}
+}

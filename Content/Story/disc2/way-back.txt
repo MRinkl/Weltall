@@ -1,0 +1,6 @@
+; Where a save of the expanded second disc puts the original game: for each story value the expansion plays at, the
+; original's point that matches what the player has seen and played there.
+way back
+
+; Elly on her way to the Mass Driver: the chair's narration of it, before the launch.
+story 253 to map 617 entrance 2 story 252

@@ -1,0 +1,40 @@
+// Puts pixels of a picture of the screen into VRAM as the PlayStation's copies leave them: a rectangle of
+// 16-bit units, each the 15-bit colour of one pixel of the 320 x 224 screen (its mask bit clear), drawn
+// at the brightness the screen was drawn at (the GPU's modulation of each 5-bit channel).
+
+#include "/Engine/Public/Platform.ush"
+
+// The rectangle in VRAM's units (x, y, width, height), and VRAM's size.
+float4 Rect;
+float2 VramSize;
+// The screen's pixel the rectangle's first unit holds.
+int2 ScreenOffset;
+// The copy's brightness (128 as shown), and whether there is a picture (none: black).
+uint Brightness;
+uint bHasSource;
+Texture2D Source;
+
+static const uint2 ScreenSize = uint2(320, 224);
+
+void MainVS(uint VertexId : SV_VertexID, out float4 OutPosition : SV_POSITION)
+{
+	// Two triangles, 0-1-2 and 1-3-2.
+	const uint Corners[6] = {0, 1, 2, 1, 3, 2};
+	const uint Corner = Corners[VertexId];
+	const float2 Unit = Rect.xy + float2(Corner & 1, Corner >> 1) * Rect.zw;
+	const float2 Ndc = Unit / VramSize * 2.0 - 1.0;
+	OutPosition = float4(Ndc.x, -Ndc.y, 0.0, 1.0);
+}
+
+void MainPS(float4 SvPosition : SV_POSITION, out uint OutUnit : SV_Target0)
+{
+	const int2 Pixel = int2(floor(SvPosition.xy)) - int2(Rect.xy) + ScreenOffset;
+	uint Unit = 0;
+	if (bHasSource != 0 && all(Pixel >= 0) && all(uint2(Pixel) < ScreenSize))
+	{
+		const float3 Color = saturate(Source.Load(int3(Pixel, 0)).rgb);
+		const uint3 Channels = min((uint3(round(Color * 255.0)) >> 3) * Brightness >> 7, 31u);
+		Unit = Channels.r | Channels.g << 5 | Channels.b << 10;
+	}
+	OutUnit = Unit;
+}

@@ -1,0 +1,242 @@
+#include "Game/PlayerSettings.h"
+#include "Media/PsxExecutable.h"
+#include "Menu/MenuPlay.h"
+#include "Support/GameDiscs.h"
+#include "Support/PressedKeys.h"
+
+#include <catch_amalgamated.hpp>
+
+#include <algorithm>
+#include <vector>
+
+using namespace Weltall;
+
+// The options screen (the port's) as a menu opened from a disc opens it: from the title's first orb and the Normal
+// Menu's eighth, its changes handed on as they are made and kept as it closes.
+namespace
+{
+	class FRecordedSettings final : public IMenuSettings
+	{
+	public:
+		const FPlayerSettings& Settings() const override { return Current; }
+		void Change(const FPlayerSettings& Settings) override
+		{
+			Current = Settings;
+			++Changes;
+		}
+		void Keep() override { Kept.push_back(Current); }
+		FDisplayModes DisplayModes() const override { return Display; }
+
+		FPlayerSettings Current;
+		FDisplayModes Display;
+		int32 Changes = 0;
+		std::vector<FPlayerSettings> Kept;
+	};
+
+	FPadState Holding(EPadButton Button)
+	{
+		return {FPadState::Bit(Button)};
+	}
+
+	bool Drawn(const TResult<bool>& Frame)
+	{
+		if (!Frame)
+		{
+			FAIL(Frame.Error().Message);
+		}
+		return *Frame;
+	}
+
+	/** A button pressed for a frame and let go for a few, the menu running on. */
+	void Press(FMenuPlay& Menu, EPadButton Button, int32 Frames = 8)
+	{
+		REQUIRE(Drawn(Menu.Frame(Holding(Button))));
+		for (int32 Frame = 0; Frame < Frames; ++Frame)
+		{
+			REQUIRE(Drawn(Menu.Frame({})));
+		}
+	}
+
+	void Wait(FMenuPlay& Menu, int32 Frames)
+	{
+		for (int32 Frame = 0; Frame < Frames; ++Frame)
+		{
+			REQUIRE(Drawn(Menu.Frame({})));
+		}
+	}
+}
+
+TEST_CASE("The title's first orb opens the options screen, whose changes are made at once and kept as it closes", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const auto Executable = ReadBootExecutable(*Disc);
+	REQUIRE(Executable);
+	FRecordedSettings Settings;
+	auto Play = FMenuPlay::NewGame(Disc->Image(), *Executable, 1, {EMenuMode::LoadGame, 0, false}, nullptr, &Settings);
+	REQUIRE(Play);
+	FMenuPlay& Menu = **Play;
+	Wait(Menu, 30);
+	// Down from Continue to the first orb, and Cross (the US discs' Confirm): the layer flies in.
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Cross, 40);
+	// It opens on Display; R1 turns to Sound, whose output Right sets to Wide-Stereo.
+	Press(Menu, EPadButton::R1);
+	Press(Menu, EPadButton::Right);
+	CHECK(Settings.Current.SoundOutput == ESoundOutput::WideStereo);
+	CHECK(Settings.Changes == 1);
+	// L1 turns back to Display and on round to Fixes; Right picks Original.
+	Press(Menu, EPadButton::L1);
+	Press(Menu, EPadButton::L1);
+	Press(Menu, EPadButton::Right);
+	CHECK_FALSE(Settings.Current.Fixes.Field.bRecoverPartyHpGivesHp);
+	CHECK_FALSE(Settings.Current.Fixes.BattleRules.bDefUpOnFoot);
+	// Right again: Custom, and Cross opens the fixes' list on the first fix; Left turns it back on.
+	Press(Menu, EPadButton::Right);
+	Press(Menu, EPadButton::Cross);
+	Press(Menu, EPadButton::Left);
+	CHECK(Settings.Current.Fixes.Field.bRecoverPartyHpGivesHp);
+	CHECK_FALSE(Settings.Current.Fixes.Field.bZeroFrameFadeSnaps);
+	CHECK(Settings.Kept.empty());
+	// Circle back to Fixes, and again to close: the settings are kept once, the title's arc back.
+	Press(Menu, EPadButton::Circle);
+	Press(Menu, EPadButton::Circle, 40);
+	REQUIRE(Settings.Kept.size() == 1);
+	CHECK(Settings.Kept.front().SoundOutput == ESoundOutput::WideStereo);
+	CHECK(Settings.Kept.front().Fixes.Field.bRecoverPartyHpGivesHp);
+	CHECK_FALSE(Menu.Menu().HasEnded());
+	// The title goes on: Up twice to New Game, which ends it.
+	Press(Menu, EPadButton::Up);
+	Press(Menu, EPadButton::Up);
+	REQUIRE(Drawn(Menu.Frame(Holding(EPadButton::Cross))));
+	bool bEnded = false;
+	for (int32 Frame = 0; Frame < 200 && !bEnded; ++Frame)
+	{
+		bEnded = !Drawn(Menu.Frame({}));
+	}
+	CHECK(bEnded);
+}
+
+TEST_CASE("The Normal Menu's eighth orb, over Status, opens the options screen and is not remembered", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const auto Executable = ReadBootExecutable(*Disc);
+	REQUIRE(Executable);
+	FRecordedSettings Settings;
+	Settings.Display = {{{1280, 720}, {1920, 1080}}, {1280, 720}};
+	auto Play = FMenuPlay::NewGame(Disc->Image(), *Executable, 1, {EMenuMode::Normal, 0, true}, nullptr, &Settings);
+	REQUIRE(Play);
+	FMenuPlay& Menu = **Play;
+	Wait(Menu, 60);
+	// A new game's menu opens on Status; Up is the eighth orb.
+	Press(Menu, EPadButton::Up);
+	Press(Menu, EPadButton::Cross, 40);
+	// It opens on Display, on full screen; Down to the window's size, Right: the display's next size up from the window's;
+	// Down, Left: the picture 4:3; Down twice to the scenery's texels, Right: crisp.
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Right);
+	CHECK(Settings.Current.Display.WindowSize == FDisplaySize{1920, 1080});
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Left);
+	CHECK(Settings.Current.Display.Aspect == EDisplayAspect::Standard);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Right);
+	CHECK(Settings.Current.Field.Filter == EFieldTextureFilter::Crisp);
+	// R1 past Sound to Camera, Down twice and Right: the view no longer steps aside for scenes; then the reset puts it back.
+	Press(Menu, EPadButton::R1);
+	Press(Menu, EPadButton::R1);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Right);
+	CHECK_FALSE(Settings.Current.Camera.bYieldsToScenes);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Right);
+	CHECK_FALSE(Settings.Current.Camera.bSteadyFollow);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Cross);
+	CHECK(Settings.Current.Camera == FFieldCameraOffsets::Defaults());
+	Press(Menu, EPadButton::Circle, 40);
+	REQUIRE(Settings.Kept.size() == 1);
+	CHECK(Settings.Kept.front().Field.Filter == EFieldTextureFilter::Crisp);
+	CHECK(Settings.Kept.front().Display == FDisplayOptions{{1920, 1080}, EDisplayAspect::Standard});
+	// The menu closes on the eighth orb; a save keeps the command the original's arc has.
+	REQUIRE(Drawn(Menu.Frame(Holding(EPadButton::Circle))));
+	bool bEnded = false;
+	for (int32 Frame = 0; Frame < 200 && !bEnded; ++Frame)
+	{
+		bEnded = !Drawn(Menu.Frame({}));
+	}
+	CHECK(bEnded);
+	CHECK(Menu.Game().MenuLastCommand == 6);
+}
+
+TEST_CASE("The options screen's Controls page binds the key the player presses, at once, its keys drawn as their pictures", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const auto Executable = ReadBootExecutable(*Disc);
+	REQUIRE(Executable);
+	FRecordedSettings Settings;
+	Testing::FPressedKeys Keys;
+	auto Play = FMenuPlay::NewGame(Disc->Image(), *Executable, 1, {EMenuMode::LoadGame, 0, false}, nullptr, &Settings, &Keys);
+	REQUIRE(Play);
+	FMenuPlay& Menu = **Play;
+	Wait(Menu, 30);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Cross, 40);
+	// L1 from Display turns to the last page, Controls: the device, a heading and five buttons' two keys each, the cursor on Up; on to Cross.
+	Press(Menu, EPadButton::L1);
+	const auto ShownKeys = [&Menu]() { return Menu.Menu().Snapshot().Keys; };
+	REQUIRE(ShownKeys().size() == 10);
+	CHECK(ShownKeys()[0] == FButtonGlyph{EButtonIconSet::Keyboard, "W", "W"});
+	const std::vector<FMenuPrimitive>& Primitives = Menu.Menu().Snapshot().Primitives;
+	CHECK(std::count_if(Primitives.begin(), Primitives.end(), [](const FMenuPrimitive& Primitive) { return Primitive.ButtonRole >= MenuKeyRole; }) == 10);
+	// The player touches a controller: its buttons are shown; back on the keyboard, its keys.
+	Keys.Family = EInputFamily::Gamepad;
+	Wait(Menu, 2);
+	CHECK(ShownKeys()[0] == FButtonGlyph{EButtonIconSet::Xbox, "Gamepad_DPad_Up", "DPad_Up"});
+	Keys.Family = EInputFamily::KeyboardAndMouse;
+	Wait(Menu, 2);
+	CHECK(ShownKeys()[0].Key == "W");
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		Press(Menu, EPadButton::Down);
+	}
+	// Confirm listens: the pad's buttons do nothing until a key is heard (Circle would close the screen).
+	Press(Menu, EPadButton::Cross);
+	CHECK(Keys.bListening);
+	Press(Menu, EPadButton::Circle);
+	CHECK(Keys.bListening);
+	Keys.Press("Q");
+	Wait(Menu, 4);
+	CHECK_FALSE(Keys.bListening);
+	CHECK(Settings.Current.Controls.KeyAt(EControlAction::Cross, EInputFamily::KeyboardAndMouse, 0) == "Q");
+	CHECK(Settings.Current.Controls.KeyAt(EControlAction::Circle, EInputFamily::KeyboardAndMouse, 0) == "E");
+	CHECK(Settings.Kept.empty());
+	// Triangle (the menus' Square) takes Enter off Cross's second place, then cannot take off its only key.
+	Press(Menu, EPadButton::Right);
+	Press(Menu, EPadButton::Triangle);
+	CHECK(Settings.Current.Controls.KeyAt(EControlAction::Cross, EInputFamily::KeyboardAndMouse, 1).empty());
+	const FControlBindings Bound = Settings.Current.Controls;
+	Press(Menu, EPadButton::Left);
+	Press(Menu, EPadButton::Triangle);
+	CHECK(Settings.Current.Controls == Bound);
+	// Down to Circle, its second place: a key there in Escape's.
+	Press(Menu, EPadButton::Right);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Cross);
+	Keys.Press("O");
+	Wait(Menu, 4);
+	CHECK(Settings.Current.Controls.KeyAt(EControlAction::Circle, EInputFamily::KeyboardAndMouse, 1) == "O");
+	CHECK(std::find(ShownKeys().begin(), ShownKeys().end(), FButtonGlyph{EButtonIconSet::Keyboard, "O", "O"}) != ShownKeys().end());
+	// Square (the menus' Triangle) swaps the row's two keys; Triangle then clears the second, E.
+	Press(Menu, EPadButton::Square);
+	CHECK(Settings.Current.Controls.KeyAt(EControlAction::Circle, EInputFamily::KeyboardAndMouse, 0) == "O");
+	Press(Menu, EPadButton::Triangle);
+	CHECK(Settings.Current.Controls.KeyAt(EControlAction::Circle, EInputFamily::KeyboardAndMouse, 1).empty());
+	// Circle closes the screen and keeps the bindings.
+	Press(Menu, EPadButton::Circle, 40);
+	REQUIRE(Settings.Kept.size() == 1);
+	CHECK(Settings.Kept.front().Controls.KeyAt(EControlAction::Cross, EInputFamily::KeyboardAndMouse, 0) == "Q");
+	CHECK(Keys.Listens == 2);
+}
+

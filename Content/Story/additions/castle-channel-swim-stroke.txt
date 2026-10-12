@@ -1,0 +1,14 @@
+; The channel below Aveh's castle (map 147), Bart swimming on from the waterway (waterway-swim-stroke.txt).
+; Actor 23's script 1 keeps his stroke as the waterway's actor 5 does, by var[40E] and the run button (actor 8's
+; scripts 8 and 9), and gives him the walking speed on the shallows of record 118 (script 10) without forgetting
+; the fast stroke: held through them, the run keeps the slow one.
+map 147
+option fix.swim_stroke
+
+; The wade's first tick: its mark (var[40C]) set before scripts 14 and 10 are started.
+detour @0x07D1 to Wading SetVarTrue var[40C]
+
+Wading:
+    SetVarTrue var[40C]
+    SetVarFalse var[40E]
+    Jump @0x07D4

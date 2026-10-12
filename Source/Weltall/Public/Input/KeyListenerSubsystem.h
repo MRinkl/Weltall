@@ -1,0 +1,48 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Input/PadState.h"
+#include "Menu/MenuProgram.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+
+#include <deque>
+
+#include "KeyListenerSubsystem.generated.h"
+
+class FKeyListenProcessor;
+
+/**
+ * The keys the player presses, for the options screen's Controls page to bind: while it listens, each key,
+ * mouse button and controller button pressed, each stick pushed past half way, the mouse moved a little way and
+ * its wheel turned, in order, by the engine's names; and the game given no buttons meanwhile, nor after until
+ * every one is let go, so the key pressed does nothing else.
+ */
+UCLASS()
+class WELTALL_API UKeyListenerSubsystem : public UGameInstanceSubsystem, public Weltall::IMenuKeys
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
+	virtual void Listen(bool bOn) override;
+	virtual std::optional<Weltall::FPressedKey> TakePressed() override;
+	virtual Weltall::EInputFamily LastFamily() const override;
+	virtual Weltall::EButtonIconSet GamepadIcons() const override;
+
+	/** The buttons the game is given of those the player holds. */
+	Weltall::FPadState Filter(Weltall::FPadState Held);
+
+	bool IsListening() const { return bListening; }
+
+	/** The input heard something, kept while listening. */
+	void Heard(const FKey& Key, int32 Axis);
+
+private:
+	TSharedPtr<FKeyListenProcessor> Processor;
+	bool bListening = false;
+	/** Listening stopped with buttons held, which the game is not given until they are let go. */
+	bool bWithheld = false;
+	std::deque<Weltall::FPressedKey> Pressed;
+};

@@ -1,0 +1,105 @@
+// The texture upscaler's doubling (TextureUpscale::DoubledTexel in the core, which these pixels are held to): VRAM
+// read as 4-bit or 8-bit indices made twice as fine, each new texel one of the indices about it. Drawn over a
+// rectangle of the doubled image, the first doubling from VRAM's units, the second from the first's texels.
+
+#include "/Engine/Public/Platform.ush"
+
+// VramEdge's flags.
+#define EDGE_LEFT 1
+#define EDGE_RIGHT 2
+#define EDGE_TOP 4
+#define EDGE_BOTTOM 8
+
+// VRAM's units and each unit's edge flags.
+Texture2D<uint> Vram;
+Texture2D<uint> VramEdges;
+// The first doubling's texels, which the second doubles.
+Texture2D<uint> Doubled;
+// 4 or 2 texels a unit, and how many times finer than VRAM's reading the image doubled here is (1 or 2).
+uint TexelsPerUnit;
+uint Scale;
+
+// The size of the image doubled here, in its texels: VRAM's reading at Scale.
+int2 ImageSize()
+{
+	return int2(1024 * TexelsPerUnit, 512) * int(Scale);
+}
+
+// The texel's VramEdge flags in the image doubled here: its unit's, on the sides its place in the unit (and, doubled,
+// in its texel) lies on. Places wrap around the image's edges, as VRAM's addressing does.
+uint EdgesAt(int2 At)
+{
+	At &= ImageSize() - 1;
+	const int2 Texel = At / int(Scale);
+	const uint UnitEdges = VramEdges.Load(int3(Texel.x / int(TexelsPerUnit), Texel.y, 0));
+	const uint Across = uint(At.x) % (TexelsPerUnit * Scale);
+	uint Sides = EDGE_TOP | EDGE_BOTTOM;
+	Sides |= Across == 0 ? EDGE_LEFT : 0;
+	Sides |= Across == TexelsPerUnit * Scale - 1 ? EDGE_RIGHT : 0;
+	if (Scale > 1)
+	{
+		Sides &= (uint(At.y) & 1) != 0 ? ~EDGE_TOP : ~EDGE_BOTTOM;
+	}
+	return UnitEdges & Sides;
+}
+
+// The index at a place of the image doubled here.
+uint IndexAt(int2 At)
+{
+	At &= ImageSize() - 1;
+	if (Scale > 1)
+	{
+		return Doubled.Load(int3(At, 0));
+	}
+	const uint Unit = Vram.Load(int3(At.x / int(TexelsPerUnit), At.y, 0));
+	const uint Bits = 16 / TexelsPerUnit;
+	return (Unit >> ((uint(At.x) % TexelsPerUnit) * Bits)) & ((1u << Bits) - 1);
+}
+
+// A step from a texel towards Toward (-1, 0 or 1), none across an edge it lies on.
+int StepWithin(int Toward, uint Edges, uint Low, uint High)
+{
+	return (Toward < 0 && (Edges & Low) != 0) || (Toward > 0 && (Edges & High) != 0) ? 0 : Toward;
+}
+
+// The index a step from the texel at At towards Toward reaches, none crossing an edge the texel lies on.
+uint NearOf(int2 At, int2 Toward)
+{
+	const uint Edges = EdgesAt(At);
+	return IndexAt(At + int2(StepWithin(Toward.x, Edges, EDGE_LEFT, EDGE_RIGHT), StepWithin(Toward.y, Edges, EDGE_TOP, EDGE_BOTTOM)));
+}
+
+// Whether the texel's two neighbours beside its corner towards Side share an index the two across from them do not.
+bool IsStep(int2 At, int2 Side)
+{
+	const uint Across = NearOf(At, int2(Side.x, 0));
+	return Across == NearOf(At, int2(0, Side.y)) && Across != NearOf(At, int2(-Side.x, 0)) && Across != NearOf(At, int2(0, -Side.y));
+}
+
+// IsStep, with the texel's own index behind the corner: the two neighbours are a line passing between.
+bool IsLineStep(int2 At, int2 Side)
+{
+	return IsStep(At, Side) && NearOf(At, Side) == IndexAt(At);
+}
+
+uint DoublePS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int2 At = int2(SvPosition.xy);
+	const int2 Centre = At >> 1;
+	const int2 Side = int2((At.x & 1) != 0 ? 1 : -1, (At.y & 1) != 0 ? 1 : -1);
+	const uint Own = IndexAt(Centre);
+	if (!IsStep(Centre, Side))
+	{
+		return Own;
+	}
+	const uint Across = NearOf(Centre, int2(Side.x, 0));
+	if (NearOf(Centre, Side) == Own)
+	{
+		// A 2x2 checker at the corner: the neighbours' line takes it, unless the texel's line has the same claim from their
+		// side, where the higher index takes it.
+		const bool bCrossing = IsLineStep(Centre + int2(Side.x, 0), int2(-Side.x, Side.y)) || IsLineStep(Centre + int2(0, Side.y), int2(Side.x, -Side.y));
+		return !bCrossing || Across > Own ? Across : Own;
+	}
+	const bool bStaircase = NearOf(Centre, int2(-Side.x, Side.y)) == Own || NearOf(Centre, int2(Side.x, -Side.y)) == Own;
+	return bStaircase && Across > Own ? Across : Own;
+}

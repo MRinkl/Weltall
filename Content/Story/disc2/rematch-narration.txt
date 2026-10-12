@@ -1,0 +1,11 @@
+; The rematch's narration once the meeting above the forest has been played. Its first page, the
+; meeting itself, is told there, in Fei's cockpit; here a page of our own says how his flight ended
+; among the trees, and the battle's own goes on from where Ramsus stands in his way.
+battle event 19
+message 0 from page 2 after
+{
+I could not shake him.{wait 1E}
+   Driven from the sky,
+      we came down in
+         the forest...
+}

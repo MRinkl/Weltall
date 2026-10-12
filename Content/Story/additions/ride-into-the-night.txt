@@ -1,0 +1,15 @@
+; The Aveh desert, Fei riding the stolen bike into the night (map 50). His script 13 rides him out of the
+; shot to the right and leaves him, the bike and its dust where the ride ends, just past the 4:3 screen: out of the
+; original's sight until his script 11 places him for the next shot, while the night falls and the view turns. A wide
+; screen shows him waiting at its side all that while. He waits where no view of the scene reaches instead: in the
+; dunes' far corner, behind every camera of the stretch.
+map 50
+option fix.wide_view_staging
+
+; The first of the sound fades after the ride.
+detour @0x03EC to OutOfView FadeSoundChannel #0 #3 #60
+
+OutOfView:
+    SetPosition3D 2730 2831 -70
+    FadeSoundChannel #0 #3 #60
+    Jump @0x03F4

@@ -1,0 +1,37 @@
+{
+	"version": 6,
+	"configurePresets": [
+		{
+			"name": "windows",
+			"displayName": "Windows (MSVC)",
+			"generator": "Visual Studio 18 2026",
+			"binaryDir": "${sourceDir}/../out/tests/windows",
+			"condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+		},
+		{
+			"name": "linux",
+			"displayName": "Linux (GCC)",
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/../out/tests/linux",
+			"cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "CMAKE_CXX_COMPILER": "g++" },
+			"condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+		},
+		{
+			"name": "linux-clang",
+			"inherits": "linux",
+			"displayName": "Linux (Clang)",
+			"binaryDir": "${sourceDir}/../out/tests/linux-clang",
+			"cacheVariables": { "CMAKE_CXX_COMPILER": "clang++" }
+		}
+	],
+	"buildPresets": [
+		{ "name": "windows", "configurePreset": "windows", "configuration": "Release" },
+		{ "name": "linux", "configurePreset": "linux" },
+		{ "name": "linux-clang", "configurePreset": "linux-clang" }
+	],
+	"testPresets": [
+		{ "name": "windows", "configurePreset": "windows", "configuration": "Release", "output": { "outputOnFailure": true }, "execution": { "jobs": 0 } },
+		{ "name": "linux", "configurePreset": "linux", "output": { "outputOnFailure": true }, "execution": { "jobs": 0 } },
+		{ "name": "linux-clang", "configurePreset": "linux-clang", "output": { "outputOnFailure": true }, "execution": { "jobs": 0 } }
+	]
+}

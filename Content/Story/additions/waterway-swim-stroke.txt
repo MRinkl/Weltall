@@ -1,0 +1,18 @@
+; Aveh's waterway (map 130), Bart swimming. Actor 5's script 1 gives him the fast stroke (actor 4's script 5:
+; SetSpeed 128) when it finds the run button held and the stroke it last gave slow (var[40E] clear), and the slow
+; one (script 6: 256) the other way round: it changes the stroke only as the button changes. On the floors of the
+; ways out, where he wades, script 7 gives him the walking speed (256) and leaves var[40E] as it was, so a run held
+; from the water through the shallows back into it keeps him at the slow stroke until the button is let go and
+; pressed again; under the port's Always run, which reads the run as held all the while, for good. The
+; stroke he wades with is the slow one's, so the wade forgets the fast one: the next tick in the water gives the
+; stroke the button asks for.
+map 130
+option fix.swim_stroke
+
+; The wade's first tick: its mark (var[40C]) set before script 7 is started.
+detour @0x0356 to Wading SetVarTrue var[40C]
+
+Wading:
+    SetVarTrue var[40C]
+    SetVarFalse var[40E]
+    Jump @0x0359

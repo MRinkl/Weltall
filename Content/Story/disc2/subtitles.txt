@@ -1,0 +1,20 @@
+; The titles the expanded second disc gives its own stretches inside the original's chapters, each shown on a card of
+; its own once the player has control in it, lettered inside its chapter: "Chapter 57a: Secret Battleship". The
+; original's chapters and their values stay as they are, so a save's chapter is the same in both ways of playing the
+; second disc.
+subtitles
+
+; Inside "Break the Seal": the front in Ignas and Nortune's battleship; the peace, the outbreak, the first facility.
+story 254 Secret Battleship
+story 258 Soylent System
+; Inside "Soul Vessel": Nisan the refuge; the search for the relics.
+story 268 Holy Mother Returns
+story 273 Anima Vessel
+; Inside "The Stars Know": the journey north to the last relic.
+story 282 The Essence of Humans
+; Inside "Promised Land": Nisan's ward, Shevat and Golgoda.
+story 292 Elly's Decision
+; Inside "Dreams...": Id's breakout and Bethlehem.
+story 320 Phenomena Modifier
+; Inside "Xenogears Wakes": the fleet sets out for Merkava.
+story 334 All Our Strength

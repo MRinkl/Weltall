@@ -1,0 +1,245 @@
+#include "Menu/MenuSpriteSheet.h"
+
+#include "Foundation/LittleEndian.h"
+#include "Menu/MenuButtonIcons.h"
+
+namespace Weltall
+{
+	namespace
+	{
+		using namespace LittleEndian;
+
+		constexpr std::size_t PartSize = 0x1C;
+		constexpr std::size_t FirstPart = 4;
+
+		/** An offset or size times a scale in 4.12, rounded toward zero as the kernel's arithmetic shift after its bias does. */
+		int16 Scaled(int32 Value, int32 Scale)
+		{
+			int32 Product = Value * Scale;
+			if (Product < 0)
+			{
+				Product += 0xFFF;
+			}
+			return static_cast<int16>(Product >> 12);
+		}
+	}
+
+	TResult<FMenuSpriteSheet> FMenuSpriteSheet::Parse(std::span<const uint8> Bytes)
+	{
+		if (Bytes.size() < 4 || ReadU16(Bytes, 2) != 0)
+		{
+			return MakeError("not a sprite sheet");
+		}
+		const std::size_t Count = ReadU16(Bytes, 0);
+		if (Bytes.size() < 4 + 2 * Count)
+		{
+			return MakeError("the sprite sheet's frame table runs past its end");
+		}
+		FMenuSpriteSheet Sheet;
+		Sheet.Frames.resize(Count);
+		for (std::size_t Frame = 0; Frame < Count; ++Frame)
+		{
+			const std::size_t Offset = ReadU16(Bytes, 4 + 2 * Frame);
+			if (Offset + FirstPart > Bytes.size())
+			{
+				return MakeError("a sprite sheet's frame starts past its end");
+			}
+			const int32 Parts = ReadS16(Bytes, Offset);
+			if (Parts < 0 || Offset + FirstPart + static_cast<std::size_t>(Parts) * PartSize > Bytes.size())
+			{
+				return MakeError("a sprite sheet's frame runs past its end");
+			}
+			std::vector<FMenuSpritePart>& Read = Sheet.Frames[Frame];
+			for (int32 Part = 0; Part < Parts; ++Part)
+			{
+				const std::size_t At = Offset + FirstPart + static_cast<std::size_t>(Part) * PartSize;
+				Read.push_back({ReadU16(Bytes, At), ReadU16(Bytes, At + 2), ReadS16(Bytes, At + 4), ReadS16(Bytes, At + 6), ReadS16(Bytes, At + 8),
+					ReadS16(Bytes, At + 0xA), ReadS16(Bytes, At + 0x10), ReadS16(Bytes, At + 0x12), ReadS16(Bytes, At + 0x14), ReadS16(Bytes, At + 0x16),
+					ReadS16(Bytes, At + 0x18), Bytes[At + 0x1A] != 0, Bytes[At + 0x1B] != 0});
+			}
+		}
+		return Sheet;
+	}
+
+	std::span<const FMenuSpritePart> FMenuSpriteSheet::Frame(int32 Number) const
+	{
+		if (Number < 0 || Number >= FrameCount())
+		{
+			return {};
+		}
+		return Frames[static_cast<std::size_t>(Number)];
+	}
+
+	void FMenuSpriteSheet::SetFrame(int32 Number, std::vector<FMenuSpritePart> Parts)
+	{
+		if (Number >= FrameCount())
+		{
+			Frames.resize(static_cast<std::size_t>(Number) + 1);
+		}
+		Frames[static_cast<std::size_t>(Number)] = std::move(Parts);
+	}
+
+	FMenuSpriteTexture FMenuSpriteSheet::Texture(int32 Number) const
+	{
+		const std::span<const FMenuSpritePart> Parts = Frame(Number);
+		FMenuSpriteTexture Texture;
+		Texture.Parts = static_cast<int32>(Parts.size());
+		if (Parts.empty())
+		{
+			return Texture;
+		}
+		const FMenuSpritePart& First = Parts.front();
+		// The kernel shifts the first texel's u down by 4 for a 4-bit image and by 2 otherwise.
+		const int32 UnitX = First.Depth == 0 ? (First.U & 0xFFFF) >> 4 : (First.U & 0xFFFF) >> 2;
+		Texture.Depth = First.Depth;
+		Texture.ClutX = First.ClutX;
+		Texture.ClutY = First.ClutY;
+		Texture.VramX = static_cast<int16>(First.ImageX & 0xFFC0) + UnitX;
+		Texture.VramY = static_cast<int16>(First.ImageY & 0xFF00) + static_cast<int16>(First.V);
+		return Texture;
+	}
+
+	uint16 MenuButtonRole(int32 Frame)
+	{
+		// The pictures are the US release's physical buttons; their roles are the logical ones behind them.
+		switch (Frame)
+		{
+		case 0xF9:
+			return 0x20;
+		case 0xFA:
+			return 0x80;
+		case 0xFB:
+			return 0x10;
+		case 0xFC:
+			return 0x40;
+		case 0x164:
+			return 0x04;
+		case 0x165:
+			return 0x08;
+		default:
+			return 0;
+		}
+	}
+
+	int32 FMenuSpriteSheet::Draw(int32 Number, int32 X, int32 Y, int32 Scale, std::vector<FMenuPrimitive>& Primitives) const
+	{
+		const std::span<const FMenuSpritePart> Parts = Frame(Number);
+		const uint16 Role = MenuButtonRole(Number);
+		for (const FMenuSpritePart& Part : Parts)
+		{
+			FMenuPrimitive Quad;
+			Quad.ButtonRole = &Part == &Parts.back() ? Role : 0;
+			Quad.ButtonSlot = MenuIconSlotOf(Role);
+			Quad.Code = MenuGpu::TexturedQuad | MenuGpu::RawTexture;
+			Quad.Page = MenuGpu::TexturePage(Part.Depth, 0, Part.ImageX, Part.ImageY);
+			Quad.Clut = MenuGpu::Clut(Part.ClutX, Part.ClutY);
+			const int16 Left = static_cast<int16>(X + Scaled(Part.X, Scale));
+			const int16 Right = static_cast<int16>(Left + Scaled(Part.Width, Scale));
+			const int16 Top = static_cast<int16>(Y + Scaled(Part.Y, Scale));
+			const int16 Bottom = static_cast<int16>(Top + Scaled(Part.Height, Scale));
+			uint8 U = static_cast<uint8>(Part.U);
+			uint8 V = static_cast<uint8>(Part.V);
+			uint8 Width = static_cast<uint8>(Part.Width);
+			uint8 Height = static_cast<uint8>(Part.Height);
+			// A mirrored part's texels start one lower, as far as the page's first one.
+			if (Part.bFlipX)
+			{
+				if (static_cast<int16>(Part.U - 1) < 0)
+				{
+					U = 0;
+					--Width;
+				}
+				else
+				{
+					U = static_cast<uint8>(Part.U - 1);
+				}
+			}
+			if (Part.bFlipY)
+			{
+				if (static_cast<int16>(Part.V - 1) < 0)
+				{
+					V = 0;
+					--Height;
+				}
+				else
+				{
+					V = static_cast<uint8>(Part.V - 1);
+				}
+			}
+			const int16 X0 = Part.bFlipX ? Right : Left;
+			const int16 X1 = Part.bFlipX ? Left : Right;
+			const int16 Y0 = Part.bFlipY ? Bottom : Top;
+			const int16 Y1 = Part.bFlipY ? Top : Bottom;
+			Quad.Corners[0] = {X0, Y0, U, V, {}};
+			Quad.Corners[1] = {X1, Y0, static_cast<uint8>(U + Width), V, {}};
+			Quad.Corners[2] = {X0, Y1, U, static_cast<uint8>(V + Height), {}};
+			Quad.Corners[3] = {X1, Y1, static_cast<uint8>(U + Width), static_cast<uint8>(V + Height), {}};
+			Primitives.push_back(Quad);
+		}
+		return static_cast<int32>(Parts.size());
+	}
+
+	int32 FMenuSpriteSheet::DrawFlipped(int32 Number, int32 X, int32 Y, int32 Scale, bool bFlipX, bool bFlipY, std::vector<FMenuPrimitive>& Primitives) const
+	{
+		const std::span<const FMenuSpritePart> Parts = Frame(Number);
+		const uint16 Role = MenuButtonRole(Number);
+		for (const FMenuSpritePart& Part : Parts)
+		{
+			FMenuPrimitive Quad;
+			Quad.ButtonRole = &Part == &Parts.back() ? Role : 0;
+			Quad.ButtonSlot = MenuIconSlotOf(Role);
+			Quad.Code = MenuGpu::TexturedQuad | MenuGpu::RawTexture;
+			Quad.Page = MenuGpu::TexturePage(Part.Depth, 0, Part.ImageX, Part.ImageY);
+			Quad.Clut = MenuGpu::Clut(Part.ClutX, Part.ClutY);
+			int16 OffsetX = Scaled(Part.X, Scale);
+			int16 OffsetY = Scaled(Part.Y, Scale);
+			int16 Across = Scaled(Part.Width, Scale);
+			int16 Down = Scaled(Part.Height, Scale);
+			if (bFlipX)
+			{
+				OffsetX = static_cast<int16>(-OffsetX);
+				Across = static_cast<int16>(-Across);
+			}
+			if (bFlipY)
+			{
+				OffsetY = static_cast<int16>(-OffsetY);
+				Down = static_cast<int16>(-Down);
+			}
+			const int16 Left = static_cast<int16>(X + OffsetX);
+			const int16 Top = static_cast<int16>(Y + OffsetY);
+			const int16 X0 = Part.bFlipX ? static_cast<int16>(Left + Across) : Left;
+			const int16 X1 = Part.bFlipX ? Left : static_cast<int16>(Left + Across);
+			const int16 Y0 = Part.bFlipY ? static_cast<int16>(Top + Down) : Top;
+			const int16 Y1 = Part.bFlipY ? Top : static_cast<int16>(Top + Down);
+			uint8 U = static_cast<uint8>(Part.U);
+			uint8 V = static_cast<uint8>(Part.V);
+			uint8 Width = static_cast<uint8>(Part.Width);
+			uint8 Height = static_cast<uint8>(Part.Height);
+			// Mirrored on the screen, whatever made it so, the texels start one lower.
+			if (X1 < X0)
+			{
+				U = static_cast<uint8>(Part.U - 1);
+				if (static_cast<int16>(Part.U - 1) < 0)
+				{
+					U = 0;
+					--Width;
+				}
+			}
+			if (Y1 < Y0)
+			{
+				V = static_cast<uint8>(Part.V - 1);
+				if (static_cast<int16>(Part.V - 1) < 0)
+				{
+					V = 0;
+					--Height;
+				}
+			}
+			Quad.Corners[0] = {X0, Y0, U, V, {}};
+			Quad.Corners[1] = {X1, Y0, static_cast<uint8>(U + Width), V, {}};
+			Quad.Corners[2] = {X0, Y1, U, static_cast<uint8>(V + Height), {}};
+			Quad.Corners[3] = {X1, Y1, static_cast<uint8>(U + Width), static_cast<uint8>(V + Height), {}};
+			Primitives.push_back(Quad);
+		}
+		return static_cast<int32>(Parts.size());
+	}
+}

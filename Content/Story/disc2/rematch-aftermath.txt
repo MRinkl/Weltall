@@ -1,0 +1,163 @@
+; After the rematch: Fei alone above the forest again, Taura's warning about the power he has just
+; released weighing on him, and on toward Ignas. Played over the sky of the first disc's chase as the
+; lead-in is; then back to Taura's house, where Elly sets out for the Mass Driver.
+map 731 over 613
+encounters from 273
+
+message Breath
+{
+Fei
+"Haah...{wait 0A}haah..."
+}
+
+message LastResort
+{
+Fei
+"System Id{wait 05}...{page}'Use it only as a
+last resort.'{wait 0A}
+That's what Taura
+told me..."
+}
+
+message Stirred
+{
+Fei
+"When I let it loose{wait 05}...{page}Something deep inside
+me stirred.{wait 0A}
+As if it had been
+waiting for that..."
+}
+
+message WasThatId
+{
+Fei
+"Was that{wait 05}...{wait 0A}
+Id...?"
+}
+
+message NotNow
+{
+Fei
+"{wait 05}...{wait 0A}No.{wait 0A}
+Not now."
+}
+
+message LostTime
+{
+Fei
+"Bart and the others
+are already fighting.{wait 0A}
+I've lost enough time!"
+}
+
+; Who flies: Fei without Elly, in the Gear Taura rebuilt, which has its own flying pose.
+detour @0x001F to Alone PartyAdd 1
+Alone:
+    Jump @0x0024
+detour @0x00FD to Rebuilt SetGearModel #0
+Rebuilt:
+    SetGearModel #42
+    Jump @0x0100
+detour @0x0115 to Flying Turn #4
+Flying:
+    Turn #4
+    SetMoveAnimation 18
+    Jump @0x011A
+
+; Outside, ahead of the rebuilt Gear and looking back at it, the whole Gear in view.
+actor 9 script 10:
+    CamTargetFromCurrent
+    CamEyeFromCurrent
+    CamTargetTo #-400 #-1900 #-50
+    CameraSetEyeEnd #-720 #-2420 #110
+    CameraPathMove 0 #0
+    CameraPathMove 1 #0
+    WaitCameraPath #3
+    End
+
+; The rebuilt Gear flies on, past the camera.
+actor 5 script 6:
+    PlaySound #142
+    SetSpeed #16
+    MoveTo 0 #0 #-9000 #600
+    MoveTo 1
+    End
+
+Placed:
+    Wait #1
+    If var[400] == #0 else Placed
+    Return
+
+Engines:
+    PlaySoundOnChannel #314 #3
+    PlaySoundOnChannel #315 #2
+    PlaySoundOnChannel #317 #1
+    PlaySoundOnChannel #316 #0
+    Return
+
+actor 8 script 1:
+    DisablePlayer
+    SetWindowLayoutVar #0 #0 #0 #0 #0
+    StartScriptWaitEnd actor1 script4@1
+    StartScriptWaitEnd actor3 script4@1
+    HideActor actor2
+    HideActor actor3
+    HideActor actor6
+    StartScriptWaitEnd actor9 script4@1
+    StartScriptWaitEnd actor9 script8@1
+    Call Engines
+    ScreenFade #2 #0 #0 #0 #60
+    ; Meanwhile the rebuilt Gear outside comes to its place and size, behind the cockpit's view, as in the lead-in.
+    StartScript actor4 script5@3
+    Wait #90
+    MessageAtActorPortrait actor1 Breath 16
+    WaitMessageClosed
+    Call Placed
+    StartScript actor4 script6@3
+    Wait #30
+    MessageAtActorPortrait actor1 LastResort 16
+    WaitMessageClosed
+    Call Placed
+    StartScript actor4 script7@3
+    Wait #20
+    MessageAtActorPortrait actor1 Stirred 16
+    WaitMessageClosed
+    Wait #30
+    MessageAtActorPortrait actor1 WasThatId 16
+    WaitMessageClosed
+    Wait #40
+    MessageAtActorPortrait actor1 NotNow 16
+    WaitMessageClosed
+    Call Placed
+    Wait #20
+    ; Outside: the rebuilt Gear alone in the open sky, and away.
+    ExtendBudget
+    HideActor actor10
+    HideActor actor11
+    HideActor actor12
+    HideActor actor13
+    HideActor actor14
+    HideActor actor15
+    HideActor actor16
+    HideActor actor17
+    ExtendBudget
+    HideActor actor18
+    HideActor actor19
+    HideActor actor20
+    HideActor actor21
+    HideActor actor22
+    HideActor actor23
+    HideActor actor24
+    HideActor actor1
+    StartScriptWaitEnd actor9 script10@3
+    Call Engines
+    Wait #30
+    MessageAtActorPortrait actor5 LostTime 32
+    WaitMessageClosed
+    StartScript actor5 script6@3
+    Wait #40
+    ; Meanwhile, at Taura's house: by the entrance Fei woke by.
+    ScreenFade #2 #255 #255 #255 #40
+    Wait #50
+    ChangeMap #616 #1
+    StopAndHalt

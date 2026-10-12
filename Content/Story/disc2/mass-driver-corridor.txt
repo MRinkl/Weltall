@@ -1,0 +1,216 @@
+; The Mass Driver's halls: from the airlock to the central control room, where the facility's old guardians still
+; walk. The hall is the first disc's Zeboim facility's (map 384); its battles are the ruin guardians of the second
+; disc's other Zeboim ruin, Anima Relic 1 (map 629), met as rarely as in the first disc's facility.
+map 733 from 384
+encounters from 629
+
+message Sealed
+{
+It won't open.
+}
+
+actors 19
+unsigned 00A-00E 026-02A 030 036
+entrances
+; From the airlock by the west door; from the control room by the east door.
+entrance x -595 z -571 layer 0 camera keep facing keep
+entrance x 441 z -590 layer 0 camera keep facing keep
+
+actor 0 script 0:
+    SetHiddenModel
+    CameraSet #0 #35 #400
+    DisableTalk
+    SetCameraFollowY 1
+    SetEncounterRate #900 #2
+    MusicLoad #26
+    End
+
+; The party, whoever is in it.
+actor 1 script 0:
+    SetPartyCharacter #0
+    SetMessageFace #0
+    End
+actor 2 script 0:
+    SetPartyCharacter #1
+    SetMessageFace #1
+    End
+actor 3 script 0:
+    SetPartyCharacter #2
+    SetMessageFace #2
+    End
+actor 4 script 0:
+    SetPartyCharacter #3
+    SetMessageFace #3
+    End
+actor 5 script 0:
+    SetPartyCharacter #4
+    SetMessageFace #4
+    End
+actor 6 script 0:
+    SetPartyCharacter #5
+    SetMessageFace #5
+    End
+actor 7 script 0:
+    SetPartyCharacter #6
+    SetMessageFace #6
+    End
+actor 8 script 0:
+    SetPartyCharacter #7
+    SetMessageFace #7
+    End
+actor 9 script 0:
+    SetPartyCharacter #8
+    SetMessageFace #8
+    End
+actor 10 script 0:
+    SetPartyCharacter #9
+    SetMessageFace #9
+    End
+actor 11 script 0:
+    SetPartyCharacter #10
+    SetMessageFace #10
+    End
+actor 1 script 1:
+actor 2 script 1:
+actor 3 script 1:
+actor 4 script 1:
+actor 5 script 1:
+actor 6 script 1:
+actor 7 script 1:
+actor 8 script 1:
+actor 9 script 1:
+actor 10 script 1:
+actor 11 script 1:
+    PlayerControlStep
+    End
+
+; The hall's own guard, of the first disc's story, is not here.
+actor 12 script 0:
+    SetHiddenModel
+    DisableTalk
+    RemoveActor self
+    End
+
+; The west door, back to the airlock.
+actor 13 script 0:
+    SetHiddenModel
+    SetPosition #-617 #-572
+    SetStateFlags 0 0x2000
+    SetStateFlags 3 0x4
+    SetCollisionSize 30 30 100 0
+    SetCollisionFlags #1
+    End
+actor 13 script 2:
+    DisablePlayer
+    PlaySound #119
+    StartScriptWaitEnd actor16 script4@1
+    WalkLeaderTo #-666 #-576
+    ChangeMap #732 #1
+    StopAndHalt
+
+; The east door, on to the control room.
+actor 14 script 0:
+    SetHiddenModel
+    SetPosition #441 #-620
+    SetStateFlags 0 0x2000
+    SetStateFlags 3 0x4
+    SetCollisionSize 30 30 100 0
+    SetCollisionFlags #1
+    End
+actor 14 script 2:
+    DisablePlayer
+    PlaySound #119
+    StartScriptWaitEnd actor17 script4@1
+    WalkLeaderTo #439 #-680
+    ChangeMap #734 #0
+    StopAndHalt
+
+; The door at the end of the side passage, sealed.
+actor 15 script 0:
+    SetHiddenModel
+    SetPosition #43 #632
+    SetStateFlags 0 0x2000
+    SetStateFlags 3 0x4
+    SetCollisionSize 30 5 100 0
+    SetCollisionFlags #1
+    End
+actor 15 script 2:
+    Message Sealed 1
+    WaitMessageClosed
+    End
+
+; The doors themselves, sliding open as the party goes through.
+actor 16 script 0:
+actor 17 script 0:
+actor 18 script 0:
+    SetHiddenModel
+    DisableTalk
+    End
+actor 16 script 4:
+    SetVarFalse var[404]
+West:
+    If var[404] < #14 else WestOpen
+    ExtendBudget
+    ScrollModelUV 2 0
+    Wait #0
+    IncVar var[404]
+    Jump West
+WestOpen:
+    End
+actor 17 script 4:
+    SetVarFalse var[406]
+East:
+    If var[406] < #14 else EastOpen
+    ExtendBudget
+    ScrollModelUV 2 0
+    Wait #0
+    IncVar var[406]
+    Jump East
+EastOpen:
+    End
+
+; What an actor does not do.
+actor 0 script 1:
+actor 0 script 2:
+actor 0 script 3:
+actor 1 script 2:
+actor 1 script 3:
+actor 2 script 2:
+actor 2 script 3:
+actor 3 script 2:
+actor 3 script 3:
+actor 4 script 2:
+actor 4 script 3:
+actor 5 script 2:
+actor 5 script 3:
+actor 6 script 2:
+actor 6 script 3:
+actor 7 script 2:
+actor 7 script 3:
+actor 8 script 2:
+actor 8 script 3:
+actor 9 script 2:
+actor 9 script 3:
+actor 10 script 2:
+actor 10 script 3:
+actor 11 script 2:
+actor 11 script 3:
+actor 12 script 1:
+actor 12 script 2:
+actor 12 script 3:
+actor 13 script 1:
+actor 13 script 3:
+actor 14 script 1:
+actor 14 script 3:
+actor 15 script 1:
+actor 15 script 3:
+actor 16 script 1:
+actor 16 script 2:
+actor 16 script 3:
+actor 17 script 1:
+actor 17 script 2:
+actor 17 script 3:
+actor 18 script 1:
+actor 18 script 2:
+actor 18 script 3:
+    End

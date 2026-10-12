@@ -1,0 +1,53 @@
+#include "BattleSpeedMarkView.h"
+
+#include "Game/GameSession.h"
+#include "Rendering/DrawListRendering.h"
+#include "Rendering/SharedRenderResource.h"
+#include "Rendering/VramTexture.h"
+
+/** A displayed frame with the battle speed's mark over it. */
+class FBattleSpeedMarkFrame final : public IScreenFrame
+{
+public:
+	explicit FBattleSpeedMarkFrame(TSharedRef<FVramTexture> InVram) : Vram(MoveTemp(InVram)) {}
+
+	virtual void AddPasses(FRDGBuilder& GraphBuilder, FRDGTextureRef Output, const FIntRect& Area) const override
+	{
+		if (Background.IsValid())
+		{
+			Background->AddPasses(GraphBuilder, Output, Area);
+		}
+		const Weltall::FDisplayRect Place = Weltall::PlaceBattleSpeedMark(Area.Width(), Area.Height());
+		const FIntPoint Origin = Area.Min + FIntPoint(Place.X, Place.Y);
+		FDrawListFrame Frame;
+		Frame.Latest = &Mark;
+		AddDrawListPasses(GraphBuilder, *Vram, Frame, Output, FIntRect(Origin, Origin + FIntPoint(Place.Width, Place.Height)), Weltall::BattleSpeedMarkScreen);
+	}
+
+	TSharedPtr<const IScreenFrame> Background;
+	Weltall::FDrawList Mark;
+
+private:
+	TSharedRef<FVramTexture> Vram;
+};
+
+FBattleSpeedMarkView::FBattleSpeedMarkView() : Vram(ShareRenderResource(new FVramTexture()))
+{
+}
+
+FBattleSpeedMarkView::~FBattleSpeedMarkView() = default;
+
+TSharedRef<const IScreenFrame> FBattleSpeedMarkView::Capture(const Weltall::FGameSession& Session, TSharedRef<const IScreenFrame> Background) const
+{
+	const Weltall::EBattleSpeed Speed = Session.Settings().BattleSpeed;
+	if (Speed == Weltall::EBattleSpeed::Normal)
+	{
+		return Background;
+	}
+	TSharedRef<FBattleSpeedMarkFrame>* Free = DisplayFrames.FindByPredicate([](const TSharedRef<FBattleSpeedMarkFrame>& Candidate) { return Candidate.IsUnique(); });
+	TSharedRef<FBattleSpeedMarkFrame> Next = Free != nullptr ? *Free : DisplayFrames.Add_GetRef(MakeShared<FBattleSpeedMarkFrame>(Vram));
+	Drawing.Build(Speed, Session.Text().Font, Next->Mark);
+	Vram->Follow(Drawing.Pictures());
+	Next->Background = MoveTemp(Background);
+	return Next;
+}

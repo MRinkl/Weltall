@@ -1,0 +1,63 @@
+#pragma once
+
+#include "Foundation/Types.h"
+#include "Text/MessageTable.h"
+
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace Weltall
+{
+	/**
+	 * A message's codes as text, and back. The text: the font's plain characters as themselves, a line break
+	 * for a new line, and marks in braces, their numbers hexadecimal:
+	 *
+	 *   {page}  a new page after the button        {more}   the button, then on in the same window
+	 *   {wait 14} {speed 02} {close 3C} {auto 3C} {delay 01}    the window's timing
+	 *   {name 00} {item} {table 01 2A} {weapon 03} {table24 00} {table25 00}    names put in
+	 *   {number 00} {digits 00} {signed 00} {mark 00} {button 00}               values put in
+	 *   {Circle} {Square} {Triangle} {Cross}       the controller's buttons
+	 *   {box}                                      the glyph the kernel carries itself
+	 *   {8F}  any other one-byte code              {FE12}  a glyph of two bytes
+	 *   {x10}  an extended code without operands that is none of the above
+	 */
+
+	/** The codes up to their 00, or all of them without one, as text. */
+	WELTALLCORE_API std::string MesTextOfCodes(std::span<const uint8> Codes);
+
+	/** The codes of Text, ended by 00; none where a character has no glyph or a mark is none of the marks. */
+	WELTALLCORE_API std::optional<std::vector<uint8>> MesCodesOfText(std::string_view Text);
+
+	/** A window's size for a message, as its table gives it. */
+	struct FMesExtent
+	{
+		/** In units of 4 pixels. */
+		int32 WidthUnits = 0;
+		int32 Lines = 0;
+	};
+
+	/**
+	 * The window a message's own glyphs need: its widest line (a plain character two units, any other glyph
+	 * three) and its tallest page. What a mark puts in at play (a name, a number) is not counted.
+	 */
+	WELTALLCORE_API FMesExtent MesExtentOfCodes(std::span<const uint8> Codes);
+
+	/**
+	 * A message's pages From to To, counted from 1, as a message of their own: their codes, ended by 00, the page marks
+	 * between them kept and the ones around them left out. To past the last page is the last; none where the message
+	 * has fewer pages than From.
+	 */
+	WELTALLCORE_API std::optional<std::vector<uint8>> MesPagesOfCodes(std::span<const uint8> Codes, int32 From, int32 To);
+
+	/** Two messages as one, Second on a new page after First's last as the game's own pages follow one another; ended by 00. */
+	WELTALLCORE_API std::vector<uint8> MesPagesJoined(std::span<const uint8> First, std::span<const uint8> Second);
+
+	/** Text as a message for a table, in a window of its own glyphs' size; none as MesCodesOfText, or past a table's sizes. */
+	WELTALLCORE_API std::optional<FAddedMessage> MesMessageOfText(std::string_view Text);
+
+	/** A message table of Messages alone; none where its 16-bit offsets could not reach the last. */
+	WELTALLCORE_API std::optional<std::vector<uint8>> BuildMessageTable(std::span<const FAddedMessage> Messages);
+}

@@ -1,0 +1,119 @@
+// The PlayStation GPU's texture fetch, from its VRAM as a texture of 16-bit units: a texel of a
+// 4-bit, 8-bit or 15-bit texture page, through its CLUT for the indexed ones. Texel 0 is
+// transparent; a texel with bit 15 set blends when its primitive is semi-transparent.
+
+#pragma once
+
+#define VRAM_WIDTH 1024
+// The console's rows, then the port's own (FVram::PortRows), where a page or CLUT of the port's lies.
+#define VRAM_HEIGHT 512
+#define VRAM_ROWS 1024
+
+// A texture and CLUT as FVramTexture::Pack packs them.
+#define PSX_NO_TEXTURE 0xFFFFFFFF
+
+// What a texel does in its primitive.
+#define TEXEL_TRANSPARENT 0
+#define TEXEL_PLAIN 1
+#define TEXEL_SEMI_TRANSPARENT 2
+
+struct FPsxTexel
+{
+	float3 Rgb;
+	uint Kind;
+};
+
+// A page's or CLUT's place never wraps down past the console's rows; past the port's, nothing is drawn from.
+uint PsxVramUnit(Texture2D<uint> Vram, int X, int Y)
+{
+	return Y < VRAM_ROWS ? Vram.Load(int3(X & (VRAM_WIDTH - 1), Y, 0)) : 0;
+}
+
+// A packed texture's page and CLUT: bit 7 puts the page in the port's rows, and the CLUT's y reaches them too.
+int PsxPageY(uint Texture)
+{
+	return int((Texture >> 4) & 1) * 256 + int((Texture >> 7) & 1) * VRAM_HEIGHT;
+}
+
+int PsxClutY(uint Texture)
+{
+	return int((Texture >> 14) & 0x3FF);
+}
+
+// A 5-bit channel widened to 8 bits so that 31 becomes 255, as the port decodes textures.
+float PsxChannel(uint Color, uint Shift)
+{
+	const uint Channel = (Color >> Shift) & 31;
+	return float((Channel << 3) | (Channel >> 2)) / 255.0;
+}
+
+// What a 15-bit colour is as a texel.
+FPsxTexel PsxTexelOf(uint Color)
+{
+	FPsxTexel Texel;
+	Texel.Rgb = float3(PsxChannel(Color, 0), PsxChannel(Color, 5), PsxChannel(Color, 10));
+	Texel.Kind = Color == 0 ? TEXEL_TRANSPARENT : ((Color & 0x8000) != 0 ? TEXEL_SEMI_TRANSPARENT : TEXEL_PLAIN);
+	return Texel;
+}
+
+// The texel at (U, V) of the packed texture: U and V wrap within the page's 256 x 256 as the GPU's
+// 8-bit coordinates do.
+FPsxTexel PsxFetchTexel(Texture2D<uint> Vram, uint Texture, int2 UV)
+{
+	const uint U = uint(UV.x) & 255;
+	const uint V = uint(UV.y) & 255;
+	const int PageX = int(Texture & 0xF) * 64;
+	const int PageY = PsxPageY(Texture);
+	const uint Depth = (Texture >> 5) & 3;
+	const int ClutX = int((Texture >> 8) & 0x3F) * 16;
+	const int ClutY = PsxClutY(Texture);
+	uint Color;
+	if (Depth == 0)
+	{
+		const uint Unit = PsxVramUnit(Vram, PageX + int(U >> 2), PageY + int(V));
+		Color = PsxVramUnit(Vram, ClutX + int((Unit >> ((U & 3) * 4)) & 0xF), ClutY);
+	}
+	else if (Depth == 1)
+	{
+		const uint Unit = PsxVramUnit(Vram, PageX + int(U >> 1), PageY + int(V));
+		Color = PsxVramUnit(Vram, ClutX + int((Unit >> ((U & 1) * 8)) & 0xFF), ClutY);
+	}
+	else
+	{
+		Color = PsxVramUnit(Vram, PageX + int(U), PageY + int(V));
+	}
+	return PsxTexelOf(Color);
+}
+
+// How many times finer the upscaled texels are than the page's (TextureUpscale::Factor).
+#define UPSCALE_SHIFT 2
+#define UPSCALE_FACTOR (1 << UPSCALE_SHIFT)
+
+// The upscaled texel at (U, V), in UPSCALE_FACTOR-ths of a texel of the page, which wrap within its 256 x 256 texels:
+// its index from VRAM's 4-bit or 8-bit reading upscaled (Upscaled4, Upscaled8; TextureUpscale.usf), through the
+// texture's CLUT. A 15-bit page has no indices, and the port's rows are not upscaled: their texels are their own.
+FPsxTexel PsxFetchUpscaledTexel(Texture2D<uint> Vram, Texture2D<uint> Upscaled4, Texture2D<uint> Upscaled8, uint Texture, int2 UV)
+{
+	const uint Depth = (Texture >> 5) & 3;
+	if (Depth >= 2 || ((Texture >> 7) & 1) != 0)
+	{
+		return PsxFetchTexel(Vram, Texture, UV >> UPSCALE_SHIFT);
+	}
+	const uint U = uint(UV.x) & (256 * UPSCALE_FACTOR - 1);
+	const uint V = uint(UV.y) & (256 * UPSCALE_FACTOR - 1);
+	const int PageX = int(Texture & 0xF) * 64;
+	const int PageY = PsxPageY(Texture);
+	const int ClutX = int((Texture >> 8) & 0x3F) * 16;
+	const int ClutY = PsxClutY(Texture);
+	const int Y = (PageY * UPSCALE_FACTOR + int(V)) & (VRAM_HEIGHT * UPSCALE_FACTOR - 1);
+	uint Index;
+	if (Depth == 0)
+	{
+		Index = Upscaled4.Load(int3((PageX * 4 * UPSCALE_FACTOR + int(U)) & (VRAM_WIDTH * 4 * UPSCALE_FACTOR - 1), Y, 0));
+	}
+	else
+	{
+		Index = Upscaled8.Load(int3((PageX * 2 * UPSCALE_FACTOR + int(U)) & (VRAM_WIDTH * 2 * UPSCALE_FACTOR - 1), Y, 0));
+	}
+	return PsxTexelOf(PsxVramUnit(Vram, ClutX + int(Index), ClutY));
+}

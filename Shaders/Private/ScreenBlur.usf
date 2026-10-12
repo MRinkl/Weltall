@@ -1,0 +1,24 @@
+// Blurs a picture as the PlayStation's 2 x 2 means do: each pixel the mean of itself and the pixels one of the original
+// screen's pixels to its right, below it, and both, the taps kept inside the picture's area.
+
+#include "/Engine/Public/Platform.ush"
+
+Texture2D Source;
+SamplerState LinearClamp;
+// The source's size in its pixels.
+float2 SourceSize;
+// The picture's area in the source: its first and last pixel centres, in texture coordinates.
+float4 AreaUv;
+// One pixel of the original's screen, in the source's pixels.
+float Step;
+
+float4 Tap(float2 Position)
+{
+	return Source.SampleLevel(LinearClamp, clamp(Position / SourceSize, AreaUv.xy, AreaUv.zw), 0);
+}
+
+float4 MainPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const float2 At = SvPosition.xy;
+	return (Tap(At) + Tap(At + float2(Step, 0.0)) + Tap(At + float2(0.0, Step)) + Tap(At + float2(Step, Step))) * 0.25;
+}

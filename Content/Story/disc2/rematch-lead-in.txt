@@ -1,0 +1,249 @@
+; The Vendetta rematch's lead-in: Fei alone in the rebuilt Weltall on his way to Ignas, and Ramsus
+; catching up with him above the forest. Played over the sky of the first disc's chase, with its
+; cockpits, its two Gears and its cameras as that map stages them; then the rematch itself, the
+; battle the second disc starts from the Ministry's scene, and on to where that battle leads.
+map 730 over 613
+encounters from 273
+
+message Hurry
+{
+Fei
+"Half of Bledavik is
+gone already...{page}And only four hours
+until they reach
+Nisan."
+}
+
+message Speed
+{
+Fei
+"This speed...!{wait 0A}
+Taura wasn't kidding.{page}At this rate I'll
+reach Ignas with
+time to spare."
+}
+
+message Alarm size 4 1
+{
+!!
+}
+
+message Behind
+{
+Fei
+"Something's coming
+up from behind...!?{page}It's fast!{wait 0A}
+That's no ordinary
+Gear!"
+}
+
+; Fei's own telling of the meeting: the first page of the rematch's narration, the disc's words.
+message Met from event 19 message 0 page 1
+
+message Alive
+{
+Ramsus
+"{wait 05}...{wait 0A}There you are.{page}I shot you down.{wait 0A}
+I watched you fall
+with my own eyes!{page}And yet{wait 05}...{wait 0A}
+You're still alive!?"
+}
+
+message ThatGear
+{
+Fei
+"That Gear{wait 05}...{wait 0A}
+It can't be!"
+}
+
+message Called
+{
+Ramsus
+"Fei...!!"
+}
+
+message NoTime
+{
+Fei
+"Ramsus!?{page}Back off!{wait 0A}
+I've got no time to
+deal with you now!"
+}
+
+message Dragged
+{
+Ramsus
+"No time...?{wait 0A}
+You have no time
+for me!?{page}Don't make me laugh!{wait 0A}
+Every time I rise,
+you are there to
+drag me back down!"
+}
+
+message LetGo
+{
+Fei
+"Damn...{wait 0A}
+He's not going to
+let me go!{page}I'll have to
+lose him!"
+}
+
+message Erase
+{
+Ramsus
+"Not this time.{wait 0A}
+With this 'Vendetta',
+I'll wipe you out{wait 05}...{page}Until not a trace
+of you remains!!"
+}
+
+; Who flies: Fei without Elly, in the Gear Taura rebuilt, which has its own flying pose.
+detour @0x001F to Alone PartyAdd 1
+Alone:
+    Jump @0x0024
+detour @0x00FD to Rebuilt SetGearModel #0
+Rebuilt:
+    SetGearModel #42
+    Jump @0x0100
+detour @0x0115 to Flying Turn #4
+Flying:
+    Turn #4
+    SetMoveAnimation 18
+    Jump @0x011A
+
+; The rebuilt Gear pulls away, and the other goes after it.
+actor 5 script 6:
+    PlaySound #142
+    SetSpeed #16
+    MoveTo 0 #0 #-9000 #600
+    MoveTo 1
+    End
+actor 6 script 6:
+    SetMoveAnimation 18
+    PlaySound #142
+    SetSpeed #12
+    MoveTo 0 #0 #-9000 #600
+    MoveTo 1
+    End
+
+Engines:
+    PlaySoundOnChannel #314 #3
+    PlaySoundOnChannel #315 #2
+    PlaySoundOnChannel #317 #1
+    PlaySoundOnChannel #316 #0
+    Return
+
+actor 8 script 1:
+    DisablePlayer
+    SetWindowLayoutVar #0 #0 #0 #0 #0
+    StartScriptWaitEnd actor1 script4@1
+    StartScriptWaitEnd actor3 script4@1
+    HideActor actor2
+    HideActor actor3
+    StartScriptWaitEnd actor9 script4@1
+    StartScriptWaitEnd actor9 script8@1
+    Call Engines
+    ScreenFade #2 #0 #0 #0 #60
+    Wait #90
+    MessageAtActorPortrait actor1 Hurry 16
+    WaitMessageClosed
+    Wait #20
+    MessageAtActorPortrait actor1 Speed 16
+    WaitMessageClosed
+    Wait #30
+    ; A point of light far behind him.
+    StartScript actor4 script5@3
+    StartScript actor7 script4@3
+    Wait #60
+    MessageAtActor actor1 Alarm 18
+    WaitMessageClosed
+    Wait #10
+    MessageAtActorPortrait actor1 Behind 16
+    WaitMessageClosed
+    ; His telling of it, over the sky, as the battle's narration is told.
+    SetWindowLayoutVar #0 #44 #0 #0 #256
+    MessageCentered Met 82
+    WaitMessageClosed
+    SetWindowLayoutVar #0 #0 #0 #0 #0
+    StartScriptWaitEnd actor4 script6@3
+    StartScript actor5 script5@3
+    Wait #10
+    StartScript actor4 script7@3
+    Wait #30
+    ; Ramsus, the rebuilt Gear ahead of him and nearer by the moment.
+    HideActor actor1
+    StartScriptWaitEnd actor9 script4@1
+    Call Engines
+    ShowActor actor3
+    Wait #40
+    MessageAtActorPortrait actor3 Alive 0
+    WaitMessageClosed
+    Wait #20
+    ; Fei again, the other Gear at his back.
+    HideActor actor3
+    StartScriptWaitEnd actor9 script8@1
+    Call Engines
+    ShowActor actor1
+    Wait #30
+    MessageAtActorPortrait actor1 ThatGear 16
+    WaitMessageClosed
+Closing:
+    Wait #1
+    If var[400] == #0 else Closing
+    Wait #30
+    ; The two Gears, face to face in the open sky.
+    ExtendBudget
+    HideActor actor10
+    HideActor actor11
+    HideActor actor12
+    HideActor actor13
+    HideActor actor14
+    HideActor actor15
+    HideActor actor16
+    HideActor actor17
+    ExtendBudget
+    HideActor actor18
+    HideActor actor19
+    HideActor actor20
+    HideActor actor21
+    HideActor actor22
+    HideActor actor23
+    HideActor actor24
+    HideActor actor1
+    StartScriptWaitEnd actor9 script5@1
+    Wait #30
+    MessageAtActorPortrait actor6 Called 0
+    WaitMessageClosed
+    Wait #15
+    MessageAtActorPortrait actor5 NoTime 16
+    WaitMessageClosed
+    Wait #30
+    StartScript actor9 script6@3
+    StartScript actor6 script4@3
+    MessageAtActorPortrait actor6 Dragged 0
+    WaitMessageClosed
+    Wait #10
+    ; The rematch's own music from here on, into the battle.
+    MusicLoad #20
+    StartScriptWaitEnd actor9 script9@3
+    MessageAtActorPortrait actor5 LetGo 32
+    WaitMessageClosed
+    ; He runs for it.
+    StartScript actor5 script6@3
+    Wait #45
+    StartScriptWaitEnd actor9 script7@3
+    StartScript actor6 script5@3
+    MessageAtActorPortrait actor6 Erase 0
+    WaitMessageClosed
+    StartScript actor6 script6@3
+    Wait #20
+    ; The rematch, as the Ministry's scene starts it, and after it Fei alone in the sky again.
+    SetSlotInGear #0
+    ScreenFade #2 #255 #255 #255 #60
+    SetBattleKind 1 #1
+    Wait #65
+    BattleThenMap #6 0x8000 #731 #0
+    WaitTransition
+    StopAndHalt

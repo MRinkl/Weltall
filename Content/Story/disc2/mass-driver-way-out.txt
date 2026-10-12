@@ -1,0 +1,11 @@
+; Taura's clearing opens onto the world map while Elly sets out for the Mass Driver: in the original the way out
+; stays shut until much later in the story.
+map 614
+
+detour @0x0614 to Out IfAccGreater #299 @0x0624
+Out:
+    If var[000] == #253 else Shut
+    Jump @0x0619
+Shut:
+    IfAccGreater #299 @0x0624
+    Jump @0x0619

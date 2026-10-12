@@ -1,0 +1,61 @@
+// Draws a movie picture decoded by the MDEC: scales its luma with a Catmull-Rom filter and its
+// half-resolution chroma bilinearly (each chroma sample sits at the centre of the 2x2 pixels it
+// covers), then converts to RGB with the BT.601 weights the MDEC uses, full range.
+
+#include "/Engine/Public/Platform.ush"
+
+Texture2D<float> Luma;
+Texture2D<float2> Chroma;
+SamplerState LinearClamp;
+// Where the game screen lies in the render target, in its pixels: x, y, width, height.
+float4 ScreenRect;
+// The game screen's size in its own pixels.
+float2 ScreenSize;
+// Where the picture's shown part lies in the game screen: x, y, width, height.
+float4 Placement;
+// The whole picture's size in its pixels.
+float2 PictureSize;
+
+// Catmull-Rom from nine bilinear samples: the middle two taps of each axis share one sample.
+float SampleCatmullRom(float2 Position)
+{
+	const float2 Center = floor(Position - 0.5) + 0.5;
+	const float2 F = Position - Center;
+	const float2 W0 = F * (-0.5 + F * (1.0 - 0.5 * F));
+	const float2 W1 = 1.0 + F * F * (-2.5 + 1.5 * F);
+	const float2 W2 = F * (0.5 + F * (2.0 - 1.5 * F));
+	const float2 W3 = F * F * (-0.5 + 0.5 * F);
+	const float2 W12 = W1 + W2;
+	const float2 Uv0 = (Center - 1.0) / PictureSize;
+	const float2 Uv12 = (Center + W2 / W12) / PictureSize;
+	const float2 Uv3 = (Center + 2.0) / PictureSize;
+
+	float Sum = 0.0;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv0.x, Uv0.y), 0) * W0.x * W0.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv12.x, Uv0.y), 0) * W12.x * W0.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv3.x, Uv0.y), 0) * W3.x * W0.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv0.x, Uv12.y), 0) * W0.x * W12.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv12.x, Uv12.y), 0) * W12.x * W12.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv3.x, Uv12.y), 0) * W3.x * W12.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv0.x, Uv3.y), 0) * W0.x * W3.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv12.x, Uv3.y), 0) * W12.x * W3.y;
+	Sum += Luma.SampleLevel(LinearClamp, float2(Uv3.x, Uv3.y), 0) * W3.x * W3.y;
+	return Sum;
+}
+
+float4 MainPS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const float2 Screen = (SvPosition.xy - ScreenRect.xy) * ScreenSize / ScreenRect.zw;
+	const float2 Position = Screen - Placement.xy;
+	if (any(Position < 0.0) || any(Position >= Placement.zw))
+	{
+		discard;
+	}
+	const float Y = SampleCatmullRom(Position) + 128.0;
+	const float2 CbCr = Chroma.SampleLevel(LinearClamp, Position / PictureSize, 0);
+	const float3 Rgb = float3(
+		Y + 1.402 * CbCr.y,
+		Y - 0.344136 * CbCr.x - 0.714136 * CbCr.y,
+		Y + 1.772 * CbCr.x);
+	return float4(saturate(Rgb / 255.0), 1.0);
+}

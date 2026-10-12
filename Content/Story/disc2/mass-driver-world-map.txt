@@ -1,0 +1,18 @@
+; The Mass Driver's ruins at the north end of Taura's land, entered on foot: the developers' own place for them,
+; taken wider over the ground around the ruins' block, as the scene's own places take in the ground around a town.
+; Leaving the ruins by entrance 40 puts the party on that ground again.
+world map 8
+
+; Elly and Emeralda walk: the Yggdrasil is with Bart in Ignas.
+vehicle away at story 253
+
+message MassDriver
+{
+Mass Driver
+}
+
+place on foot x 29640 z 16180 width 520 height 400 to map 732 entrance 0 name MassDriver
+arrival 40 x 29700 z 16620
+
+; The minimap's own dot on the ruins, the developers' for this place, which the game never shows.
+dot 21

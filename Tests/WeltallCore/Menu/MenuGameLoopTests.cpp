@@ -1,0 +1,429 @@
+#include "Field/FieldRequests.h"
+#include "Game/FieldProgram.h"
+#include "Game/GameSession.h"
+#include "Game/SaveStore.h"
+#include "Game/SaveWrite.h"
+#include "Game/WorldMapProgram.h"
+#include "Menu/MenuGameMenus.h"
+#include "Menu/MenuProgram.h"
+#include "Support/GameDiscs.h"
+#include "Support/GameLoopSession.h"
+
+#include <catch_amalgamated.hpp>
+
+#include <array>
+#include <filesystem>
+#include <span>
+#include <utility>
+#include <vector>
+
+using namespace Weltall;
+
+// The Menu inside the game's loop: the title's map opens Load Game, whose New Game hands the field a
+// new game.
+namespace
+{
+	constexpr FPadState NoButtons{};
+	constexpr FPadState CrossHeld{FPadState::Bit(EPadButton::Cross)};
+	constexpr FPadState UpHeld{FPadState::Bit(EPadButton::Up)};
+	constexpr FPadState LeftHeld{FPadState::Bit(EPadButton::Left)};
+	constexpr FPadState CircleHeld{FPadState::Bit(EPadButton::Circle)};
+	constexpr int32 FirstMap = 4;
+	/** Map 35: a village square. */
+	constexpr int32 VillageMap = 35;
+	constexpr int32 SecondOpeningMovie = 13;
+}
+
+TEST_CASE("On the title's map Load Game runs in the loop, and its New Game plays the opening's second movie", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	auto Game = Testing::FGameLoopSession::Start(*Disc);
+	FMenuGameMenus Menus(*Game->Executable);
+	Game->Session->SetMenus(&Menus);
+	Game->PowerOn();
+	FGameLoop& Loop = *Game->Loop;
+	// Cross skips the opening movie, then opens Load Game on the title's map.
+	Game->RunUntil([&] { return Menus.Running() != nullptr; }, 2000, CrossHeld);
+	REQUIRE(Menus.Running() != nullptr);
+	CHECK(Loop.Program() == EGameProgram::Field);
+	CHECK(Game->Session->Kernel().MenuMode == static_cast<uint8>(EMenuMode::LoadGame));
+
+	// The layer flies in and the arc shows itself; Cross held from before is no new press.
+	for (int32 Frame = 0; Frame < 40; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame(CrossHeld));
+	}
+	REQUIRE(Menus.Running() != nullptr);
+	CHECK_FALSE(Menus.Running()->Snapshot().Primitives.empty());
+	// The title is no chapter's start.
+	CHECK(Game->Session->ChapterCard().Shown() == 0);
+
+	// Up to New Game, and Cross.
+	const uint32 PlayTimeBefore = Game->Session->Game().PlayTime();
+	REQUIRE(PlayTimeBefore > 300);
+	REQUIRE_FALSE(Game->Frame(UpHeld));
+	REQUIRE_FALSE(Game->Frame(NoButtons));
+	REQUIRE_FALSE(Game->Frame(CrossHeld));
+	Game->RunUntil([&] { return Menus.Running() == nullptr; }, 200);
+	REQUIRE(Menus.Running() == nullptr);
+	// The new game's clock started at 0 (the fix; the original's goes on from power-on).
+	CHECK(Game->Session->Game().PlayTime() < 210);
+	CHECK(Game->Session->Game().ProgramResult == 0);
+	CHECK(Game->Session->Game().MenuLastCommand == 6);
+	CHECK(Game->Session->Game().Place() == FirstMap);
+
+	// The field lightens its picture back, then the title's scripts play the opening's second movie.
+	FFieldProgram* Field = Loop.Field();
+	REQUIRE(Field != nullptr);
+	Game->RunUntil([&] { return Field->Movie() != nullptr; }, 600);
+	const FFieldRequest& Request = Field->Runtime().Request();
+	REQUIRE(Request.Kind == EFieldRequest::Movie);
+	CHECK(Request.Movie.Movie == SecondOpeningMovie);
+}
+
+TEST_CASE("On the title's map Continue loads a save from the player's stores, and the game goes on at its map", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	auto Game = Testing::FGameLoopSession::Start(*Disc);
+	FMenuGameMenus Menus(*Game->Executable);
+	Game->Session->SetMenus(&Menus);
+	// A save of a new game moved to the village, in the first store's first slot.
+	const std::filesystem::path Folder = std::filesystem::temp_directory_path() / "WeltallMenuGameLoopContinue";
+	std::error_code Error;
+	std::filesystem::remove_all(Folder, Error);
+	FSaveStore Store(Folder);
+	REQUIRE_FALSE(Game->Session->InitNewGame());
+	FGameState Saved = Game->Session->Game();
+	Saved.SetPlace(VillageMap);
+	const FOriginalSave Save = WriteOriginalSave(Saved, 0, 0, Game->Session->Text().NameTables, Game->Session->Text().Font.LeadByte());
+	REQUIRE_FALSE(Store.Write(0, Save));
+	Game->Session->SetSaves(&Store);
+	Game->PowerOn();
+	FGameLoop& Loop = *Game->Loop;
+	Game->RunUntil([&] { return Menus.Running() != nullptr; }, 2000, CrossHeld);
+	REQUIRE(Menus.Running() != nullptr);
+
+	// Continue (the title's first command), Load, the save, "Load this file?" Yes, "Finished".
+	const std::array<std::pair<FPadState, int32>, 12> Presses{{{NoButtons, 40}, {CrossHeld, 2}, {NoButtons, 70}, {CrossHeld, 2}, {NoButtons, 40},
+		{CrossHeld, 2}, {NoButtons, 30}, {LeftHeld, 2}, {NoButtons, 6}, {CrossHeld, 2}, {NoButtons, 60}, {CrossHeld, 2}}};
+	// The title's arc shows no stores; the File screen's cards the first pair of the eight.
+	CHECK_FALSE(Menus.Running()->Snapshot().Stores.bShown);
+	bool bStoresShown = false;
+	for (const auto& [Held, Frames] : Presses)
+	{
+		for (int32 Frame = 0; Frame < Frames; ++Frame)
+		{
+			REQUIRE_FALSE(Game->Frame(Held));
+			if (Menus.Running() != nullptr && Menus.Running()->Snapshot().Stores.bShown)
+			{
+				bStoresShown = true;
+				CHECK(Menus.Running()->Snapshot().Stores.FirstStore == 0);
+				CHECK(Menus.Running()->Snapshot().Stores.StoreCount == FSaveStore::StoreCount);
+			}
+		}
+	}
+	CHECK(bStoresShown);
+	Game->RunUntil([&] { return Menus.Running() == nullptr; }, 200);
+	REQUIRE(Menus.Running() == nullptr);
+	CHECK(Game->Session->Game().ProgramResult == 2);
+	CHECK(Game->Session->Game().Place() == VillageMap);
+
+	// The title's map starts the Field program again, on the save's map.
+	const auto OnSavedMap = [&] {
+		return Loop.Field() != nullptr && Loop.Field()->Runtime().Context().MapNumber == VillageMap && Loop.Field()->Runtime().Context().bFieldRunning;
+	};
+	Game->RunUntil(OnSavedMap, 600);
+	CHECK(OnSavedMap());
+	CHECK(Loop.Program() == EGameProgram::Field);
+	// The save's chapter is not announced again as the player walks on.
+	for (int32 Frame = 0; Frame < 200; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame());
+		REQUIRE(Game->Session->ChapterCard().Shown() == 0);
+	}
+	std::filesystem::remove_all(Folder, Error);
+}
+
+namespace
+{
+	constexpr FPadState SquareHeld{FPadState::Bit(EPadButton::Square)};
+	/** Map 15: a forest, where saving is not allowed. */
+	constexpr uint16 ForestMap = 15;
+	/** Era 1 of the world map at its first scene's first entrance, where its menu saves. */
+	constexpr uint16 WorldMapStory = 30;
+	constexpr uint16 WorldMapPlace = 0x401;
+	/** The Normal Menu's File command. */
+	constexpr uint8 FileCommand = 1;
+
+	/** A save of a new game moved to the village, in the first store's first slot of a fresh folder. */
+	FSaveStore SaveInVillage(Testing::FGameLoopSession& Game, const std::filesystem::path& Folder)
+	{
+		std::error_code Error;
+		std::filesystem::remove_all(Folder, Error);
+		FSaveStore Store(Folder);
+		FGameState Saved = Game.Session->Game();
+		Saved.SetPlace(VillageMap);
+		const FOriginalSave Save = WriteOriginalSave(Saved, 0, 0, Game.Session->Text().NameTables, Game.Session->Text().Font.LeadByte());
+		REQUIRE_FALSE(Store.Write(0, Save));
+		return Store;
+	}
+
+	/** Each button held for its frames, in order. */
+	void Play(Testing::FGameLoopSession& Game, std::span<const std::pair<FPadState, int32>> Presses)
+	{
+		for (const auto& [Held, Frames] : Presses)
+		{
+			for (int32 Frame = 0; Frame < Frames; ++Frame)
+			{
+				REQUIRE_FALSE(Game.Frame(Held));
+			}
+		}
+	}
+}
+
+TEST_CASE("In a field the Normal Menu's File loads a save over Copy and Delete, and the game goes on at the save's map", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	auto Game = Testing::FGameLoopSession::Start(*Disc);
+	FMenuGameMenus Menus(*Game->Executable);
+	Game->Session->SetMenus(&Menus);
+	const std::filesystem::path Folder = std::filesystem::temp_directory_path() / "WeltallMenuGameLoopLoadInField";
+	FSaveStore Store = SaveInVillage(*Game, Folder);
+	Game->Session->SetSaves(&Store);
+	FGameState& State = Game->Session->Game();
+	State.SetParty({0, 1, 2});
+	State.SetJoinedCharacters(0x1FF);
+	State.MenuLastCommand = FileCommand;
+	Game->EnterField(ForestMap);
+	FGameLoop& Loop = *Game->Loop;
+	Game->RunUntil([&] { return Loop.Field() != nullptr && Loop.Field()->Runtime().Context().bFieldRunning; }, 200);
+	Game->RunUntil([&] { return Menus.Running() != nullptr; }, 200, SquareHeld);
+	REQUIRE(Menus.Running() != nullptr);
+	const int32 Runs = Loop.ProgramRuns();
+
+	// File, where the menu opened; Load (the top of Load, Copy and Delete, where the cursor starts), the save,
+	// "Load this file?" Yes, "Finished".
+	const std::array<std::pair<FPadState, int32>, 12> Presses{{{NoButtons, 50}, {CrossHeld, 2}, {NoButtons, 70}, {CrossHeld, 2}, {NoButtons, 40},
+		{CrossHeld, 2}, {NoButtons, 30}, {LeftHeld, 2}, {NoButtons, 6}, {CrossHeld, 2}, {NoButtons, 60}, {CrossHeld, 2}}};
+	Play(*Game, Presses);
+	Game->RunUntil([&] { return Menus.Running() == nullptr; }, 200);
+	REQUIRE(Menus.Running() == nullptr);
+	CHECK(State.ProgramResult == 2);
+	CHECK(State.Place() == VillageMap);
+	// The console keeps the command the menu closed on, which no save holds.
+	CHECK(State.MenuLastCommand == FileCommand);
+
+	// The forest's Field program ends, and the kernel starts the field again on the save's map.
+	const auto OnSavedMap = [&] {
+		return Loop.ProgramRuns() != Runs && Loop.Field() != nullptr && Loop.Field()->Runtime().Context().MapNumber == VillageMap
+			&& Loop.Field()->Runtime().Context().bFieldRunning;
+	};
+	Game->RunUntil(OnSavedMap, 600);
+	CHECK(OnSavedMap());
+	CHECK(State.Place() == VillageMap);
+	std::error_code Error;
+	std::filesystem::remove_all(Folder, Error);
+}
+
+TEST_CASE("On the world map the menu's File loads a save from over Save, and the world map hands the game to the save's map", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	auto Game = Testing::FGameLoopSession::Start(*Disc);
+	FMenuGameMenus Menus(*Game->Executable);
+	Game->Session->SetMenus(&Menus);
+	const std::filesystem::path Folder = std::filesystem::temp_directory_path() / "WeltallMenuGameLoopLoadOnWorldMap";
+	FSaveStore Store = SaveInVillage(*Game, Folder);
+	Game->Session->SetSaves(&Store);
+	FGameSession& Session = *Game->Session;
+	Session.Game().SetSavedEventVariable(0, WorldMapStory);
+	Session.Game().SetWorldMapPlace(WorldMapPlace, 1, 0xC00, 1);
+	auto Started = FWorldMapProgram::Start(Session);
+	REQUIRE(Started);
+	FWorldMapProgram& Program = **Started;
+	const auto Frame = [&Program](FPadState Held)
+	{
+		const std::vector<FPadState> Vblanks(static_cast<std::size_t>(Program.VblanksPerFrame()), Held);
+		REQUIRE_FALSE(Program.Frame(Vblanks));
+	};
+	for (int32 Tick = 0; Tick < 200 && Menus.Running() == nullptr; ++Tick)
+	{
+		Frame(Tick % 4 == 0 ? SquareHeld : NoButtons);
+	}
+	REQUIRE(Menus.Running() != nullptr);
+
+	// File, where the menu opens where saving is allowed; Up from Save to Load, the save, Yes, "Finished".
+	const std::array<std::pair<FPadState, int32>, 14> Presses{{{NoButtons, 50}, {CrossHeld, 2}, {NoButtons, 70}, {UpHeld, 2}, {NoButtons, 8},
+		{CrossHeld, 2}, {NoButtons, 40}, {CrossHeld, 2}, {NoButtons, 30}, {LeftHeld, 2}, {NoButtons, 6}, {CrossHeld, 2}, {NoButtons, 60},
+		{CrossHeld, 2}}};
+	for (const auto& [Held, Frames] : Presses)
+	{
+		for (int32 Each = 0; Each < Frames; ++Each)
+		{
+			Frame(Held);
+		}
+	}
+	for (int32 Each = 0; Each < 200 && Program.State() == EGameProgramState::Running; ++Each)
+	{
+		Frame(NoButtons);
+	}
+	CHECK(Program.State() == EGameProgramState::Ended);
+	CHECK(Session.Kernel().NextProgram == EGameProgram::Field);
+	CHECK(Session.Game().ProgramResult == 2);
+	CHECK(Session.Game().Place() == VillageMap);
+	std::error_code Error;
+	std::filesystem::remove_all(Folder, Error);
+}
+
+TEST_CASE("The disc change leaves disc 2 in the drive: the field's scripts read it and its movies are disc 2's", "[Menu][Content]")
+{
+	REQUIRE_DISC(First, EDiscRelease::UsaDisc1);
+	REQUIRE_DISC(Second, EDiscRelease::UsaDisc2);
+	auto Game = Testing::FGameLoopSession::Start(*First);
+	FMenuGameMenus Menus(*Game->Executable);
+	Game->Session->SetMenus(&Menus);
+	Game->AddDisc(*Second);
+	Game->EnterField(VillageMap);
+	FFieldProgram* Field = Game->Loop->Field();
+	REQUIRE(Field != nullptr);
+	FFieldRuntime& Runtime = Field->Runtime();
+	Game->RunUntil([&] { return Runtime.Context().bFieldRunning; }, 100);
+	CHECK(Game->Session->DiscNumber() == 0);
+	CHECK(Runtime.Context().Disc == 1);
+
+	// The field opens the disc change; "Save?" cancelled asks whether to go on without saving, answered Yes.
+	Runtime.Context().MenuRequest = static_cast<uint32>(EMenuMode::DiscChange);
+	Game->RunUntil([&] { return Menus.Running() != nullptr; }, 100);
+	REQUIRE(Menus.Running() != nullptr);
+	const std::array<std::pair<FPadState, int32>, 6> Presses{{{NoButtons, 50}, {CircleHeld, 2}, {NoButtons, 30}, {LeftHeld, 2}, {NoButtons, 6}, {CrossHeld, 2}}};
+	for (const auto& [Held, Frames] : Presses)
+	{
+		for (int32 Frame = 0; Frame < Frames; ++Frame)
+		{
+			REQUIRE_FALSE(Game->Frame(Held));
+		}
+	}
+	// "INSERT DISC 2" stays until it is confirmed; disc 2 is in the drive from then on.
+	for (int32 Frame = 0; Frame < 200; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame());
+	}
+	REQUIRE(Menus.Running() != nullptr);
+	CHECK(Game->Session->DiscNumber() == 0);
+	for (int32 Frame = 0; Frame < 2; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame(CrossHeld));
+	}
+	Game->RunUntil([&] { return Menus.Running() == nullptr; }, 200);
+	REQUIRE(Menus.Running() == nullptr);
+	CHECK(Game->Session->DiscNumber() == 1);
+	CHECK(Runtime.Context().Disc == 2);
+	const TResult<FGameDisc> Drive = Game->Session->DriveDisc();
+	REQUIRE(Drive);
+	CHECK(Drive->Image == &Second->Image());
+}
+
+TEST_CASE("A disc 2 not yet found keeps INSERT DISC 2 up at each confirmation until the host's drive finds it", "[Menu][Content]")
+{
+	REQUIRE_DISC(First, EDiscRelease::UsaDisc1);
+	REQUIRE_DISC(Second, EDiscRelease::UsaDisc2);
+	auto Game = Testing::FGameLoopSession::Start(*First);
+	FMenuGameMenus Menus(*Game->Executable);
+	Game->Session->SetMenus(&Menus);
+
+	// The player puts disc 2 where the game looks only after the first confirmation.
+	class FLateDrive final : public IGameDiscDrive
+	{
+	public:
+		FLateDrive(Testing::FGameLoopSession& InOwner, const FIso9660& InLateDisc) : Owner(InOwner), LateDisc(InLateDisc) {}
+		void Seek(int32 Number) override
+		{
+			Asked.push_back(Number);
+			if (bThere)
+			{
+				Owner.AddDisc(LateDisc);
+			}
+		}
+		Testing::FGameLoopSession& Owner;
+		const FIso9660& LateDisc;
+		std::vector<int32> Asked;
+		bool bThere = false;
+	} Drive(*Game, *Second);
+	Game->Session->SetDiscDrive(&Drive);
+	Game->EnterField(VillageMap);
+	FFieldProgram* Field = Game->Loop->Field();
+	REQUIRE(Field != nullptr);
+	FFieldRuntime& Runtime = Field->Runtime();
+	Game->RunUntil([&] { return Runtime.Context().bFieldRunning; }, 100);
+
+	Runtime.Context().MenuRequest = static_cast<uint32>(EMenuMode::DiscChange);
+	Game->RunUntil([&] { return Menus.Running() != nullptr; }, 100);
+	REQUIRE(Menus.Running() != nullptr);
+	const std::array<std::pair<FPadState, int32>, 7> Presses{
+		{{NoButtons, 50}, {CircleHeld, 2}, {NoButtons, 30}, {LeftHeld, 2}, {NoButtons, 6}, {CrossHeld, 2}, {NoButtons, 200}}};
+	for (const auto& [Held, Frames] : Presses)
+	{
+		for (int32 Frame = 0; Frame < Frames; ++Frame)
+		{
+			REQUIRE_FALSE(Game->Frame(Held));
+		}
+	}
+	CHECK(Drive.Asked.empty());
+
+	// Confirmed with disc 2 still missing: it was looked for, and the message stays.
+	for (int32 Frame = 0; Frame < 2; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame(CrossHeld));
+	}
+	for (int32 Frame = 0; Frame < 100; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame());
+	}
+	CHECK(Drive.Asked == std::vector<int32>{1});
+	REQUIRE(Menus.Running() != nullptr);
+	CHECK(Game->Session->DiscNumber() == 0);
+
+	// There now: the next confirmation finds it and the game goes on on disc 2.
+	Drive.bThere = true;
+	for (int32 Frame = 0; Frame < 2; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame(CrossHeld));
+	}
+	Game->RunUntil([&] { return Menus.Running() == nullptr; }, 200);
+	REQUIRE(Menus.Running() == nullptr);
+	CHECK(Drive.Asked == std::vector<int32>{1, 1});
+	CHECK(Game->Session->DiscNumber() == 1);
+	CHECK(Runtime.Context().Disc == 2);
+}
+
+TEST_CASE("With no controller the Menu holds its frame with the sound paused, and the wait is no play time", "[Menu][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	auto Game = Testing::FGameLoopSession::Start(*Disc);
+	FMenuGameMenus Menus(*Game->Executable);
+	Game->Session->SetMenus(&Menus);
+	Game->PowerOn();
+	Game->RunUntil([&] { return Menus.Running() != nullptr; }, 2000, CrossHeld);
+	REQUIRE(Menus.Running() != nullptr);
+	for (int32 Frame = 0; Frame < 40; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame());
+	}
+	const uint32 Number = Menus.Running()->Snapshot().Number;
+	const uint32 PlayTime = Game->Session->Game().PlayTime();
+
+	// The frame's input read finds no controller: the frame is held, however many vertical blanks pass.
+	Game->Session->Pad().SetConnected(false);
+	for (int32 Frame = 0; Frame < 30; ++Frame)
+	{
+		REQUIRE_FALSE(Game->Frame());
+		CHECK(Menus.Running()->Snapshot().Number == Number);
+	}
+
+	// Back, the held frame is drawn and only its own vertical blank counts.
+	Game->Session->Pad().SetConnected(true);
+	REQUIRE_FALSE(Game->Frame());
+	CHECK(Menus.Running()->Snapshot().Number == Number + 1);
+	CHECK(Game->Session->Game().PlayTime() == PlayTime + 1);
+	REQUIRE_FALSE(Game->Frame());
+	CHECK(Menus.Running()->Snapshot().Number == Number + 2);
+}

@@ -1,0 +1,89 @@
+; The house in Lahan, where the man plays rock-paper-scissors and his wife says her lines. Once a visit has
+; lost three rounds, she offers, talked to, to have a word with him; once she has, his hand loses to Fei's
+; for the rest of the visit.
+map 7
+option fix.rps_helper
+
+; His talk script: the test after his "One, two..." choice, and the jump after a lost round's "Lost 50G.".
+detour @0x024A to Hands If var[014] == #1 else @0x0329
+detour @0x0563 to Lost Jump @0x059B
+; Her talk script, once she has turned toward Fei: the test between her lines after the Badge and before it.
+detour @0x00B4 to Talked If var[2CE] & #-32768 else @0x00C4
+
+message Concern
+{
+Oh dear...{wait 14}
+He's been taking your
+money too, hasn't he?
+}
+message Offer
+{
+I could have a little talk
+with him... He'll go easy
+on you after that, I'm sure.
+    Yes, please!
+    No, I'll beat him myself!
+}
+message Accepted
+{
+Leave it to me.{wait 14}
+He's never once won an
+argument with me, you know.
+}
+message Declined
+{
+My, how brave...{wait 14}
+Well, do try not to lose
+the whole house.
+}
+
+; The player's choice (rock, scissors and paper: lines 1 to 3) and the man's hand (0 rock, 1 scissors, 2 paper).
+define Choice var[014]
+define HisHand var[408]
+; The helper's state, in scratch variables no map's scripts use and every entry clears, so that saves stay
+; the game's: the rounds the visit has lost, and whether she has had her word.
+define Losses var[7FC]
+define Helped var[7FE]
+
+; After Fei's choice. Once she has had her word, the man forgets Fei's runs of a hand and plays the hand
+; Fei's beats: rock and scissors beat his scissors (1) and paper (2), the choice's own numbers, and paper
+; beats his rock (0).
+Hands:
+    If Helped == #1 else Played
+    SetVarFalse var[40C]
+    SetVarFalse var[40E]
+    SetVarFalse var[410]
+    SetVar HisHand Choice
+    If Choice == #3 else Played
+    SetVarFalse HisHand
+Played:
+    If Choice == #1 else @0x0329
+    Jump @0x0252
+
+; After a lost round: one more for the visit.
+Lost:
+    IncVar Losses
+    Jump @0x059B
+
+; Talked to after the visit's third loss and before she has had her word, she offers it in place of her
+; lines. The offer's choice is its fourth and fifth lines, yes first.
+Talked:
+    If Helped == #0 else HerLines
+    If Losses > #2 else HerLines
+    Message Concern 0
+    WaitMessageClosed
+    Message Offer 0
+    MessageChoice 0x34
+    WaitMessageClosed
+    If Choice == #3 else NoThanks
+    Message Accepted 0
+    WaitMessageClosed
+    SetVarTrue Helped
+    Jump @0x00C9
+NoThanks:
+    Message Declined 0
+    WaitMessageClosed
+    Jump @0x00C9
+HerLines:
+    If var[2CE] & #-32768 else @0x00C4
+    Jump @0x00BC

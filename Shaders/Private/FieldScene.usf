@@ -1,0 +1,394 @@
+// Draws a field frame with the PlayStation GPU's texturing rules at any resolution: the scenery's
+// polygons, each corner placed in view space by its model's matrix, and the characters' quads,
+// already in view space; all projected over the field's 320 x 224 screen, widened across for wider
+// targets. Textures are fetched from VRAM through their pages and CLUTs, perspective-correct, texel
+// 0 transparent, modulated by the color (128 leaves a texel unchanged) or raw. A semi-transparent
+// polygon is drawn twice: its plain texels opaque, then the texels with bit 15 set blended, as the
+// GPU treats them.
+
+#include "/Engine/Public/Platform.ush"
+#include "/Weltall/Private/PsxVram.ush"
+
+#define FLAG_RAW 1
+// The characters' and the effects' pixel art, filtered as the sprites are.
+#define FLAG_SPRITE 4
+// Its texels wrap within a texture window, as a draw mode sets one: TexelMin holds the window's offset and TexelMax the
+// bits of a texel coordinate the window replaces.
+#define FLAG_WINDOW 8
+// A gear's floor shadow, broader than a character's.
+#define FLAG_BROAD_SHADOW 16
+// Drawn only where its corners wind clockwise on the screen: a triangle of it that faces away is given no area.
+#define FLAG_ONE_SIDED 32
+// From this bit, a sprite's or particle's ordering-table entry plus one: against the depth buffer
+// it stands at the far edge of that entry, all its quads alike.
+#define FLAG_ENTRY_SHIFT 8
+// A shadow is tested no nearer than this share of its own depth, however low the eye.
+#define MIN_SHADOW_SHARE 0.1
+
+// The view depth of one ordering-table entry.
+#define ENTRY_DEPTH 16.0
+
+// A margin across a triangle's plane grows along the eye's ray as the triangle turns edge-on, to this many times at most.
+#define MAX_SLOPE_MARGIN 8.0
+
+// In the top byte of a polygon's first colour: this frame modulates its texels even when its packet draws them raw.
+#define COLOR_MODULATED (1u << 24)
+
+// Which texels a draw keeps.
+#define PASS_OPAQUE 0
+#define PASS_PLAIN_TEXELS 1
+#define PASS_SEMI_TRANSPARENT_TEXELS 2
+#define PASS_BLEND_ALL 3
+
+// EFieldTextureFilter's.
+#define FILTER_NEAREST 0
+#define FILTER_CRISP 1
+#define FILTER_BILINEAR 2
+// Crisp over the texels upscaled (Upscaled4, Upscaled8).
+#define FILTER_UPSCALED 3
+
+// Vulkan's buffer layout puts a float2 on 8 bytes, Direct3D's packs it: the uint between the float3 and the float2
+// keeps every member at the offset FFieldSceneCorner gives it on both.
+struct FFieldCorner
+{
+	// Model space, as the model stores its vertices; view space for the characters' quads.
+	float3 Position;
+	uint Polygon;
+	// Texel units within the page.
+	float2 TexCoord;
+	uint Object;
+	// Which of the polygon's corner colors it takes.
+	uint Corner;
+};
+
+struct FFieldPolygon
+{
+	// The texture page and CLUT, packed; PSX_NO_TEXTURE for an untextured polygon.
+	uint Texture;
+	uint Flags;
+	// The corners' smallest and largest texel coordinates: u in the low byte, v in the next.
+	uint TexelMin;
+	uint TexelMax;
+};
+
+StructuredBuffer<FFieldCorner> Corners;
+StructuredBuffer<FFieldCorner> DynamicCorners;
+StructuredBuffer<uint> Order;
+// Three rows per model: model space to view space, x right, y down, z ahead.
+StructuredBuffer<float4> Objects;
+// Per polygon, its corners' colors as 8-bit RGB, the first's top byte COLOR_ flags.
+StructuredBuffer<uint4> Colors;
+StructuredBuffer<FFieldPolygon> Polygons;
+StructuredBuffer<FFieldPolygon> DynamicPolygons;
+Texture2D<uint> Vram;
+// VRAM read as 4-bit and as 8-bit indices, upscaled (TextureUpscale.usf), for FILTER_UPSCALED.
+Texture2D<uint> Upscaled4;
+Texture2D<uint> Upscaled8;
+
+// The mesh's corners and polygons; the dynamic ones are numbered after them.
+uint StaticCorners;
+uint StaticPolygons;
+uint FirstVertex;
+// H times the clip units of one pixel of the original screen, across and down.
+float2 ProjectionScale;
+// Clip depth at the near plane: depth is NearPlane / view depth, 1 nearest.
+float NearPlane;
+// How much farther than its entry's far edge a sprite or particle stands in this draw (negative: nearer); a model, than its
+// own depth; the scenery, than its own across its triangle's plane when SlopeMargin is set.
+float EntryMargin;
+uint SlopeMargin;
+// The world's up in view space, and for a shadow how far above its floor what is drawn there hides it (0: nothing does): a
+// character's shadow's, then a gear's broad one's.
+float3 FloorUp;
+float2 ShadowHeights;
+uint DrawPass;
+// The scenery's filter and the characters'.
+uint Filter;
+uint SpriteFilter;
+// A blend mode's share of the new pixel (0.25 for B + F / 4) and the alpha averaging uses.
+float ColorScale;
+float OutputAlpha;
+// The target's samples a pixel.
+uint SampleCount;
+
+// Multisampling's four samples at their standard places, in sixteenths of a pixel from its centre (Direct3D's, which
+// Vulkan's standard places are).
+#define MSAA_SAMPLES 4
+static const float2 SamplePositions[MSAA_SAMPLES] = {float2(-2.0, -6.0), float2(6.0, -2.0), float2(-6.0, 2.0), float2(2.0, 6.0)};
+
+float3 UnpackColor(uint Color)
+{
+	return float3(Color & 0xFF, (Color >> 8) & 0xFF, (Color >> 16) & 0xFF) / 255.0;
+}
+
+FFieldPolygon PolygonAt(uint Index)
+{
+	if (Index < StaticPolygons)
+	{
+		return Polygons[Index];
+	}
+	return DynamicPolygons[Index - StaticPolygons];
+}
+
+FFieldCorner CornerAt(uint Index)
+{
+	if (Index < StaticCorners)
+	{
+		return Corners[Index];
+	}
+	return DynamicCorners[Index - StaticCorners];
+}
+
+// A corner in view space, through its object's rows.
+float3 ViewOf(FFieldCorner Corner)
+{
+	const uint Row = Corner.Object * 3;
+	const float4 Model = float4(Corner.Position, 1.0);
+	return float3(dot(Objects[Row], Model), dot(Objects[Row + 1], Model), dot(Objects[Row + 2], Model));
+}
+
+// The depth two planes parallel to the triangle that VertexId's corner (at View) belongs to lie apart along the eye's
+// ray through the corner, for each unit they lie apart across their plane: one facing the eye, more as it turns edge-on.
+// Every draw starts at a triangle's first corner.
+float SlopeAt(uint VertexId, float3 View)
+{
+	const uint First = FirstVertex + VertexId - VertexId % 3;
+	const float3 A = ViewOf(CornerAt(Order[First]));
+	const float3 Across = cross(ViewOf(CornerAt(Order[First + 1])) - A, ViewOf(CornerAt(Order[First + 2])) - A);
+	const float Facing = abs(dot(Across, View));
+	const float Reach = length(Across) * length(View);
+	const float Turned = Facing * MAX_SLOPE_MARGIN > Reach ? Reach / Facing : MAX_SLOPE_MARGIN;
+	return Turned * View.z / length(View);
+}
+
+void MainVS(
+	uint VertexId : SV_VertexID,
+	out float4 OutPosition : SV_POSITION,
+	out float2 OutTexCoord : TEXCOORD0,
+	out float3 OutColor : COLOR0,
+	nointerpolation out uint OutPolygon : TEXCOORD1,
+	nointerpolation out uint OutColorFlags : TEXCOORD2)
+{
+	const FFieldCorner Corner = CornerAt(Order[FirstVertex + VertexId]);
+	const float3 View = ViewOf(Corner);
+	// Depth is NearPlane over the view depth: a sprite's or particle's that of the entry the field sorts it in. A corner
+	// nearer than the near plane keeps its own, so the drawing still clips there.
+	const uint Entry = PolygonAt(Corner.Polygon).Flags >> FLAG_ENTRY_SHIFT;
+	const float Margin = SlopeMargin != 0 && EntryMargin != 0.0 ? EntryMargin * SlopeAt(VertexId, View) : EntryMargin;
+	float Depth = Entry != 0 ? max(Entry * ENTRY_DEPTH + EntryMargin, NearPlane) : max(View.z + Margin, min(View.z, NearPlane));
+	const float ShadowHeight = (PolygonAt(Corner.Polygon).Flags & FLAG_BROAD_SHADOW) != 0 ? ShadowHeights.y : ShadowHeights.x;
+	if (ShadowHeight > 0.0)
+	{
+		// A point along the eye's ray through the shadow stands ShadowHeight above its floor at this share of the floor's
+		// depth (the eye stands Above over the floor): the shadow is tested there, so what stands higher hides it.
+		const float Above = -dot(FloorUp, View);
+		Depth = View.z * max(1.0 - ShadowHeight / max(Above, ShadowHeight), MIN_SHADOW_SHARE);
+	}
+	OutPosition = float4(View.x * ProjectionScale.x, -View.y * ProjectionScale.y, NearPlane * View.z / Depth, View.z);
+	if ((PolygonAt(Corner.Polygon).Flags & FLAG_ONE_SIDED) != 0)
+	{
+		// Its triangle's corners where they are drawn (x right, y down, z ahead): winding the other way than clockwise on
+		// the screen, all three are put at one point. Every draw starts at a triangle's first corner.
+		const uint First = FirstVertex + VertexId - VertexId % 3;
+		const float3 A = ViewOf(CornerAt(Order[First]));
+		const float3 B = ViewOf(CornerAt(Order[First + 1]));
+		const float3 C = ViewOf(CornerAt(Order[First + 2]));
+		if (dot(A, cross(B, C)) <= 0.0)
+		{
+			OutPosition = float4(0.0, 0.0, 0.0, 1.0);
+		}
+	}
+	OutTexCoord = Corner.TexCoord;
+	OutColor = UnpackColor(Colors[Corner.Polygon][Corner.Corner]);
+	OutPolygon = Corner.Polygon;
+	OutColorFlags = Colors[Corner.Polygon].x & 0xFF000000;
+}
+
+bool DrawnInPass(uint Kind)
+{
+	if (Kind == TEXEL_TRANSPARENT)
+	{
+		return false;
+	}
+	if (DrawPass == PASS_PLAIN_TEXELS)
+	{
+		return Kind == TEXEL_PLAIN;
+	}
+	if (DrawPass == PASS_SEMI_TRANSPARENT_TEXELS)
+	{
+		return Kind == TEXEL_SEMI_TRANSPARENT;
+	}
+	return true;
+}
+
+int2 Unpack(uint Texel)
+{
+	return int2(Texel & 0xFF, (Texel >> 8) & 0xFF);
+}
+
+// The texel the GPU fetches at a coordinate of the polygon: kept within the polygon's texels, or wrapped in its window.
+int2 PolygonTexel(int2 At, FFieldPolygon Polygon)
+{
+	if ((Polygon.Flags & FLAG_WINDOW) != 0)
+	{
+		const int2 Replaced = Unpack(Polygon.TexelMax);
+		return ((At & 0xFF) & ~Replaced) | (Unpack(Polygon.TexelMin) & Replaced);
+	}
+	return clamp(At, Unpack(Polygon.TexelMin), Unpack(Polygon.TexelMax));
+}
+
+// The upscaled texel at a place UPSCALE_FACTOR times finer than the polygon's texels: kept within the polygon's texels, or
+// wrapped in its window by the texel it lies in.
+int2 PolygonUpscaledTexel(int2 At, FFieldPolygon Polygon)
+{
+	if ((Polygon.Flags & FLAG_WINDOW) != 0)
+	{
+		return PolygonTexel(At >> UPSCALE_SHIFT, Polygon) * UPSCALE_FACTOR + (At & (UPSCALE_FACTOR - 1));
+	}
+	return clamp(At, Unpack(Polygon.TexelMin) * UPSCALE_FACTOR, Unpack(Polygon.TexelMax) * UPSCALE_FACTOR + (UPSCALE_FACTOR - 1));
+}
+
+// The texel at a place of the polygon's texels, or of the upscaled texels.
+FPsxTexel PolygonFetch(int2 At, FFieldPolygon Polygon, bool bUpscaled)
+{
+	if (bUpscaled)
+	{
+		return PsxFetchUpscaledTexel(Vram, Upscaled4, Upscaled8, Polygon.Texture, PolygonUpscaledTexel(At, Polygon));
+	}
+	return PsxFetchTexel(Vram, Polygon.Texture, PolygonTexel(At, Polygon));
+}
+
+// The texel under the coordinate, as the GPU takes it (rounded down), and whether the pass draws it.
+bool SampleNearest(float2 TexCoord, FFieldPolygon Polygon, out float3 Rgb)
+{
+	const FPsxTexel Texel = PsxFetchTexel(Vram, Polygon.Texture, PolygonTexel(int2(floor(TexCoord)), Polygon));
+	Rgb = Texel.Rgb;
+	return DrawnInPass(Texel.Kind);
+}
+
+// Bilinear filtering among the pass's texels only: transparent texels (and, for a semi-transparent
+// polygon, the other kind) leave a hole instead of darkening the edge, and the point is drawn when
+// the pass's texels cover at least half of it. Taps stay inside the polygon's texels, or its window.
+// Crisp is the same with the blend squeezed into the pixel a texel edge crosses (Footprint: texels a
+// pixel spans), so a magnified texel is one colour but at its edges: as sharp as the nearest texel,
+// without the rows doubling and dropping as the picture moves by less than a pixel. Upscaled, the coordinate and the
+// footprint are in the upscaled texels.
+bool SampleBilinear(float2 TexCoord, FFieldPolygon Polygon, bool bCrisp, bool bUpscaled, float2 Footprint, out float3 Rgb)
+{
+	const float2 Centered = TexCoord - 0.5;
+	const int2 Base = int2(floor(Centered));
+	float2 Fraction = Centered - Base;
+	if (bCrisp)
+	{
+		Fraction = saturate((Fraction - 0.5) / clamp(Footprint, 1e-4, 1.0) + 0.5);
+	}
+	float3 Sum = 0.0;
+	float Coverage = 0.0;
+	for (int Y = 0; Y < 2; ++Y)
+	{
+		for (int X = 0; X < 2; ++X)
+		{
+			const FPsxTexel Texel = PolygonFetch(Base + int2(X, Y), Polygon, bUpscaled);
+			const float Weight = (X == 0 ? 1.0 - Fraction.x : Fraction.x) * (Y == 0 ? 1.0 - Fraction.y : Fraction.y);
+			if (DrawnInPass(Texel.Kind))
+			{
+				Sum += Texel.Rgb * Weight;
+				Coverage += Weight;
+			}
+		}
+	}
+	Rgb = Coverage > 0.0 ? Sum / Coverage : 0.0;
+	return Coverage >= 0.5;
+}
+
+bool SampleTexel(float2 TexCoord, FFieldPolygon Polygon, uint PolygonFilter, float2 Footprint, out float3 Rgb)
+{
+	if (PolygonFilter == FILTER_NEAREST)
+	{
+		return SampleNearest(TexCoord, Polygon, Rgb);
+	}
+	if (PolygonFilter == FILTER_UPSCALED)
+	{
+		return SampleBilinear(TexCoord * UPSCALE_FACTOR, Polygon, true, true, Footprint * UPSCALE_FACTOR, Rgb);
+	}
+	return SampleBilinear(TexCoord, Polygon, PolygonFilter == FILTER_CRISP, false, Footprint, Rgb);
+}
+
+float4 MainPS(
+	float4 SvPosition : SV_POSITION,
+	float2 TexCoord : TEXCOORD0,
+	float3 Color : COLOR0,
+	nointerpolation uint PolygonIndex : TEXCOORD1,
+	nointerpolation uint ColorFlags : TEXCOORD2,
+	uint Covered : SV_Coverage,
+	out uint Coverage : SV_Coverage) : SV_Target0
+{
+	const FFieldPolygon Polygon = PolygonAt(PolygonIndex);
+	const float2 TexelsAcross = ddx(TexCoord);
+	const float2 TexelsDown = ddy(TexCoord);
+	const float2 Footprint = abs(TexelsAcross) + abs(TexelsDown);
+	float3 Rgb = Color;
+	Coverage = Covered;
+	if (Polygon.Texture != PSX_NO_TEXTURE)
+	{
+		const uint PolygonFilter = (Polygon.Flags & FLAG_SPRITE) != 0 ? SpriteFilter : Filter;
+		float3 Texel;
+		bool bDrawn = SampleTexel(TexCoord, Polygon, PolygonFilter, Footprint, Texel);
+		if (SampleCount == MSAA_SAMPLES)
+		{
+			// The shader runs once a pixel, at its centre, but each sample keeps or drops the texel under it: a transparent
+			// texel at the centre would otherwise take away the samples over a drawn one beside it, opening a crack where
+			// another polygon starts at that texel's edge.
+			const int2 Centre = PolygonTexel(int2(floor(TexCoord)), Polygon);
+			Coverage = 0;
+			for (uint Sample = 0; Sample < MSAA_SAMPLES; ++Sample)
+			{
+				if ((Covered & (1u << Sample)) == 0)
+				{
+					continue;
+				}
+				const float2 Offset = SamplePositions[Sample] / 16.0;
+				const float2 At = TexCoord + TexelsAcross * Offset.x + TexelsDown * Offset.y;
+				bool bSampleDrawn = bDrawn;
+				if (PolygonFilter != FILTER_NEAREST || any(PolygonTexel(int2(floor(At)), Polygon) != Centre))
+				{
+					float3 AtTexel;
+					bSampleDrawn = SampleTexel(At, Polygon, PolygonFilter, Footprint, AtTexel);
+					if (bSampleDrawn && Coverage == 0 && !bDrawn)
+					{
+						Texel = AtTexel;
+					}
+				}
+				Coverage |= bSampleDrawn ? 1u << Sample : 0u;
+			}
+			bDrawn = Coverage != 0;
+		}
+		if (!bDrawn)
+		{
+			discard;
+		}
+		const bool bRaw = (Polygon.Flags & FLAG_RAW) != 0 && (ColorFlags & COLOR_MODULATED) == 0;
+		Rgb = bRaw ? Texel : saturate(Texel * Color * (255.0 / 128.0));
+	}
+	return float4(Rgb * ColorScale, OutputAlpha);
+}
+
+Texture2D<float4> Scene;
+// Where the area starts in the output, and how many scene pixels across each output pixel averages.
+int2 AreaOrigin;
+int Factor;
+
+// Brings the drawn scene into the output: each pixel the average of Factor x Factor scene pixels.
+float4 ResolvePS(float4 SvPosition : SV_POSITION) : SV_Target0
+{
+	const int2 First = (int2(SvPosition.xy) - AreaOrigin) * Factor;
+	float3 Sum = 0.0;
+	for (int Y = 0; Y < Factor; ++Y)
+	{
+		for (int X = 0; X < Factor; ++X)
+		{
+			Sum += Scene.Load(int3(First + int2(X, Y), 0)).rgb;
+		}
+	}
+	return float4(Sum / (Factor * Factor), 1.0);
+}

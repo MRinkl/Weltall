@@ -1,0 +1,338 @@
+; The Mass Driver's central control room, where Citan, come from Shevat in his Gear, meets Elly and Emeralda, and
+; the pod is launched. The room is the first disc's Zeboim facility's control room (map 369). The launch leaves the
+; story where the chair's narration of the Mass Driver leaves it as it goes to the world map's scene of the
+; launch: the scene then brings the game back to the chair, which tells of the stream in the sky and goes on.
+map 734 from 369
+
+message ControlRoom
+{
+Elly
+"This must be the central
+control room{wait 05}..."
+}
+
+message Felt
+{
+Emeralda
+"This place{wait 05}...{wait 0A}
+Emeralda feel something."
+}
+
+message Asked
+{
+Elly
+"Emeralda?"
+}
+
+message Unknown
+{
+Emeralda
+"{wait 05}...{wait 0A}Emeralda not know."
+}
+
+message Arrived
+{
+Citan
+"Elly!{wait 0A} Emeralda!"
+}
+
+message Greeted
+{
+Elly
+"Citan!"
+}
+
+message Waited
+{
+Citan
+"Forgive me for keeping
+you waiting.{page}I left Fenrir by the rail
+outside.{page}It seems the facility
+is in working order."
+}
+
+message Answers
+{
+Citan
+"Let us see{wait 05}...{wait 0A}
+The launch system still
+answers.{page}Elly,{wait 05} the pod,
+if you would."
+}
+
+message Here
+{
+Elly
+"Here.{wait 0A}
+Fei is counting on us."
+}
+
+message Launch
+{
+Citan
+"The course is set{wait 05}...{wait 0A}
+Launching!"
+}
+
+message Standby
+{
+{speed FF}Launch complete.
+Mass driver: standing by.
+}
+
+actors 16
+unsigned 00A-00E 026-02A 030 036
+entrances
+; From the halls, by the door.
+entrance x 143 z 84 layer 0 camera keep facing keep
+
+; Elly's errand: Citan with them for the launch, the party held still for its scene.
+define Scene var[402]
+actor 0 script 0:
+    SetHiddenModel
+    CameraSet #0 #30 #512
+    DisableTalk
+    MusicLoad #26
+    If var[000] == #253 else Quiet
+    PartyAdd 9
+    PartyAddWait
+    SetVarTrue Scene
+Quiet:
+    End
+
+; The party, whoever is in it; Citan waits outside the door until he comes in.
+actor 1 script 0:
+    SetPartyCharacter #0
+    SetMessageFace #0
+    End
+actor 2 script 0:
+    SetPartyCharacter #1
+    SetMessageFace #1
+    End
+actor 3 script 0:
+    SetPartyCharacter #2
+    SetMessageFace #2
+    End
+actor 4 script 0:
+    SetPartyCharacter #3
+    SetMessageFace #3
+    End
+actor 5 script 0:
+    SetPartyCharacter #4
+    SetMessageFace #4
+    End
+actor 6 script 0:
+    SetPartyCharacter #5
+    SetMessageFace #5
+    End
+actor 7 script 0:
+    SetPartyCharacter #6
+    SetMessageFace #6
+    End
+actor 8 script 0:
+    SetPartyCharacter #7
+    SetMessageFace #7
+    End
+actor 9 script 0:
+    SetPartyCharacter #8
+    SetMessageFace #8
+    End
+actor 10 script 0:
+    SetPartyCharacter #9
+    SetMessageFace #9
+    If Scene == #1 else Joined
+    SetPosition #165 #88
+    Hide
+Joined:
+    End
+actor 11 script 0:
+    SetPartyCharacter #10
+    SetMessageFace #10
+    End
+actor 1 script 1:
+actor 2 script 1:
+actor 3 script 1:
+actor 4 script 1:
+actor 5 script 1:
+actor 6 script 1:
+actor 7 script 1:
+actor 8 script 1:
+actor 9 script 1:
+actor 10 script 1:
+actor 11 script 1:
+    If Scene == #0 else Held
+    PlayerControlStep
+    End
+Held:
+    Stop
+    End
+
+; Elly up to the console, Emeralda beside her.
+actor 2 script 8:
+    WalkTo #40 #95
+    TurnToActor self actor13
+    End
+actor 7 script 8:
+    WalkTo #-20 #70
+    TurnToActor self actor13
+    End
+
+; Citan in at the door, over to them, and on to the console.
+actor 10 script 8:
+    Show
+    WalkTo #130 #88
+    End
+actor 10 script 9:
+    WalkTo #100 #88
+    FaceActor actor2
+    End
+actor 10 script 10:
+    WalkTo #105 #92
+    TurnToActor self actor13
+    End
+
+; The scene, as the party comes in.
+actor 12 script 0:
+    SetHiddenModel
+    DisableTalk
+    If Scene == #1 else Calm
+    End
+Calm:
+    FreezeActor actor12
+    End
+actor 12 script 1:
+    DisablePlayer
+    Wait #20
+    StartScript actor7 script8@3
+    StartScriptWaitEnd actor2 script8@3
+    Wait #10
+    MessageAtActorPortrait actor2 ControlRoom 0
+    WaitMessageClosed
+    Wait #20
+    MessageAtActorPortrait actor7 Felt 0
+    WaitMessageClosed
+    TurnToActor actor2 actor7
+    Wait #10
+    MessageAtActorPortrait actor2 Asked 0
+    WaitMessageClosed
+    Wait #10
+    MessageAtActorPortrait actor7 Unknown 0
+    WaitMessageClosed
+    Wait #30
+    PlaySound #119
+    StartScriptWaitEnd actor10 script8@3
+    MessageAtActorPortrait actor10 Arrived 0
+    WaitMessageClosed
+    TurnToActor actor2 actor10
+    TurnToActor actor7 actor10
+    Wait #10
+    MessageAtActorPortrait actor2 Greeted 0
+    WaitMessageClosed
+    StartScriptWaitEnd actor10 script9@3
+    MessageAtActorPortrait actor10 Waited 0
+    WaitMessageClosed
+    Wait #10
+    StartScriptWaitEnd actor10 script10@3
+    Wait #20
+    MessageAtActorPortrait actor10 Answers 0
+    WaitMessageClosed
+    TurnToActor actor2 actor13
+    Wait #10
+    MessageAtActorPortrait actor2 Here 0
+    WaitMessageClosed
+    PlaySound #55
+    Wait #30
+    MessageAtActorPortrait actor10 Launch 0
+    WaitMessageClosed
+    ; The rail fires: the room shakes under it.
+    CameraShake #3 #3 #3 #1
+    PlaySoundOnChannel #224 #1
+    PlaySoundOnChannel #225 #2
+    PlaySound #226
+    Wait #90
+    ScreenFade #1 #255 #255 #255 #90
+    Wait #15
+    CameraShake #0 #0 #0 #1
+    ; As the chair's narration leaves it for the world map's scene of the launch.
+    SetVarBit var[248] #2
+    SetVar var[000] #252
+    ExitToWorldMap #1024 #4095 #-1 #17
+    StopAndHalt
+
+; The console: after the launch, its readout.
+actor 13 script 0:
+    SetHiddenModel
+    SetPosition #-154 #125
+    SetStateFlags 0 0x2000
+    SetStateFlags 3 0x4
+    SetCollisionSize 30 30 100 0
+    SetCollisionFlags #1
+    End
+actor 13 script 2:
+    MessageCentered Standby 1
+    WaitMessageClosed
+    End
+
+; The door, back to the halls.
+actor 14 script 0:
+    SetHiddenModel
+    SetPosition #181 #88
+    SetStateFlags 0 0x2000
+    SetStateFlags 3 0x4
+    SetCollisionSize 5 30 100 0
+    SetCollisionFlags #1
+    End
+actor 14 script 3:
+    DisablePlayer
+    WalkLeaderTo #233 #88
+    ChangeMap #733 #1
+    StopAndHalt
+
+; The door's picture, open.
+actor 15 script 0:
+    SetHiddenModel
+    DisableTalk
+    ScrollModelUV 22 0
+    End
+actor 15 script 1:
+    If var[404] == #0 else Shown
+    ScrollModelUV 22 0
+    SetVarTrue var[404]
+Shown:
+    End
+
+; What an actor does not do.
+actor 0 script 1:
+actor 0 script 2:
+actor 0 script 3:
+actor 1 script 2:
+actor 1 script 3:
+actor 2 script 2:
+actor 2 script 3:
+actor 3 script 2:
+actor 3 script 3:
+actor 4 script 2:
+actor 4 script 3:
+actor 5 script 2:
+actor 5 script 3:
+actor 6 script 2:
+actor 6 script 3:
+actor 7 script 2:
+actor 7 script 3:
+actor 8 script 2:
+actor 8 script 3:
+actor 9 script 2:
+actor 9 script 3:
+actor 10 script 2:
+actor 10 script 3:
+actor 11 script 2:
+actor 11 script 3:
+actor 12 script 2:
+actor 12 script 3:
+actor 13 script 1:
+actor 13 script 3:
+actor 14 script 1:
+actor 14 script 2:
+actor 15 script 2:
+actor 15 script 3:
+    End

@@ -1,0 +1,121 @@
+// Draws a screen's 2D layer the way the PlayStation's GPU draws its primitives, at any resolution:
+// flat or Gouraud colors, textures modulated by the color (128 leaves a texel unchanged), texel 0
+// transparent, and a semi-transparent primitive's pixels blended in one of the GPU's four modes.
+// A textured semi-transparent primitive is drawn twice: its plain texels opaque, then the texels
+// with bit 15 set blended, which is how the GPU treats them. Textures are either decoded layers of
+// a texture array or, with RAW_VRAM, fetched from VRAM through their pages and CLUTs.
+
+#include "/Engine/Public/Platform.ush"
+#include "/Weltall/Private/PsxVram.ush"
+
+#define NO_TEXTURE 0xFFFF
+#define FLAG_MODULATE 1
+
+// Which pixels a draw keeps.
+#define PASS_OPAQUE 0
+#define PASS_PLAIN_TEXELS 1
+#define PASS_SEMI_TRANSPARENT_TEXELS 2
+#define PASS_BLEND_ALL 3
+
+// Must match SemiTransparentTexelAlpha in the core (128 / 255).
+#define SEMI_TRANSPARENT_ALPHA (128.0 / 255.0)
+
+#ifndef RAW_VRAM
+#define RAW_VRAM 0
+#endif
+
+struct FScreenVertex
+{
+	// Game-screen pixels.
+	float2 Position;
+	// Texel units, rounded down per pixel.
+	float2 TexCoord;
+	// 0-255 per channel.
+	float4 Color;
+	// The pixels drawn, in game-screen pixels: left, top, right, bottom (exclusive).
+	float4 Clip;
+	// The texture's layer, or with RAW_VRAM 0; NO_TEXTURE for none.
+	uint Texture;
+	uint Flags;
+	// With RAW_VRAM, the texture's page and CLUT, packed.
+	uint VramTexture;
+	// The primitive's first and last texels, u and v a byte each.
+	uint TexelBounds;
+};
+
+StructuredBuffer<FScreenVertex> Vertices;
+#if RAW_VRAM
+Texture2D<uint> Vram;
+#else
+Texture2DArray<float4> Textures;
+#endif
+// Where the game screen lies in the render target, in its pixels: x, y, width, height.
+float4 ScreenRect;
+// The game screen's size in its own pixels.
+float2 ScreenSize;
+float2 TargetSize;
+uint FirstVertex;
+uint DrawPass;
+// A blend mode's share of the new pixel (0.25 for B + F / 4) and the alpha that averaging uses.
+float ColorScale;
+float OutputAlpha;
+
+void MainVS(
+	uint VertexId : SV_VertexID,
+	out float4 OutPosition : SV_POSITION,
+	noperspective out float2 OutTexCoord : TEXCOORD0,
+	noperspective out float4 OutColor : COLOR0,
+	nointerpolation out float4 OutClip : TEXCOORD1,
+	nointerpolation out uint4 OutTexture : TEXCOORD2)
+{
+	const FScreenVertex Vertex = Vertices[FirstVertex + VertexId];
+	const float2 Target = ScreenRect.xy + Vertex.Position * ScreenRect.zw / ScreenSize;
+	const float2 Ndc = Target / TargetSize * 2.0 - 1.0;
+	OutPosition = float4(Ndc.x, -Ndc.y, 0.0, 1.0);
+	OutTexCoord = Vertex.TexCoord;
+	OutColor = Vertex.Color;
+	OutClip = Vertex.Clip;
+	OutTexture = uint4(Vertex.Texture, Vertex.Flags, Vertex.VramTexture, Vertex.TexelBounds);
+}
+
+float4 MainPS(
+	float4 SvPosition : SV_POSITION,
+	noperspective float2 TexCoord : TEXCOORD0,
+	noperspective float4 Color : COLOR0,
+	nointerpolation float4 Clip : TEXCOORD1,
+	nointerpolation uint4 Texture : TEXCOORD2) : SV_Target0
+{
+	// The GPU's drawing area: pixels outside the primitive's clip rectangle are not written.
+	const float2 Screen = (SvPosition.xy - ScreenRect.xy) * ScreenSize / ScreenRect.zw;
+	if (any(Screen < Clip.xy) || any(Screen >= Clip.zw))
+	{
+		discard;
+	}
+
+	float3 Rgb = Color.rgb / 255.0;
+	if (Texture.x != NO_TEXTURE)
+	{
+		// Rounding can put a pixel on the primitive's very edge a hair past its last texel; a primitive
+		// whose texels wrap round the page's edge has no bounds (its first texel after its last).
+		const int2 First = int2(Texture.w & 0xFF, (Texture.w >> 8) & 0xFF);
+		const int2 Last = int2((Texture.w >> 16) & 0xFF, Texture.w >> 24);
+		const int2 Texel = First.x > Last.x ? int2(floor(TexCoord)) & 255 : clamp(int2(floor(TexCoord)), First, Last);
+#if RAW_VRAM
+		const FPsxTexel Fetched = PsxFetchTexel(Vram, Texture.z, Texel);
+		const float3 SampleRgb = Fetched.Rgb;
+		const bool bTransparent = Fetched.Kind == TEXEL_TRANSPARENT;
+		const bool bSemiTransparentTexel = Fetched.Kind == TEXEL_SEMI_TRANSPARENT;
+#else
+		const float4 Sample = Textures.Load(int4(Texel, Texture.x, 0));
+		const float3 SampleRgb = Sample.rgb;
+		const bool bTransparent = Sample.a < 0.5 * SEMI_TRANSPARENT_ALPHA;
+		const bool bSemiTransparentTexel = !bTransparent && Sample.a < 0.5 * (1.0 + SEMI_TRANSPARENT_ALPHA);
+#endif
+		if (bTransparent || (DrawPass == PASS_PLAIN_TEXELS && bSemiTransparentTexel) || (DrawPass == PASS_SEMI_TRANSPARENT_TEXELS && !bSemiTransparentTexel))
+		{
+			discard;
+		}
+		Rgb = (Texture.y & FLAG_MODULATE) != 0 ? saturate(SampleRgb * Color.rgb / 128.0) : SampleRgb;
+	}
+	return float4(Rgb * ColorScale, OutputAlpha);
+}

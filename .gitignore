@@ -1,0 +1,36 @@
+# Game images supplied by the player, and everything derived from them
+/Games/
+
+# Machine-specific configuration
+/local.env
+
+# Unreal Engine generated content
+/Binaries/
+/Intermediate/
+/Saved/
+/DerivedDataCache/
+/Plugins/**/Binaries/
+/Plugins/**/Intermediate/
+*_BuiltData.uasset
+
+# Standalone build output
+/out/
+/build/
+
+# IDE and generated project files
+.vs/
+.vscode/
+.idea/
+*.sln
+*.slnx
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.xcodeproj
+*.xcworkspace
+
+# OS clutter
+.DS_Store
+Thumbs.db
