@@ -26,6 +26,16 @@ namespace Weltall
 		constexpr int32 ExtraAnimationDirectory = 4;
 	}
 
+	FSpriteFilePlace FieldMapSpritePlace(const FFieldSpriteSlot& Slot, int32 Number, int32 PaletteSet)
+	{
+		return {MapClutX + 16 * PaletteSet, MapClutY + Number, Slot.X, Slot.Y};
+	}
+
+	FSpriteFilePlace FieldPartySpritePlace()
+	{
+		return {MapClutX, PartyClutY, PartyTextureX, PartyTextureY};
+	}
+
 	FFieldSprites::FFieldSprites(std::span<const FSpriteFile> InMapFiles, const std::array<FFieldSpriteSlot, FieldSpriteSlotCount>& InSlots,
 		const FPartySpriteFiles& InPartyFiles, std::span<FEventActorState> InStates, const FCdImage& InImage, const FGameFileIndex& InIndex)
 		: MapFiles(InMapFiles), Slots(InSlots), PartyFiles(InPartyFiles), States(InStates), Sprites(InStates.size()), HasSprite(InStates.size(), 0),
@@ -55,10 +65,11 @@ namespace Weltall
 				return std::nullopt;
 			}
 			File = &MapFiles[static_cast<std::size_t>(Request.Slot)];
-			ClutX = MapClutX + 16 * Request.PaletteSet;
-			ClutY = MapClutY + Request.Slot;
-			TextureX = Slots[static_cast<std::size_t>(Request.Slot)].X;
-			TextureY = Slots[static_cast<std::size_t>(Request.Slot)].Y;
+			const FSpriteFilePlace Place = FieldMapSpritePlace(Slots[static_cast<std::size_t>(Request.Slot)], Request.Slot, Request.PaletteSet);
+			ClutX = Place.ClutX;
+			ClutY = Place.ClutY;
+			TextureX = Place.TextureX;
+			TextureY = Place.TextureY;
 		}
 		else
 		{

@@ -12,6 +12,7 @@
 #include "Rendering/ScreenBlurRendering.h"
 #include "Rendering/SharedRenderResource.h"
 #include "Rendering/VramTexture.h"
+#include "Rendering/TextureModSources.h"
 
 namespace
 {
@@ -263,6 +264,8 @@ TSharedPtr<const IScreenFrame> FBattlingView::Capture(const Weltall::FBattlingGa
 		ScreenBuilder.Build(ScreenPicture, nullptr, 1.0f, Next->PictureScreen);
 		ShowTextButtons(Next->PictureScreen);
 	}
+	FollowTextureModSources(*Vram, Program.Vram(), nullptr, {&Next->Draw, Next->PictureBlurs > 0 ? &Next->PictureDraw : nullptr},
+		{&Next->Screen, Next->PictureBlurs > 0 ? &Next->PictureScreen : nullptr});
 	return Next;
 }
 

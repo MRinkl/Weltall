@@ -10,9 +10,7 @@ namespace Weltall
 {
 	namespace
 	{
-		/** The setup's texture places: enemies' image sets along row 100h (an image to a set of columns), the party's sprites along row 1C0h from 100h. */
-		constexpr int32 SetColumns = 0x40;
-		constexpr int16 EnemyTextureY = 0x100;
+		/** The setup's texture places for the party's sprites: along row 1C0h from 100h. */
 		constexpr int16 PartyTextureX = 0x100;
 		constexpr int16 PartyTextureY = 0x1C0;
 		/** The types an enemy's slot can have that name an entry of the scene, and the characters the party's tables cover. */
@@ -133,7 +131,6 @@ namespace Weltall
 
 	void FBattleShowLoad::LoadScene()
 	{
-		const std::span<const uint8> Bytes = Scene->Bytes();
 		const std::vector<FBattleSceneEntry>& Entries = Scene->Entries();
 		const std::optional<std::vector<int16>> Columns = BattleSceneColumns(*Scene);
 		if (Entries.size() > SceneEntries || !Columns)
@@ -146,35 +143,15 @@ namespace Weltall
 		{
 			Types[static_cast<std::size_t>(Slot)] = Show.Context->Slots[static_cast<std::size_t>(Slot)].Occupant;
 		}
-		std::array<int16, SetRoom> Sets{};
-		uint32 SetCount = 0;
+		FBattleSceneImageSets Sets;
 		for (std::size_t Index = 0; Index < Entries.size(); ++Index)
 		{
 			const FBattleSceneEntry& Entry = Entries[Index];
 			const int16 EntryColumn = (*Columns)[Index];
 			if (Entry.IsSprite())
 			{
-				uint32 Set = Entry.Images;
-				if (Entry.HasOwnImages())
-				{
-					// An image set: its images side by side from the column.
-					TResult<std::vector<FBattleImageSetImage>> Images = ReadBattleImageSet(Bytes, Entry.Images);
-					if (!Images || SetCount >= SetRoom)
-					{
-						Fail(EBattleShowFault::SceneGraphics);
-						return;
-					}
-					for (std::size_t Image = 0; Image < Images->size(); ++Image)
-					{
-						const FBattleImageSetImage& Read = (*Images)[Image];
-						UploadBattleUnits(Show.Vram, Bytes, Read.Units,
-							{static_cast<int16>(EntryColumn + SetColumns * static_cast<int32>(Image)), EnemyTextureY, static_cast<int16>(Read.Width), static_cast<int16>(Read.Height)});
-					}
-					Sets[SetCount] = EntryColumn;
-					Set = SetCount++;
-				}
-				// A set named by number that the scene has not placed yet would be read from the setup's stack.
-				if (Set >= SetCount || Entry.Data <= 7 || Entry.Data >= Scene->KeptEnd())
+				const std::optional<int16> SetColumn = Sets.Place(*Scene, Index, EntryColumn, Show.Vram);
+				if (!SetColumn || Entry.Data <= 7 || Entry.Data >= Scene->KeptEnd())
 				{
 					Fail(EBattleShowFault::SceneGraphics);
 					return;
@@ -185,7 +162,7 @@ namespace Weltall
 					Fail(EBattleShowFault::SceneGraphics);
 					return;
 				}
-				Resources[PartySlots + Index] = {File, Sets[Set], EnemyTextureY, Entry.PaletteSet};
+				Resources[PartySlots + Index] = {File, *SetColumn, FBattleSceneImageSets::TextureY, Entry.PaletteSet};
 				continue;
 			}
 			if (!Entry.HasOwnImages())

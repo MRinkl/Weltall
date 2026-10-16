@@ -231,6 +231,11 @@ namespace Weltall
 		TMenuTask<bool> OptionsScreen();
 		ESettingsPage SettingsPage() const;
 		bool OnSavesPages() const;
+		bool OnAssetsPage() const;
+		void FillAssetRows();
+		bool RefreshAssetProgress();
+		bool StepAssetOption();
+		bool ActivateAssetOption();
 		bool OnControlsPage() const;
 		/** How many pages L1 and R1 turn through: the settings', then the controls' and the saves' where the menu has them. */
 		int32 TurnedPages() const;
@@ -456,6 +461,7 @@ namespace Weltall
 			int32 Top = 0;
 			std::unique_ptr<FMenuSavePages> SavePages;
 			std::unique_ptr<FMenuControlsPage> ControlsPage;
+			uint64 AssetRevision = 0;
 			/** The page listened for a key: the buttons do nothing until every one is let go. */
 			bool bAwaitRelease = false;
 			/** The second disc's row asked whether to switch, and switched. */

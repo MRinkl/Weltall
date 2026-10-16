@@ -61,16 +61,17 @@ TEST_CASE("The Controls page shows two keys of each button and camera action, of
 	FMenuControlsPage Page(Keys);
 	FControlBindings Bindings = FControlBindings::Defaults();
 	const std::vector<FSettingsRow> Rows = Page.Rows(Bindings);
-	REQUIRE(Rows.size() == 26);
+	REQUIRE(Rows.size() == 27);
 	CHECK(Rows[0].Label == Text::Device);
 	CHECK(Rows[0].Value == Text::Keyboard);
 	CHECK(Rows[0].bReadOnly);
 	CHECK(Rows[1].bHeading);
 	CHECK(Rows[16].Label == Text::AlwaysRun.Label);
 	CHECK(Rows[17].Label == Text::WalkIntoDoors.Label);
-	CHECK(Rows[18].Label == Text::CameraHeading);
-	CHECK(Rows[23].Label == Text::MouseSensitivity.Label);
-	CHECK(Rows[24].Label == Text::StickSensitivity.Label);
+	CHECK(Rows[18].Label == Text::OriginalButtonIcons.Label);
+	CHECK(Rows[19].Label == Text::CameraHeading);
+	CHECK(Rows[24].Label == Text::MouseSensitivity.Label);
+	CHECK(Rows[25].Label == Text::StickSensitivity.Label);
 	CHECK(Rows.back().Label == Text::ResetKeys);
 	for (const std::string_view Label : ActionLabels)
 	{
@@ -440,6 +441,29 @@ TEST_CASE("The Controls page's Walk into doors row switches whether doors open w
 	Bindings.bWalkIntoDoors = false;
 	REQUIRE(Page.Activate(static_cast<int32>(Page.Rows(Bindings).size()) - 1, Bindings));
 	CHECK_FALSE(Bindings.bWalkIntoDoors);
+}
+
+TEST_CASE("Original PSX icons can be selected without changing the Controls page's bound keys", "[Menu][Input]")
+{
+	FPressedKeys Keys;
+	FMenuControlsPage Page(Keys);
+	FControlBindings Bindings = FControlBindings::Defaults();
+	Bindings.Rebind(EControlAction::Cross, 0, "K");
+	const FControlBindings Before = Bindings;
+	const int32 Row = RowOf(Page, Text::OriginalButtonIcons.Label);
+	CHECK(RowNamed(Page, Bindings, Text::OriginalButtonIcons.Label).Value == OptionsText::Off);
+	REQUIRE(Page.Step(Row, 1, Bindings));
+	CHECK(Bindings.bOriginalButtonIcons);
+	CHECK(RowNamed(Page, Bindings, Text::OriginalButtonIcons.Label).Value == OptionsText::On);
+	CHECK(RowNamed(Page, Bindings, Text::OriginalButtonIcons.Label).Help == OptionsText::Fill(Text::OriginalButtonIcons.Help));
+	CHECK(RowNamed(Page, Bindings, Text::Confirm.Label).Cells[0] == FButtonGlyph{EButtonIconSet::Keyboard, "K", "K"});
+	Keys.Family = EInputFamily::Gamepad;
+	Keys.Icons = EButtonIconSet::Xbox;
+	REQUIRE(Page.Follow());
+	CHECK(RowNamed(Page, Bindings, Text::Confirm.Label).Cells[0].Icon == "A");
+	REQUIRE(Page.Activate(Row, Bindings));
+	CHECK(Bindings == Before);
+	CHECK_FALSE(Page.Listening());
 }
 
 TEST_CASE("The Controls page's sensitivity rows step the mouse's and the stick's levels", "[Menu]")

@@ -48,6 +48,8 @@ namespace Weltall
 
 		WELTALLCORE_API static TResult<FBattleSceneGraphics> Parse(std::vector<uint8> File);
 		WELTALLCORE_API static TResult<FBattleSceneGraphics> Load(const FCdImage& Image, const FGameFileIndex& Index, int32 Scene);
+		/** The scenes whose graphics the disc holds, in order (a scene's place in directory 13 may be empty). */
+		WELTALLCORE_API static std::vector<int32> Scenes(const FGameFileIndex& Index);
 
 		std::span<const uint8> Bytes() const { return File; }
 		uint8 FirstColumn() const { return File[1]; }

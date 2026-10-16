@@ -217,6 +217,10 @@ namespace Weltall
 	class FSpriteSystem
 	{
 	public:
+		/** Where battle mode streams the frames of a file it takes that is not resident. */
+		static constexpr int16 BattleStreamX = 0x300;
+		static constexpr int16 BattleStreamY = 0x100;
+
 		/** Display frames per logic tick less one: 1 in the field and on the world map, 0 in battle. */
 		int32 TickExtraFrames = 1;
 		/** Logic ticks the spawned children stand still for. */

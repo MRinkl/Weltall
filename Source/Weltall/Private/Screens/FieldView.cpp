@@ -8,6 +8,7 @@
 #include "Game/FieldProgram.h"
 #include "Rendering/SharedRenderResource.h"
 #include "Rendering/VramTexture.h"
+#include "Rendering/TextureModSources.h"
 
 #include <algorithm>
 
@@ -51,7 +52,7 @@ void FFieldView::Follow(const Weltall::FFieldProgram& Program, bool bNewProgram,
 	{
 		Program.Drawing().LayOutGears(Context, GearLayout);
 		MeshGears = Program.Drawing().GearLayout(Context);
-		Mesh = MakeShared<const FFieldSceneMesh>(Program.Drawing().Scene(), GearLayout, MeshGears);
+		Mesh = MakeShared<const FFieldSceneMesh>(Program.Drawing().Scene(), GearLayout, MeshGears, Program.Drawing().SpriteSheets());
 		MeshMapLoads = Program.Runtime().MapLoads();
 		DisplayFrames.Reset();
 	}
@@ -113,6 +114,7 @@ void FFieldView::TakePicture(const Weltall::FFieldProgram& Program)
 	WriteScreenIntoVram(ShownVram, Shown->ScreenInVram, Pictures);
 	const TSharedRef<FFieldScreenFrame> Source = MakeShared<FFieldScreenFrame>(Mesh.ToSharedRef(), ShownVram);
 	Fill(*Source, Program.Drawing().PictureScene(), *Shown, nullptr, 1.0f, nullptr, ShownMovie);
+	FollowTextureModSources(*ShownVram, Program.Drawing().PictureVram(), Mesh.Get(), {&Source->Draw}, {&Source->Layer}, Shown->Gears.TextureSeeds);
 	Picture = FFieldCoverPicture::Make(Source);
 	Pictures.Add(static_cast<int32>(PicturesTaken), Picture);
 }
@@ -198,6 +200,7 @@ TSharedPtr<const IScreenFrame> FFieldView::Capture(const Weltall::FFieldProgram&
 	{
 		MoveFieldSceneView(Next->Draw, Player.ViewWithOffsets(Drawn).View, Player.ViewWithOffsets(Live).View);
 	}
+	FollowTextureModSources(*Vram, Program.Drawing().Vram(), Mesh.Get(), {&Next->Draw}, {&Next->Layer}, Latest->Gears.TextureSeeds);
 	return Next;
 }
 
@@ -231,6 +234,7 @@ TSharedPtr<const IScreenFrame> FFieldView::CaptureStill(const Weltall::FFieldPro
 		Next->Layer.Primitives.push_back(Latest->Screen.Primitives[Index]);
 	}
 	Next->Picture = Latest->Cover.bShown && Latest->Cover.bScreen ? Picture : nullptr;
+	FollowTextureModSources(*Vram, Program.Drawing().Vram(), Mesh.Get(), {&Next->Draw}, {&Next->Layer}, Latest->Gears.TextureSeeds);
 	Still = FFieldStillFrame::Make(Next);
 	StillMapLoads = MeshMapLoads;
 	StillTick = Latest->Tick;

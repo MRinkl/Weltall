@@ -28,6 +28,8 @@ namespace Weltall
 		/** Reads the objects' archive, the sound effects and the event program's portrait table; Voices is the Battle program's table. */
 		WELTALLCORE_API static TResult<FBattleEventFiles> Load(const FCdImage& Image, const FGameFileIndex& Index,
 			const std::array<FBattleProgramTables::FVoiceSet, FBattleProgramTables::VoiceSetCount>& Voices);
+		/** Selects compatible USA or undub voice files, leaving event text and portraits on their gameplay source. */
+		void SetVoiceFiles(const FCdImage& InImage, const FGameFileIndex& InIndex) { VoiceImage = &InImage; VoiceIndex = &InIndex; }
 
 		int32 ObjectCount() const { return static_cast<int32>(ObjectOffsets.size()); }
 		/** An object's sprite data, unpacked afresh as each load of the object unpacks it. */
@@ -45,6 +47,8 @@ namespace Weltall
 	private:
 		const FCdImage* Image = nullptr;
 		const FGameFileIndex* Index = nullptr;
+		const FCdImage* VoiceImage = nullptr;
+		const FGameFileIndex* VoiceIndex = nullptr;
 		/** The archive as the disc holds it, padded for the unpacker's reads past its last entry, and each entry's place in it. */
 		std::vector<uint8> ObjectArchive;
 		std::vector<uint32> ObjectOffsets;

@@ -30,22 +30,22 @@ namespace Weltall
 			return static_cast<uint16>(static_cast<uint16>(Y) << 6 | ((static_cast<uint16>(X) >> 4) & 0x3F));
 		}
 
-		FMdlTextureState Placed(const FMdlPrimitive& Primitive, const FGearTexturePlace* Place)
-		{
-			if (Place == nullptr)
-			{
-				return {Primitive.TexturePage, Primitive.Clut};
-			}
-			const uint16 PortRows = Place->Y >= FVram::Height ? PortRowsBit : 0;
-			return {static_cast<uint16>((Primitive.TexturePage & ~PagePlaceBits) | PagePlace(Place->X, Place->Y) | PortRows),
-				static_cast<uint16>((Primitive.Clut & ClutColumnBits) | (ClutAttribute(Place->ClutX, Place->ClutY) & ~ClutColumnBits))};
-		}
-
 		/** A polygon the drawing never lights again keeps the build's light: the Gouraud kinds its draw mode passes by. */
 		bool KeepsBuildLight(const FMdlPrimitive& Primitive, const FMdlPacket& Packet)
 		{
 			return Primitive.Traits().bGouraud && Packet.Relight == EMdlRelight::None;
 		}
+	}
+
+	FMdlTextureState PlaceGearTexture(const FMdlPrimitive& Primitive, const FGearTexturePlace* Place)
+	{
+		if (Place == nullptr)
+		{
+			return {Primitive.TexturePage, Primitive.Clut};
+		}
+		const uint16 PortRows = Place->Y >= FVram::Height ? PortRowsBit : 0;
+		return {static_cast<uint16>((Primitive.TexturePage & ~PagePlaceBits) | PagePlace(Place->X, Place->Y) | PortRows),
+			static_cast<uint16>((Primitive.Clut & ClutColumnBits) | (ClutAttribute(Place->ClutX, Place->ClutY) & ~ClutColumnBits))};
 	}
 
 	TResult<std::vector<FGearBonePackets>> BuildGearPackets(const FMdlModel& Model, std::span<const FGearBone> Bones, int32 LightMode,
@@ -95,7 +95,7 @@ namespace Weltall
 				{
 					return MakeError(Where + "a polygon takes its page or CLUT from an earlier build");
 				}
-				Out.Textures.push_back(Primitive.Traits().bTextured ? Placed(Primitive, Place) : FMdlTextureState{});
+				Out.Textures.push_back(Primitive.Traits().bTextured ? PlaceGearTexture(Primitive, Place) : FMdlTextureState{});
 			}
 			Out.Packets = std::move(*Packets);
 		}

@@ -29,6 +29,15 @@ namespace
 		return static_cast<uint32>(FMath::Clamp(U, 0, 255)) | static_cast<uint32>(FMath::Clamp(V, 0, 255)) << 8;
 	}
 
+	/** The whole cell a character's quad shows some or all rows of. */
+	Weltall::FTextureRegion SpriteCellOf(const Weltall::FSpriteQuad& Quad, uint32 View)
+	{
+		const bool bPart = Quad.CellV1 > Quad.CellV0;
+		const auto Texel = [](int32 Value) { return static_cast<uint8>(FMath::Clamp(Value, 0, 255)); };
+		return Weltall::TextureRegionBetween(View, Texel(FMath::Min(Quad.U0, Quad.U1)), Texel(bPart ? Quad.CellV0 : FMath::Min(Quad.V0, Quad.V1)),
+			Texel(FMath::Max(Quad.U0, Quad.U1) - 1), Texel((bPart ? Quad.CellV1 : FMath::Max(Quad.V0, Quad.V1)) - 1));
+	}
+
 	uint32 PackRgb(uint8 R, uint8 G, uint8 B)
 	{
 		return static_cast<uint32>(R) | static_cast<uint32>(G) << 8 | static_cast<uint32>(B) << 16;
@@ -189,6 +198,7 @@ void AddFieldCharacterQuads(const Weltall::FFieldFrame& Latest, const Weltall::F
 		// The quads map their texels edge to edge: the last texel is one before the far edge.
 		State.TexelMin = PackClampedTexel(FMath::Min(Quad.U0, Quad.U1), FMath::Min(Quad.V0, Quad.V1));
 		State.TexelMax = PackClampedTexel(FMath::Max(Quad.U0, Quad.U1) - 1, FMath::Max(Quad.V0, Quad.V1) - 1);
+		Draw.SpriteCells.Add(SpriteCellOf(Quad, State.Texture));
 		const uint32 Color = Quad.ColorCode & 0xFFFFFF;
 		Draw.Colors.Emplace(Color, Color, Color, Color);
 	}
@@ -199,11 +209,14 @@ void AddFieldBackdrop(const Weltall::FFieldFrame& Latest, const Weltall::FFieldF
 {
 	Draw.BackdropCorners = static_cast<uint32>(Draw.DynamicCorners.Num());
 	Draw.BackdropCornerCount = 0;
+	Draw.BackdropRegions.Reset();
 	if (!Latest.Backdrop.bShown)
 	{
 		Draw.BackdropQuads.clear();
 		return;
 	}
+	const std::vector<Weltall::FTextureRegion> Strip = Weltall::PanoramaTextureRegions(Latest.Backdrop.Panorama);
+	Draw.BackdropRegions.Append(Strip.data(), static_cast<int32>(Strip.size()));
 	const Weltall::FFieldBackdrop Backdrop = Previous != nullptr ? Weltall::BlendFieldBackdrop(Previous->Backdrop, Latest.Backdrop, Alpha) : Latest.Backdrop;
 	Weltall::DrawFieldBackdrop(Backdrop, -BackdropBeyond, Weltall::FieldBackdropWidth + BackdropBeyond, Draw.BackdropQuads);
 	const uint32 Identity = static_cast<uint32>(Draw.Objects.Num() / 3 - 1);

@@ -75,7 +75,7 @@ namespace Weltall
 		const FCutsceneTablesLayout* Layout = nullptr;
 		for (const FCutsceneTablesLayout& Candidate : Layouts)
 		{
-			if (Candidate.Release == Release)
+			if (Candidate.Release == GameplayRelease(Release))
 			{
 				Layout = &Candidate;
 			}

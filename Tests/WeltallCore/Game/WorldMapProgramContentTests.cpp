@@ -1,6 +1,7 @@
 #include "Field/FieldGearStandIns.h"
 #include "Game/PartyOrder.h"
 #include "Game/WorldMapProgram.h"
+#include "Graphics/TextureRegion.h"
 #include "Menu/MenuGameMenus.h"
 #include "Sound/WorldMapMusic.h"
 #include "Support/GameDiscs.h"
@@ -504,6 +505,9 @@ TEST_CASE("The world map draws the party's gears with their models where the pla
 		int32 GearPolygons = 0;
 		int32 GearSprites = 0;
 		bool bFineInPortRows = true;
+		/** The textured polygons of the gears' models whose texels lie inside a region of the frame's seeds. */
+		int32 TexturedGearPolygons = 0;
+		int32 SeededGearPolygons = 0;
 		std::array<int32, 3> ModelsOf{-1, -1, -1};
 		/**
 		 * Each gear as it stands, along the world's y (which grows downward) from where the camera is: its top and its
@@ -604,6 +608,22 @@ TEST_CASE("The world map draws the party's gears with their models where the pla
 				++Result.GearPolygons;
 				Result.bFineInPortRows = Result.bFineInPortRows && Anchor != nullptr && Anchor->Kind() == EWorldMapAnchorKind::Gear && Anchor->bFine
 					&& (!Polygon.bTextured || Polygon.bPortRows);
+				if (Polygon.bTextured)
+				{
+					const uint32 View = PackTextureView(FTexturePage::FromPortAttribute(Polygon.TexturePage), FClutPosition::FromPortAttribute(Polygon.Clut));
+					++Result.TexturedGearPolygons;
+					Result.SeededGearPolygons += std::ranges::any_of(Going->TextureSeeds, [&Polygon, View](const FTexturePictureSeed& Seed)
+					{
+						for (std::size_t Corner = 0; Corner < Polygon.CornerCount; ++Corner)
+						{
+							if (Seed.Region.View != View || !Seed.Region.Contains(Polygon.U[Corner], Polygon.V[Corner]))
+							{
+								return false;
+							}
+						}
+						return true;
+					}) ? 1 : 0;
+				}
 			}
 			for (int32 Gear = 0; Gear < 3 && Anchor != nullptr; ++Gear)
 			{
@@ -627,6 +647,9 @@ TEST_CASE("The world map draws the party's gears with their models where the pla
 	CHECK(Models.GearSprites == 0);
 	CHECK(Models.GearPolygons > 600);
 	CHECK(Models.bFineInPortRows);
+	// Their textures are named by their models' regions, as a field map's stand-ins' are.
+	CHECK(Models.TexturedGearPolygons > 300);
+	CHECK(Models.SeededGearPolygons == Models.TexturedGearPolygons);
 	CHECK(Models.ModelsOf == std::array<int32, 3>{0, 2, 3});
 	CHECK(InPlay.GearPolygons == Models.GearPolygons);
 	// The game is the same under each: where the party and its gears went, and the random numbers drawn.

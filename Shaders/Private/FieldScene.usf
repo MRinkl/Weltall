@@ -8,6 +8,7 @@
 
 #include "/Engine/Public/Platform.ush"
 #include "/Weltall/Private/PsxVram.ush"
+#include "/Weltall/Private/TextureReplacements.ush"
 
 #define FLAG_RAW 1
 // The characters' and the effects' pixel art, filtered as the sprites are.
@@ -221,6 +222,14 @@ bool DrawnInPass(uint Kind)
 	return true;
 }
 
+// The kinds of texel the pass draws, a bit per TEXEL_ kind.
+uint PassKinds()
+{
+	if (DrawPass == PASS_PLAIN_TEXELS) return 1u << TEXEL_PLAIN;
+	if (DrawPass == PASS_SEMI_TRANSPARENT_TEXELS) return 1u << TEXEL_SEMI_TRANSPARENT;
+	return (1u << TEXEL_PLAIN) | (1u << TEXEL_SEMI_TRANSPARENT);
+}
+
 int2 Unpack(uint Texel)
 {
 	return int2(Texel & 0xFF, (Texel >> 8) & 0xFF);
@@ -303,6 +312,14 @@ bool SampleBilinear(float2 TexCoord, FFieldPolygon Polygon, bool bCrisp, bool bU
 
 bool SampleTexel(float2 TexCoord, FFieldPolygon Polygon, uint PolygonFilter, float2 Footprint, out float3 Rgb)
 {
+	FPsxTexel Replacement;
+	const float2 Bounded = (Polygon.Flags & FLAG_WINDOW) != 0 ? TexCoord : clamp(TexCoord, float2(Unpack(Polygon.TexelMin)), float2(Unpack(Polygon.TexelMax)) + 0.99999);
+	if (SampleReplacement(Vram, Polygon.Texture, PolygonTexel(int2(floor(TexCoord)), Polygon), frac(Bounded), PolygonFilter != FILTER_NEAREST, PassKinds(),
+		Replacement))
+	{
+		Rgb = Replacement.Rgb;
+		return DrawnInPass(Replacement.Kind);
+	}
 	if (PolygonFilter == FILTER_NEAREST)
 	{
 		return SampleNearest(TexCoord, Polygon, Rgb);

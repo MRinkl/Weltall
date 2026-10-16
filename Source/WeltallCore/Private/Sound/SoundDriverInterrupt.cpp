@@ -1,3 +1,4 @@
+#include "Formats/Wave.h"
 #include "Sound/SoundDriverIntegers.h"
 #include "Sound/SoundDriverState.h"
 
@@ -121,6 +122,7 @@ namespace Weltall
 			if (Sequence.Active == 0)
 			{
 				Sequence.Flags &= static_cast<uint16>(~SequenceFlag::Playing);
+				Sequence.bWaveTail = Sequence.File != nullptr && Sequence.File->Replacement && !Sequence.File->Replacement->Loop;
 				return;
 			}
 			// A fade to silence ends in a pause, which fading back up ends.

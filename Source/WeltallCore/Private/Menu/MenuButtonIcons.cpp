@@ -67,7 +67,7 @@ namespace Weltall
 
 		/**
 		 * The PlayStation icon the text shows a button as: the font's symbol of a face button, a shoulder button's name, the
-		 * D-pad for the directional buttons; none for Start and Select, whose names today's PlayStation controllers no longer print.
+		 * D-pad for the directional buttons, and the original Start and Select names.
 		 */
 		std::string_view WrittenIcon(const FTextButtonCell& Cell)
 		{
@@ -93,6 +93,10 @@ namespace Weltall
 				return "L2";
 			case EPadButton::R2:
 				return "R2";
+			case EPadButton::Start:
+				return "Start";
+			case EPadButton::Select:
+				return "Select";
 			default:
 				return {};
 			}

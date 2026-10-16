@@ -89,6 +89,11 @@ namespace Weltall
 					{Sequence.Volume.Value, Sequence.Pan.Value, Track.Volume, Track.Expression, Track.Pan, Track.LfoVolume, Track.LfoPan}, bStereo);
 				Track.VolumeLeft = Volumes.Left;
 				Track.VolumeRight = Volumes.Right;
+				if (Sequence.File != nullptr && Sequence.File->Replacement && Sequence.Muted == 0)
+				{
+					Track.VolumeLeft = 0;
+					Track.VolumeRight = 0;
+				}
 				Track.Rewrite |= VoiceRewrite::Volumes;
 			}
 			if (Requests & TrackRequest::Pitch)

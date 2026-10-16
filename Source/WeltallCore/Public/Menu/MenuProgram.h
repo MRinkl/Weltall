@@ -30,6 +30,7 @@ namespace Weltall
 	struct FPlayerSettings;
 	class FSaveStore;
 	class FStoryWayBack;
+	class IMenuAssets;
 	class FVram;
 	class IVramUploads;
 	struct FPlayClock;
@@ -88,6 +89,7 @@ namespace Weltall
 		virtual void Keep() = 0;
 		/** What the display offers the Display page; none where the game has no window. */
 		virtual FDisplayModes DisplayModes() const { return {}; }
+		virtual IMenuAssets* Assets() const { return nullptr; }
 	};
 
 	/** A key, button or axis the player pressed, by the engine's name for it. */

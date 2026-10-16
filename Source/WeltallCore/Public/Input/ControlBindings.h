@@ -148,6 +148,8 @@ namespace Weltall
 		bool bAlwaysRun = true;
 		/** A door opens when the party walks into it, as it does for the confirm button pressed at it. Off: the button alone, as the original. */
 		bool bWalkIntoDoors = true;
+		/** Keep the original PlayStation button pictures instead of showing the bound keys or controller buttons. */
+		bool bOriginalButtonIcons = false;
 		/** How fast the mouse and a stick move the view: levels from LowestSensitivity to HighestSensitivity. */
 		int32 MouseSensitivity = DefaultSensitivity;
 		int32 StickSensitivity = DefaultSensitivity;

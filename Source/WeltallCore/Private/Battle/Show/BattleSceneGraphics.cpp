@@ -50,6 +50,25 @@ namespace Weltall
 		return Graphics;
 	}
 
+	std::vector<int32> FBattleSceneGraphics::Scenes(const FGameFileIndex& Index)
+	{
+		std::vector<int32> Held;
+		// Past the directory's last file, a number names the files of the directories after it.
+		for (int32 Scene = 0; const FIndexRecord* Record = Index.Find(SceneDirectory, 2 * Scene + 3); ++Scene)
+		{
+			const std::optional<FGameFileIndex::FFileName> Name = Index.NameOf(static_cast<std::size_t>(Record - Index.Records().data()));
+			if (!Name || Name->Directory != SceneDirectory)
+			{
+				break;
+			}
+			if (Record->IsFile())
+			{
+				Held.push_back(Scene);
+			}
+		}
+		return Held;
+	}
+
 	TResult<FBattleSceneGraphics> FBattleSceneGraphics::Load(const FCdImage& Image, const FGameFileIndex& Index, int32 Scene)
 	{
 		const FIndexRecord* Record = Index.Find(SceneDirectory, 2 * Scene + 3);

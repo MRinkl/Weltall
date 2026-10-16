@@ -8,6 +8,7 @@
 #include "Graphics/AffineBlend.h"
 #include "Graphics/Gte.h"
 #include "Graphics/MdlModel.h"
+#include "Graphics/TexturePictures.h"
 
 #include <array>
 #include <optional>
@@ -141,6 +142,8 @@ namespace Weltall
 		/** One for each placed model that draws a cloth; any other model's cloths lie in the world. */
 		std::vector<FFieldGearClothSpace> ClothSpaces;
 		std::vector<FFieldGearLink> Links;
+		/** The texture regions of the laid-out models with their loads' colours, each model's once (FGearModel::TextureSeeds). */
+		std::vector<FTexturePictureSeed> TextureSeeds;
 		/** Scratch: the layout, and a part's vertices projected. */
 		std::vector<FFieldGearLayoutItem> Items;
 		std::vector<FGteProjection> Projected;

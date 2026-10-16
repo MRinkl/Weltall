@@ -2,6 +2,7 @@
 
 #include "Media/DiscIdentification.h"
 #include "Media/Iso9660.h"
+#include "Media/VoiceLanguage.h"
 
 #include <filesystem>
 #include <map>
@@ -33,6 +34,8 @@ namespace Weltall
 
 		/** The disc of a release, or null when the folder has none. */
 		WELTALLCORE_API const FIso9660* Find(EDiscRelease Release) const;
+		/** English game data: the USA release when present, otherwise the supported undub. Number is one or two. */
+		WELTALLCORE_API const FIso9660* PlayableDisc(int32 Number) const;
 
 		/** The file a release's disc was found in; empty when there is none. */
 		WELTALLCORE_API std::filesystem::path FileOf(EDiscRelease Release) const;

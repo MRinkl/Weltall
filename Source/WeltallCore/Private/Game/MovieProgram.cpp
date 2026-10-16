@@ -37,7 +37,7 @@ namespace Weltall
 			return MakeError(std::string(GameProgramName(EGameProgram::Movie)) + ": movie " + std::to_string(Request.Number) + " of kind " +
 							 std::to_string(Kind) + " is read from a layout of the disc the retail game does not have");
 		}
-		const TResult<FGameDisc> Disc = Session.DriveDisc();
+		const TResult<FGameDisc> Disc = Session.MovieDisc();
 		if (!Disc)
 		{
 			return Disc.Error();

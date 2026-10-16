@@ -615,6 +615,18 @@ bool FBattleDepthRenderingTest::RunTest(const FString&)
 	Sprite.Quad.ColorCode = BattleRawSprite | 0x808080;
 	Sprite.Quad.OtIndex = 2000 / 16;
 	Frame.Order.push_back({Weltall::EBattleShowLink::Quad, 0, Sprite.Quad.OtIndex});
+	// A sprite standing 1600 away, its picture reaching below its feet on the screen (a long robe, a hovering boss): over floor
+	// far nearer than its entry, which the original draws before it.
+	const Weltall::FSpriteQuad Standing = Sprite.Quad;
+	Weltall::FBattleShowQuad& Reaching = Frame.Quads.emplace_back();
+	Reaching.Drawer = static_cast<uint16>(Frame.Drawers.size());
+	Frame.Drawers.push_back({2, Weltall::EBattleShowDrawer::Sprite, {}});
+	Reaching.Quad = Standing;
+	Reaching.Quad.Matrix.T = {0, 0, 1600};
+	const auto At1600 = [](int32 X, int32 Y) { return Weltall::FGteVector{static_cast<int16>((X - 160) * 1600 / 512), static_cast<int16>((Y - 164) * 1600 / 512), 0}; };
+	Reaching.Quad.Corners = {At1600(70, 150), At1600(100, 150), At1600(70, 214), At1600(100, 214)};
+	Reaching.Quad.OtIndex = 1600 / 16;
+	Frame.Order.push_back({Weltall::EBattleShowLink::Quad, 1, Reaching.Quad.OtIndex});
 	Objects.AddQuad(Frame, Stage, BattleStanding(-1500, -500, -400, 0, 2500), {128, 64, 0});
 	// A purple pillar of the stage 3000 away, linked after the wall in front of it.
 	Objects.AddQuad(Frame, Stage, BattleStanding(-1200, -900, -600, 0, 3000), {128, 0, 128});
@@ -669,6 +681,7 @@ bool FBattleDepthRenderingTest::RunTest(const FString&)
 		Near(*Pixels, FString::Printf(TEXT("%s: the gear's soles under the stage's floor, drawn after it"), Name), 140, 218, 0, 0, 255);
 		Near(*Pixels, FString::Printf(TEXT("%s: the spark inside the gear, linked after it"), Name), 130, 90, 255, 0, 0);
 		Near(*Pixels, FString::Printf(TEXT("%s: the shadow on the floor beside the gear"), Name), 240, 210, 64, 64, 64);
+		Near(*Pixels, FString::Printf(TEXT("%s: the floor never hides a sprite standing on it"), Name), 85, 210, 255, 0, 0);
 	}
 	for (const auto& [Pixels, Name] : {std::pair(&Buffered, TEXT("per pixel")), std::pair(&Sorted, TEXT("scenery too"))})
 	{

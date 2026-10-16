@@ -1,6 +1,7 @@
 #include "Battle/Show/BattleShowObjects.h"
 
 #include "Battle/BattleContext.h"
+#include "Battle/Show/BattleStageBackdrop.h"
 #include "Battle/Show/BattleStageFiles.h"
 #include "BattleObjectMachine.h"
 #include "Foundation/LittleEndian.h"
@@ -70,6 +71,11 @@ namespace Weltall
 		{
 			return;
 		}
+		// The backdrop's panoramas and dome draw from the stage's textures: their pictures are the stage's too.
+		std::vector<FTexturePictureSeed> Seeds = *Made->TextureSeeds;
+		const std::vector<FTexturePictureSeed> Backdrop = BattleBackdropTextureSeeds(MakeBattleStageBackdrop(StageFiles.Record), StageFiles.Model.Pack);
+		Seeds.insert(Seeds.end(), Backdrop.begin(), Backdrop.end());
+		Made->TextureSeeds = std::make_shared<const std::vector<FTexturePictureSeed>>(std::move(Seeds));
 		for (std::size_t Bone = 1; Bone < Made->Bones.size() && Bone - 1 < StageFiles.Model.BonePlaces.size(); ++Bone)
 		{
 			const FBattleStageBonePlace& Placed = StageFiles.Model.BonePlaces[Bone - 1];

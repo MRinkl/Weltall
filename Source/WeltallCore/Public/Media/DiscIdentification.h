@@ -3,6 +3,8 @@
 #include "Foundation/Result.h"
 #include "Media/Iso9660.h"
 
+#include <string_view>
+
 namespace Weltall
 {
 	/** The exact disc releases Weltall can read. Offsets inside the game differ between releases. */
@@ -10,7 +12,20 @@ namespace Weltall
 	{
 		UsaDisc1,
 		UsaDisc2,
+		UndubDisc1,
+		UndubDisc2,
+		JapanDisc1,
+		JapanDisc2,
 	};
+
+	/** Stable directory name for a disc's locally extracted assets. */
+	WELTALLCORE_API std::string_view DiscReleaseId(EDiscRelease Release);
+	/** One or two, independently of the disc's language. */
+	WELTALLCORE_API uint8 DiscNumberOfRelease(EDiscRelease Release);
+	/** Whether the release provides the English game data the port plays. */
+	WELTALLCORE_API bool IsPlayableRelease(EDiscRelease Release);
+	/** The compatible original layout for a playable release. */
+	WELTALLCORE_API EDiscRelease GameplayRelease(EDiscRelease Release);
 
 	struct FDiscIdentity
 	{

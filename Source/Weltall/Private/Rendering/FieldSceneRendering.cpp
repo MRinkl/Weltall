@@ -26,7 +26,8 @@ namespace
 	{
 		constexpr uint8 PlainTexels = 1;
 		constexpr uint8 Opaque = 0;
-		if (Run.Depth == EFieldRunDepth::Mask || Run.Depth == EFieldRunDepth::MaskBesideModels || Run.Depth == EFieldRunDepth::PushedBack)
+		if (Run.Depth == EFieldRunDepth::Mask || Run.Depth == EFieldRunDepth::MaskBesideModels || Run.Depth == EFieldRunDepth::MaskBesideMarks ||
+			Run.Depth == EFieldRunDepth::PushedBack)
 		{
 			return TStaticBlendState<CW_NONE>::GetRHI();
 		}
@@ -117,11 +118,13 @@ namespace
 		case EFieldDepthRule::Model:
 			return Run.Depth == EFieldRunDepth::Mask ? -ModelMargin : Run.Depth == EFieldRunDepth::InsideMask || Run.Depth == EFieldRunDepth::Masked ? -2.0f * ModelMargin : 0.0f;
 		case EFieldDepthRule::Scenery:
-			if (Run.Depth == EFieldRunDepth::Mask || Run.Depth == EFieldRunDepth::MaskBesideModels)
+			if (Run.Depth == EFieldRunDepth::Mask || Run.Depth == EFieldRunDepth::MaskBesideModels || Run.Depth == EFieldRunDepth::MaskBesideMarks)
 			{
 				return -SceneryMargin;
 			}
-			return Run.Depth == EFieldRunDepth::Masked || Run.Depth == EFieldRunDepth::OverModels ? -2.0f * SceneryMargin : 0.0f;
+			return Run.Depth == EFieldRunDepth::Masked || Run.Depth == EFieldRunDepth::OverModels || Run.Depth == EFieldRunDepth::GroundOverModels
+				? -2.0f * SceneryMargin
+				: 0.0f;
 		case EFieldDepthRule::Entry:
 			break;
 		}
@@ -187,6 +190,26 @@ namespace
 		case EFieldRunDepth::MaskBesideModels:
 			Result.States[0] = TStaticDepthStencilState<true, CF_GreaterEqual, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
 				StencilModel, 0>::GetRHI();
+			break;
+		case EFieldRunDepth::MaskBesideMarks:
+			Result.States[0] = TStaticDepthStencilState<true, CF_GreaterEqual, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+				StencilMarks, 0>::GetRHI();
+			break;
+		case EFieldRunDepth::GroundOverModels:
+			if (Run.Rule == EFieldDepthRule::Scenery)
+			{
+				// Beside every mark against its prepass and the marks' depth; over the models' (not the sprites') as the order draws it.
+				Result.States[0] = TStaticDepthStencilState<false, CF_GreaterEqual, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep,
+					SO_Keep, StencilMarks, 0>::GetRHI();
+				Result.States[1] = TStaticDepthStencilState<false, CF_Always, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+					StencilMarks, 0>::GetRHI();
+				Result.References[1] = StencilModel;
+				Result.Count = 2;
+				break;
+			}
+			// Outside the sprites' marks as the order draws it, over the models' too.
+			Result.States[0] = TStaticDepthStencilState<false, CF_Always, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+				StencilMarked, 0>::GetRHI();
 			break;
 		case EFieldRunDepth::OverModels:
 			if (Run.Rule == EFieldDepthRule::Scenery)
@@ -339,6 +362,7 @@ namespace
 		const float Vertical = Draw.ProjectionDistance * 2.0f / ScreenHeight;
 		const FVector2f ProjectionScale(Vertical * static_cast<float>(Size.Y) / static_cast<float>(Size.X), Vertical);
 		FRHITexture* VramUnits = Vram.Texture();
+		const FTextureReplacementResources Replacements = Vram.Replacements();
 		TArray<FFieldDrawRun, SceneRenderingAllocator>* Runs = GraphBuilder.AllocObject<TArray<FFieldDrawRun, SceneRenderingAllocator>>();
 		Runs->Append(Draw.Runs.GetData() + First, End - First);
 		uint32 Filter = static_cast<uint32>(Draw.Filter);
@@ -366,7 +390,7 @@ namespace
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("FieldScene"), PassParameters, ERDGPassFlags::Raster,
 			[PassParameters, Runs, VertexShader, PixelShader, Viewport, ProjectionScale, VramUnits, Filter, SpriteFilter, StaticCorners, StaticPolygons, bScissor,
-				ScissorRect, bDepthTarget, FloorUp, bShadowsOnFloors, Samples](FRDGAsyncTask, FRHICommandList& RHICmdList)
+				ScissorRect, bDepthTarget, FloorUp, bShadowsOnFloors, Samples, Replacements](FRDGAsyncTask, FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(static_cast<float>(Viewport.Min.X), static_cast<float>(Viewport.Min.Y), 0.0f, static_cast<float>(Viewport.Max.X),
 					static_cast<float>(Viewport.Max.Y), 1.0f);
@@ -419,6 +443,7 @@ namespace
 						PixelParameters.Polygons = PassParameters->Polygons;
 						PixelParameters.DynamicPolygons = PassParameters->DynamicPolygons;
 						PixelParameters.Vram = VramUnits;
+						PixelParameters.Replacements = TextureReplacementParameters(Replacements);
 						PixelParameters.Upscaled4 = PassParameters->Upscaled4 != nullptr ? PassParameters->Upscaled4->GetRHI() : VramUnits;
 						PixelParameters.Upscaled8 = PassParameters->Upscaled8 != nullptr ? PassParameters->Upscaled8->GetRHI() : VramUnits;
 						PixelParameters.StaticPolygons = StaticPolygons;

@@ -135,7 +135,7 @@ namespace Weltall
 		const FBattlingArenaLayout* Layout = nullptr;
 		for (const FBattlingArenaLayout& Candidate : ArenaLayouts)
 		{
-			if (Candidate.Release == Release)
+			if (Candidate.Release == GameplayRelease(Release))
 			{
 				Layout = &Candidate;
 			}

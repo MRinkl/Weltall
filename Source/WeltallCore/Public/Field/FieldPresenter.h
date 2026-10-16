@@ -18,6 +18,7 @@
 #include "Field/FieldSpriteModels.h"
 #include "Foundation/Result.h"
 #include "Graphics/SpriteDrawing.h"
+#include "Graphics/TextureRegion.h"
 #include "Graphics/Vram.h"
 #include "Input/PadState.h"
 
@@ -99,6 +100,8 @@ namespace Weltall
 
 		const FVram& Vram() const { return FieldVram; }
 		const FFieldScene& Scene() const { return *MapScene; }
+		/** The sheets the map's resident sprites are drawn from (FieldSpriteSheetRegions). */
+		std::span<const FTextureRegion> SpriteSheets() const { return MapSpriteSheets; }
 		const FFieldDrawingTables& Tables() const { return DrawingTables; }
 
 		/**
@@ -159,6 +162,7 @@ namespace Weltall
 		FVramImage ClutRowsKept;
 		FVramImage ClutRowsFaded;
 		std::optional<FFieldScene> MapScene;
+		std::vector<FTextureRegion> MapSpriteSheets;
 		/** For the picture of the screen: VRAM and the scenery as the frame before the last tick drew them. */
 		bool bTookPicture = false;
 		FVram VramBeforeTick;

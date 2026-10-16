@@ -161,6 +161,9 @@ namespace Weltall
 		Sequence.TempoSlideStep = 0;
 		Sequence.TempoSlideCount = 0;
 		Sequence.TempoAccumulator = 0x10000;
+		Sequence.WaveFrame = 0.0;
+		Sequence.PlaybackFrames = 0;
+		Sequence.bWaveTail = false;
 	}
 
 	void FSoundDriver::FState::ResetTracks(FSoundSequence& Sequence)
@@ -193,6 +196,8 @@ namespace Weltall
 			Track.Volume = FullVolume;
 			Track.LoopPoint = {};
 			Track.Loops = 0;
+			Track.FirstLoopFrame = 0;
+			Track.FirstLoopEndFrame = 0;
 			Track.Length = 0;
 			Track.LengthAdjust = 0;
 			Track.Detune = 0;
@@ -287,6 +292,7 @@ namespace Weltall
 	void FSoundDriver::FState::StopSequence(FSoundSequence& Sequence)
 	{
 		Sequence.Flags &= static_cast<uint16>(~SequenceFlag::Playing);
+		Sequence.bWaveTail = false;
 		for (FSoundTrack& Track : Sequence.Used())
 		{
 			ReleaseVoice(Track, Track.Voice);
@@ -475,6 +481,10 @@ namespace Weltall
 	void FSoundDriver::MuteTracks(FSoundSequence& Sequence, uint32 Mask)
 	{
 		Sequence.Muted = Mask;
+		if (Sequence.File != nullptr && Sequence.File->Replacement)
+		{
+			State->MarkTracks(TrackRequest::Volume, Sequence);
+		}
 		for (FSoundTrack& Track : Sequence.Used())
 		{
 			if (Track.Flags != 0)

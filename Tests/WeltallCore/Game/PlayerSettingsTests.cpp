@@ -37,6 +37,9 @@ namespace
 		Settings.Field.bDetailedPilots = false;
 		Settings.Field.GearModels = EFieldGearModels::Everywhere;
 		Settings.SoundOutput = ESoundOutput::WideStereo;
+		Settings.VoiceLanguage = EVoiceLanguage::Japanese;
+		Settings.bExternalAssets = true;
+		Settings.bCaptureTextures = true;
 		Settings.Display = {{2560, 1440}, EDisplayAspect::Wide};
 		Settings.Camera = {1.5f, -7.25f, 135.0f};
 		Settings.WorldMapCamera = {0.75f, 12.5f, -90.0f};
@@ -45,6 +48,7 @@ namespace
 		Settings.Controls.Unbind("MiddleMouseButton");
 		Settings.Controls.MouseSensitivity = 8;
 		Settings.Controls.StickSensitivity = 2;
+		Settings.Controls.bOriginalButtonIcons = true;
 		Settings.TextSpeed = EMesTextSpeed::Quadruple;
 		Settings.BattleSpeed = EBattleSpeed::Quadruple;
 		return Settings;
@@ -59,6 +63,9 @@ namespace
 		CHECK(A.Field == B.Field);
 		CHECK(A.Display == B.Display);
 		CHECK(A.SoundOutput == B.SoundOutput);
+		CHECK(A.VoiceLanguage == B.VoiceLanguage);
+		CHECK(A.bExternalAssets == B.bExternalAssets);
+		CHECK(A.bCaptureTextures == B.bCaptureTextures);
 		CHECK(A.TextSpeed == B.TextSpeed);
 		CHECK(A.BattleSpeed == B.BattleSpeed);
 	}
@@ -115,6 +122,9 @@ TEST_CASE("The settings' defaults are the fixes on and the sharp presentation", 
 	CHECK(Settings.Field.AntiAliasing == EFieldAntiAliasing::Msaa);
 	CHECK(Settings.Field.Culling == EFieldCulling::InRange);
 	CHECK(Settings.SoundOutput == ESoundOutput::Stereo);
+	CHECK(Settings.VoiceLanguage == EVoiceLanguage::Automatic);
+	CHECK_FALSE(Settings.bExternalAssets);
+	CHECK_FALSE(Settings.bCaptureTextures);
 	CHECK(Settings.Camera == FFieldCameraOffsets::Defaults());
 	CHECK(Settings.Camera.Zoom == 1.25f);
 	CHECK(Settings.Controls == FControlBindings::Defaults());
@@ -152,6 +162,9 @@ TEST_CASE("The settings' text lists every setting and reads back the same", "[Se
 	CHECK_FALSE(ReadPlayerSettings("controls.always_run = false\n").Controls.bAlwaysRun);
 	CHECK(ValueOf(Defaults, "controls.walk_into_doors") == "true");
 	CHECK_FALSE(ReadPlayerSettings("controls.walk_into_doors = false\n").Controls.bWalkIntoDoors);
+	CHECK(ValueOf(Defaults, "controls.original_button_icons") == "false");
+	CHECK(ReadPlayerSettings("controls.original_button_icons = true\n").Controls.bOriginalButtonIcons);
+	CHECK_FALSE(ReadPlayerSettings("controls.original_button_icons = invalid\n").Controls.bOriginalButtonIcons);
 	CHECK_FALSE(ReadPlayerSettings("camera.steady_follow = false\n").Camera.bSteadyFollow);
 	CHECK(ValueOf(Defaults, "game.text_speed") == "double");
 	CHECK(ReadPlayerSettings("game.text_speed = original\n").TextSpeed == EMesTextSpeed::Original);

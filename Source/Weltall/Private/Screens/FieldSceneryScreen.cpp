@@ -8,6 +8,7 @@
 #include "Media/PsxExecutable.h"
 #include "Rendering/SharedRenderResource.h"
 #include "Rendering/VramTexture.h"
+#include "Rendering/TextureModSources.h"
 #include "WeltallLog.h"
 
 namespace
@@ -109,5 +110,6 @@ TSharedRef<const IScreenFrame> FFieldSceneryScreen::CaptureFrame() const
 	TSharedRef<FFieldScreenFrame>* Free = Frames.FindByPredicate([](const TSharedRef<FFieldScreenFrame>& Candidate) { return Candidate.IsUnique(); });
 	TSharedRef<FFieldScreenFrame> Next = Free != nullptr ? *Free : Frames.Add_GetRef(MakeShared<FFieldScreenFrame>(Mesh, VramUnits));
 	BuildFieldSceneDraw(Scene, Frame, View, *Mesh, Options, Next->Draw);
+	FollowTextureModSources(*VramUnits, Vram, &Mesh.Get(), {&Next->Draw}, {});
 	return Next;
 }

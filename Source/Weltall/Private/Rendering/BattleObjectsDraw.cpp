@@ -71,6 +71,19 @@ namespace
 		return U | V << 8;
 	}
 
+	/**
+	 * Whether a polygon faces up as the eye sees it, within some 45 degrees: the ground the sprites stand on. An eye-facing
+	 * normal's share along the world's up (the view's FloorUp, zero for the painter's order).
+	 */
+	bool FacesUp(const FBattleObjectPolygon& Polygon, const FVector3f& Up)
+	{
+		constexpr float GroundFacing = 0.7f;
+		if (Up.IsZero()) return false;
+		FVector3f Normal = FVector3f::CrossProduct(Polygon.Corners[1] - Polygon.Corners[0], Polygon.Corners[2] - Polygon.Corners[0]).GetSafeNormal();
+		if (FVector3f::DotProduct(Normal, Polygon.Corners[0]) > 0.0f) Normal = -Normal;
+		return FVector3f::DotProduct(Normal, Up) >= GroundFacing;
+	}
+
 	void AddBattleObjectPolygon(const FBattleObjectPolygon& Polygon, bool bSceneryByDepth, FFieldSceneDraw& Draw, TArray<FScenePolygonItem>& Items)
 	{
 		FScenePolygonItem& Item = Items.AddDefaulted_GetRef();
@@ -82,6 +95,7 @@ namespace
 		Item.bShadow = Polygon.Role == EBattleObjectRole::Shadow;
 		Item.bOverModels = Polygon.Role == EBattleObjectRole::Stage || Polygon.Role == EBattleObjectRole::OverModels;
 		Item.bScenery = bSceneryByDepth && Polygon.Role == EBattleObjectRole::Stage;
+		Item.bGround = Polygon.Role == EBattleObjectRole::Stage && FacesUp(Polygon, Draw.FloorUp);
 		const uint32 Number = static_cast<uint32>(Draw.DynamicPolygons.Num());
 		for (uint32 At = 0; At < Item.CornerCount; ++At)
 		{

@@ -49,6 +49,8 @@ namespace Weltall
 			Quad.U1 = static_cast<int16>(Part.U + Part.Width);
 			Quad.V0 = static_cast<int16>(FirstRow);
 			Quad.V1 = static_cast<int16>(FirstRow + Rows);
+			Quad.CellV0 = Part.V;
+			Quad.CellV1 = static_cast<int16>(Part.V + Part.Height);
 			Quad.TexturePage = Part.TexturePage;
 			Quad.Clut = Part.Clut;
 			Quad.ColorCode = Part.ColorCode;

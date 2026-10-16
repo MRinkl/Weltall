@@ -3,6 +3,7 @@
 #include "Graphics/Gte.h"
 #include "Graphics/GteMath.h"
 #include "Graphics/GteVectors.h"
+#include "Graphics/TexturePictures.h"
 
 #include <algorithm>
 #include <cmath>
@@ -265,5 +266,29 @@ namespace Weltall
 		}
 		// Each was linked at the head of the entry: the last is drawn first.
 		std::reverse(Quads.begin(), Quads.end());
+	}
+
+	std::vector<FTextureRegion> PanoramaTextureRegions(const FFieldPanorama& Panorama)
+	{
+		std::vector<FTextureRegion> Regions;
+		if (Panorama.Width <= 0 || Panorama.Height <= 0)
+		{
+			return Regions;
+		}
+		// Depth 3 is reserved; the GPU reads it as 15-bit.
+		const uint8 Depth = static_cast<uint8>(std::min(Panorama.TexturePage & 3, 2));
+		const int32 TexelsInUnit = 4 >> Depth;
+		const FVramPicture Strip{{Panorama.VramX, Panorama.VramY, static_cast<int16>((Panorama.Width + TexelsInUnit - 1) / TexelsInUnit), Panorama.Height},
+			{Depth, nullptr}};
+		const FClutPosition Clut = FClutPosition::FromAttribute(static_cast<uint16>(Panorama.ClutY << 6 | (Panorama.ClutX >> 4 & 0x3F)));
+		FTexturePage Page;
+		Page.Depth = Depth == 0 ? ETextureDepth::Indexed4 : Depth == 1 ? ETextureDepth::Indexed8 : ETextureDepth::Direct15;
+		Page.Y = (Divide(Panorama.VramY, 8) << 8) & (FVram::Height - 1);
+		for (int32 Column = Divide(Panorama.VramX, 6) << 6; Column < Panorama.VramX + Strip.Rect.Width; Column += 64)
+		{
+			Page.X = Column & (FVram::Width - 1);
+			AddPictureRegionsInView(std::span<const FVramPicture>(&Strip, 1), PackTextureView(Page, Clut), Regions);
+		}
+		return Regions;
 	}
 }

@@ -206,11 +206,15 @@ namespace Weltall
 				Library.LibraryNotes.push_back({Path, "Ends too soon: still being copied, or a rip cut short."});
 				continue;
 			}
-			if (bCooked)
+			if (bCooked && IsPlayableRelease(Identity->Release))
 			{
 				Library.LibraryNotes.push_back({Path, "Plays, but the movies are silent: an image of the data alone keeps no sound for them. "
 													  "A whole rip (BIN/CUE, or a CHD made from one) has it.",
 					true});
+			}
+			if (!IsPlayableRelease(Identity->Release))
+			{
+				Library.LibraryNotes.push_back({Path, "A Japanese disc: available for asset extraction. Playing requires a USA or supported undub disc."});
 			}
 			Library.Discs.emplace(Identity->Release, FFound{std::make_unique<FIso9660>(std::move(*Disc)), Path});
 		}
@@ -221,6 +225,19 @@ namespace Weltall
 	{
 		const auto Found = Discs.find(Release);
 		return Found == Discs.end() ? nullptr : Found->second.Disc.get();
+	}
+
+	const FIso9660* FGameLibrary::PlayableDisc(int32 Number) const
+	{
+		if (Number != 1 && Number != 2)
+		{
+			return nullptr;
+		}
+		if (const FIso9660* Original = Find(Number == 1 ? EDiscRelease::UsaDisc1 : EDiscRelease::UsaDisc2))
+		{
+			return Original;
+		}
+		return Find(Number == 1 ? EDiscRelease::UndubDisc1 : EDiscRelease::UndubDisc2);
 	}
 
 	std::filesystem::path FGameLibrary::FileOf(EDiscRelease Release) const

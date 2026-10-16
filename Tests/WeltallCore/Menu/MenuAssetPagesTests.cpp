@@ -1,0 +1,83 @@
+#include "Menu/MenuAssetPages.h"
+#include "Support/GameDiscs.h"
+#include "Support/GameText.h"
+#include "Text/MesGlyphs.h"
+
+#include <catch_amalgamated.hpp>
+
+using namespace Weltall;
+
+TEST_CASE("Asset status rows preserve the selected action through progress and cancellation", "[Menu][Assets]")
+{
+	FPlayerSettings Settings;
+	auto Rows = AssetSettingsRows(Settings, {});
+	REQUIRE(Rows.size() == 6);
+	CHECK(Rows[0].Value == "Off");
+	CHECK(Rows[AssetRow::Capture].Label == "Capture textures");
+	CHECK(Rows[AssetRow::Textures].Label == "Export textures");
+	CHECK(Rows[AssetRow::Dump].Label == "Dump disc assets");
+	CHECK(Rows[AssetRow::Music].Label == "Export music WAVs");
+	CHECK(Rows[AssetRow::Status].Value == "Ready");
+	CHECK(Rows[AssetRow::Status].bReadOnly);
+	CHECK(AssetRowExport(AssetRow::Textures) == EAssetExportKind::Textures);
+	CHECK_FALSE(AssetRowExport(AssetRow::Capture));
+	Settings.bExternalAssets = true;
+	Rows = AssetSettingsRows(Settings, {EAssetExportState::Running, EAssetExportKind::Dump, 7, 10, 1});
+	CHECK(Rows[0].Value == "On");
+	CHECK(Rows[AssetRow::Dump].Label == "Cancel export");
+	CHECK(Rows[AssetRow::Status].Value == "70%");
+	CHECK(Rows[AssetRow::Music].bReadOnly);
+	CHECK(Rows[AssetRow::Textures].bReadOnly);
+	CHECK(AssetSettingsRows(Settings, {EAssetExportState::Cancelled})[AssetRow::Dump].Label == "Dump disc assets");
+	CHECK(AssetSettingsRows(Settings, {EAssetExportState::Failed})[AssetRow::Status].Value == "Failed");
+	Rows = AssetSettingsRows(Settings, {EAssetExportState::Running, EAssetExportKind::Music, 3, 78, 2});
+	CHECK(Rows[AssetRow::Dump].bReadOnly);
+	CHECK(Rows[AssetRow::Music].Label == "Cancel export");
+	CHECK(Rows[AssetRow::Status].Value == "WAV 3/78");
+	Rows = AssetSettingsRows(Settings, {EAssetExportState::Running, EAssetExportKind::Textures, 221, 884, 3});
+	CHECK(Rows[AssetRow::Textures].Label == "Cancel export");
+	CHECK(Rows[AssetRow::Status].Value == "25%");
+}
+
+TEST_CASE("Asset page words fit the game's font and menu strips", "[Menu][Assets][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const FMesResident Text = Testing::LoadMesResident(*Disc);
+	const auto Width = [&Text](std::string_view Words)
+	{
+		int32 Units = 0;
+		for (char Character : Words)
+		{
+			const auto Code = MesCodeOfCharacter(Character);
+			REQUIRE(Code);
+			Units += Text.Font.WidthUnits(*Code);
+		}
+		return Units * 4;
+	};
+	for (int32 State = 0; State <= static_cast<int32>(EAssetExportState::Unavailable); ++State)
+	{
+		for (const auto& Row : AssetSettingsRows({}, {static_cast<EAssetExportState>(State), EAssetExportKind::Music, 99, 100, 1}))
+		{
+			INFO(Row.Label);
+			CHECK(Width(Row.Label) + 8 + Width(Row.Value) <= 256);
+			for (const auto& Line : Row.Help) { CHECK(Width(Line) <= 244); }
+		}
+	}
+}
+
+TEST_CASE("Voice language choices cycle independently of sound output and persist", "[Menu][Assets][Settings]")
+{
+	FPlayerSettings Settings;
+	bool bCustomPicked = false;
+	REQUIRE(FSettingsPages::Step(ESettingsPage::Sound, 2, -1, Settings, bCustomPicked));
+	CHECK(Settings.VoiceLanguage == EVoiceLanguage::Japanese);
+	CHECK(Settings.SoundOutput == ESoundOutput::Stereo);
+	CHECK(FSettingsPages::Row(ESettingsPage::Sound, 2, Settings).Value == "Japanese");
+	Settings.bExternalAssets = true;
+	const auto Read = ReadPlayerSettings(WritePlayerSettings(Settings));
+	CHECK(Read.VoiceLanguage == EVoiceLanguage::Japanese);
+	CHECK(Read.bExternalAssets);
+	const auto Invalid = ReadPlayerSettings("sound.voices = invalid\nassets.external = invalid\n");
+	CHECK(Invalid.VoiceLanguage == EVoiceLanguage::Automatic);
+	CHECK_FALSE(Invalid.bExternalAssets);
+}

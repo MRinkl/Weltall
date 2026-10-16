@@ -61,12 +61,12 @@ namespace Weltall
 
 	TResult<std::unique_ptr<FWorldMapProgram>> FWorldMapProgram::Start(FGameSession& Session)
 	{
-		TResult<FWorldMapTables> Tables = FWorldMapTables::Read(Session.Image(), Session.Index(), Session.Release());
+		TResult<FWorldMapTables> Tables = FWorldMapTables::Read(Session.Image(), Session.Index(), GameplayRelease(Session.Release()));
 		if (!Tables)
 		{
 			return Tables.Error();
 		}
-		TResult<FWorldMapDrawingTables> DrawingTables = FWorldMapDrawingTables::Read(Session.Image(), Session.Index(), Session.Release());
+		TResult<FWorldMapDrawingTables> DrawingTables = FWorldMapDrawingTables::Read(Session.Image(), Session.Index(), GameplayRelease(Session.Release()));
 		if (!DrawingTables)
 		{
 			return DrawingTables.Error();

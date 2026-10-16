@@ -92,7 +92,8 @@ void AddScenePolygonsUnderDepthRule(FFieldSceneDraw& Draw, TConstArrayView<FScen
 		if (Item.bScenery && Item.bOverModels && HasOpaqueTexels(Item))
 		{
 			const EFieldPass Plain = Item.bSemiTransparent ? EFieldPass::PlainTexels : EFieldPass::Opaque;
-			AddScenePolygonToOrder(Draw, Item, Plain, Weltall::EBlendMode::Average, EFieldRunDepth::MaskBesideModels, true, true, EFieldDepthRule::Scenery);
+			const EFieldRunDepth Depth = Item.bGround ? EFieldRunDepth::MaskBesideMarks : EFieldRunDepth::MaskBesideModels;
+			AddScenePolygonToOrder(Draw, Item, Plain, Weltall::EBlendMode::Average, Depth, true, true, EFieldDepthRule::Scenery);
 		}
 	}
 	Weltall::EBlendMode Current = Weltall::EBlendMode::Average;
@@ -132,6 +133,7 @@ void AddScenePolygonsUnderDepthRule(FFieldSceneDraw& Draw, TConstArrayView<FScen
 		{
 			const EFieldRunDepth Depth = Item.bShadow ? EFieldRunDepth::OutsideMask
 				: Item.bBackground || Item.bInOrder	  ? EFieldRunDepth::None
+				: Item.bGround						  ? EFieldRunDepth::GroundOverModels
 				: Item.bOverModels					  ? EFieldRunDepth::OverModels
 													  : EFieldRunDepth::Masked;
 			AddLayeredScenePolygon(Draw, Item, Current, Depth, true, RuleOf(Item));

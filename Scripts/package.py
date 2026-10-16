@@ -33,6 +33,7 @@ LINUX_MULTIARCH_ROOT (the engine's cross-compile toolchain), and its check runs 
 import argparse
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -45,7 +46,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 STORY = "Content/Story"
 EXPANSION = STORY + "/disc2"
-PROJECT_PATHS = ["Weltall.uproject", "Config", "Content/Story", "Shaders", "Source"]
+PROJECT_PATHS = ["Weltall.uproject", "Config", "Content/Story", "Shaders", "Source", "Docs"]
 PROJECT = REPO / "out" / "package" / "Weltall"
 BUILDS = REPO / "out" / "builds"
 RELEASES = REPO / "out" / "releases"
@@ -61,7 +62,7 @@ UNIX = 3
 MSDOS_DIRECTORY = 0x10
 
 # What a package's log must show after its first seconds (and that it read every story document), and what it must never show.
-STARTED = ["Found 2 of the game's discs", "Now running"]
+STARTED = ["Now running"]
 FAILED = ["The game cannot start", "The game stopped", "Fatal error", "LogWindows: Error", "LogLinux: Error"]
 
 
@@ -182,6 +183,9 @@ def build(configuration, platform, ue_root):
     package = BUILDS / configuration / platform.name
     package.parent.mkdir(parents=True, exist_ok=True)
     previous = package.with_name(package.name + ".old")
+    if (previous / "Assets").exists():
+        print(f"Local assets remain in {previous / 'Assets'}; move them to a safe folder before rebuilding")
+        return False
     shutil.rmtree(previous, ignore_errors=True)
     if package.exists():
         try:
@@ -191,9 +195,28 @@ def build(configuration, platform, ue_root):
                   f"the new package stays in {(staging / platform.name).relative_to(REPO)}; close the game and run this again")
             return False
     move_into_place(staging / platform.name, package)
+    if not retain_assets(previous, package):
+        return False
+    shutil.copytree(PROJECT / "Docs", package / "Docs", dirs_exist_ok=True)
     shutil.rmtree(previous, ignore_errors=True)
     shutil.rmtree(staging, ignore_errors=True)
     print(f"{configuration}: built in {minutes:.0f} min: {(package / platform.launcher).relative_to(REPO)}")
+    return True
+
+
+def retain_assets(previous, package):
+    """Moves local mods out of the old build before that build is removed."""
+    source = previous / "Assets"
+    if not source.exists():
+        return True
+    target = package / "Assets"
+    try:
+        if target.exists():
+            raise FileExistsError("the new package already has an Assets folder")
+        source.rename(target)
+    except OSError as error:
+        print(f"Assets stay in {source}: {error}")
+        return False
     return True
 
 
@@ -259,6 +282,8 @@ def check(configuration, platform, seconds):
     text = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
     documents = len(list((PROJECT / STORY).glob("*/*.txt")))
     missing = [line for line in [*STARTED, f"Story documents read: {documents}"] if line not in text]
+    if not re.search(r"Found [1-9][0-9]* of the game's discs", text):
+        missing.append("a recognized game disc")
     failures = [line for line in text.splitlines() if any(mark in line for mark in FAILED)]
     for line in failures[:10]:
         print("  " + line)
@@ -304,13 +329,13 @@ def archive(configuration, platform):
     if (package / "Weltall" / EXPANSION).is_dir():
         name += "-Expansion"
     RELEASES.mkdir(parents=True, exist_ok=True)
-    # Everything but the discs, and the Games folder itself, empty, for the player's own.
-    files = sorted(path for path in package.rglob("*") if path.is_file() and path.relative_to(package).parts[0] != "Games")
+    # Local disc images and exports never enter a release archive.
+    files = sorted(path for path in package.rglob("*") if path.is_file() and path.relative_to(package).parts[0].casefold() not in ("games", "assets"))
     release = RELEASES / f"{name}.zip"
     programs = None
     if platform.name == "Linux":
         programs = {package / platform.launcher} | {path for path in binaries.iterdir() if path.suffix == ""}
-    write_zip(release, package, files, ["Games"], programs)
+    write_zip(release, package, files, ["Games", "Assets"], programs)
     built = PROJECT / "Binaries" / Path(platform.binaries).name
     symbols = [path for path in built.glob(executable.stem + ".*") if path.suffix in platform.symbols]
     symbols_archive = RELEASES / f"{name}-symbols.zip"

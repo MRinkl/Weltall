@@ -172,6 +172,11 @@ namespace Weltall
 		std::shared_ptr<const FGearModelPack> Model;
 		/** Each bone's part as its making built it, in bone order; a clone draws its original's. */
 		std::shared_ptr<const std::vector<FGearBonePackets>> Packets;
+		/**
+		 * The texture regions its model's polygons read where its making put the textures (Weltall::GearTextureRegions),
+		 * each with the colours its CLUT held once the making had uploaded them.
+		 */
+		std::shared_ptr<const std::vector<FTexturePictureSeed>> TextureSeeds;
 	};
 
 	/** Key event 1's spawn of an effect sprite at a bone: what the sprite follows when it follows the bone. */
@@ -305,7 +310,8 @@ namespace Weltall
 		WELTALLCORE_API void Init(const FBattleStageRecord& Record);
 		/**
 		 * The stage's object: slot 31 made from the stage's model, its bones placed from the model's fifth
-		 * section, the stage's sequences taken and the first started.
+		 * section, the stage's sequences taken and the first started. Its texture regions are its model's and its
+		 * backdrop's (BattleBackdropTextureSeeds).
 		 */
 		WELTALLCORE_API void CreateStage(const FBattleStageFiles& StageFiles);
 		/**
@@ -351,7 +357,8 @@ namespace Weltall
 		/** What the stage and the objects drew in the frame, which the show's frame hands the renderer. */
 		const FBattleObjectsFrame& Frame() const { return Drawn; }
 		/** The frame drawn handed over for Kept's memory, which the next frame's drawing fills. */
-		void ExchangeFrame(FBattleObjectsFrame& Kept) { std::swap(Drawn, Kept); }
+		/** The frame drawn handed over for Kept, with the texture seeds of the objects present. */
+		WELTALLCORE_API void ExchangeFrame(FBattleObjectsFrame& Kept);
 		/** An object still plays a sequence, or holds a sequence extension (the idle wait's tests). */
 		WELTALLCORE_API bool IsPlaying();
 		WELTALLCORE_API bool HoldsExtension();

@@ -141,15 +141,24 @@ namespace Weltall
 
 	FButtonGlyph ButtonGlyph(EPadButton Button, const FControlBindings& Bindings, EButtonIconSet Set)
 	{
+		const FControlBindings* Shown = &Bindings;
+		if (Bindings.bOriginalButtonIcons)
+		{
+			static const FControlBindings Original = FControlBindings::Defaults();
+			Shown = &Original;
+			Set = EButtonIconSet::PlayStation;
+		}
 		FButtonGlyph Glyph;
 		Glyph.Set = Set;
 		if (const std::optional<EControlAction> Action = ActionOf(Button))
 		{
-			Glyph.Key = std::string(Bindings.FirstKey(*Action, FamilyOfIconSet(Set)));
+			Glyph.Key = std::string(Shown->FirstKey(*Action, FamilyOfIconSet(Set)));
 		}
 		if (!Glyph.Key.empty())
 		{
 			Glyph.Icon = ButtonIcon(Set, Glyph.Key);
+			if (Bindings.bOriginalButtonIcons && Button == EPadButton::Start) { Glyph.Icon = "Start"; }
+			if (Bindings.bOriginalButtonIcons && Button == EPadButton::Select) { Glyph.Icon = "Select"; }
 		}
 		return Glyph;
 	}

@@ -4,6 +4,7 @@
 #include "Rendering/FieldSceneRendering.h"
 #include "RenderGraphResources.h"
 #include "ShaderParameterStruct.h"
+#include "TextureReplacementParameters.h"
 
 class FFieldSceneVS final : public FGlobalShader
 {
@@ -43,6 +44,7 @@ public:
 		SHADER_PARAMETER_TEXTURE(Texture2D<uint>, Vram)
 		SHADER_PARAMETER_TEXTURE(Texture2D<uint>, Upscaled4)
 		SHADER_PARAMETER_TEXTURE(Texture2D<uint>, Upscaled8)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTextureReplacementParameters, Replacements)
 		SHADER_PARAMETER(uint32, StaticPolygons)
 		SHADER_PARAMETER(uint32, DrawPass)
 		SHADER_PARAMETER(uint32, Filter)

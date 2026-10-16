@@ -4,6 +4,7 @@
 #include "RenderGraphResources.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderPermutation.h"
+#include "TextureReplacementParameters.h"
 
 /** A vertex as the draw-list shader reads it; the layout matches FScreenVertex in ScreenDrawList.usf. */
 struct FScreenDrawVertex
@@ -49,6 +50,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE(Texture2DArray, Textures)
 		SHADER_PARAMETER_TEXTURE(Texture2D<uint>, Vram)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTextureReplacementParameters, Replacements)
 		SHADER_PARAMETER(FVector4f, ScreenRect)
 		SHADER_PARAMETER(FVector2f, ScreenSize)
 		SHADER_PARAMETER(uint32, DrawPass)

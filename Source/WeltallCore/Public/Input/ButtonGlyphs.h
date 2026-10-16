@@ -81,7 +81,7 @@ namespace Weltall
 	/** The place of the face button a set shows as Icon; None for any other icon and for the keyboard's. */
 	WELTALLCORE_API EFaceButtonPlace FaceButtonPlace(EButtonIconSet Set, std::string_view Icon);
 
-	/** How a PlayStation button is shown on a device of Set under the player's bindings. */
+	/** How a PlayStation button is shown: the original PSX symbol when requested, otherwise its binding on a device of Set. */
 	WELTALLCORE_API FButtonGlyph ButtonGlyph(EPadButton Button, const FControlBindings& Bindings, EButtonIconSet Set);
 
 	/**

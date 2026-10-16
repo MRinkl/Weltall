@@ -1,6 +1,7 @@
 #include "Gears/GearModels.h"
 
 #include "GearMachine.h"
+#include "Gears/GearTextureRegions.h"
 #include "Graphics/GteVectors.h"
 
 #include <string>
@@ -58,18 +59,11 @@ namespace Weltall
 			Model->ShadowHalfDepth = Header.ShadowHalfDepth;
 			Model->DefaultRecord = Header.DefaultRecord;
 			Model->Flags = Header.Flags;
-			const bool bRelative = (Header.Flags & GearModelFlags::AbsoluteTextures) == 0;
-			for (FGearTextureBlock& Block : ModelPack.Textures)
+			const FGearTexturePlace* Placed = (Header.Flags & GearModelFlags::AbsoluteTextures) == 0 ? &Place : nullptr;
+			for (const FGearTextureBlock& Block : ModelPack.Textures)
 			{
-				FGearUpload Upload;
-				const int16 BaseX = bRelative ? (Block.bClut ? Place.ClutX : Place.X) : Block.X;
-				const int16 BaseY = bRelative ? (Block.bClut ? Place.ClutY : Place.Y) : Block.Y;
-				Upload.X = static_cast<int16>(BaseX + Block.OffsetX);
-				Upload.Y = static_cast<int16>(BaseY + Block.OffsetY);
-				Upload.Width = Block.Width;
-				Upload.Height = Block.Height;
-				Upload.Pixels = std::move(Block.Pixels);
-				Models.PendingUploads.push_back(std::move(Upload));
+				const std::array<int16, 2> Corner = GearTextureBlockCorner(Block, Placed);
+				Models.PendingUploads.push_back({Corner[0], Corner[1], Block.Width, Block.Height, Block.Pixels});
 			}
 			MakeGearSkeleton(ModelPack.Skeleton, Model->Bones);
 			Model->Bones[0].Position = {Position[0], Position[1], Position[2]};
@@ -93,13 +87,15 @@ namespace Weltall
 				}
 				Model->Cloths.push_back(std::move(*Cloth));
 			}
+			const std::vector<FTextureRegion> Regions = GearTextureRegions(ModelPack.Model, Model->Cloths, Placed);
+			Model->TextureSeeds = std::make_shared<const std::vector<FTexturePictureSeed>>(GearTextureSeeds(ModelPack, Placed, Regions));
 			if (HasEnvironmentMapping(ModelPack.Model))
 			{
 				--Models.PartTablesUsed;
 				Models.Fail(Named + " has environment-mapped polygons, whose texels the field's gear drawing does not make: no gear the field loads has them");
 				return false;
 			}
-			TResult<std::vector<FGearBonePackets>> Packets = BuildGearPackets(ModelPack.Model, Model->Bones, GearLightMode, bRelative ? &Place : nullptr,
+			TResult<std::vector<FGearBonePackets>> Packets = BuildGearPackets(ModelPack.Model, Model->Bones, GearLightMode, Placed,
 				Models.BuildLighting);
 			if (!Packets)
 			{

@@ -13,6 +13,7 @@
 #include "Game/SaveLoad.h"
 #include "Input/ControlBindings.h"
 #include "Menu/MenuOptions.h"
+#include "Media/VoiceLanguage.h"
 #include "Presentation/DisplayOptions.h"
 #include "Sound/GameSoundSession.h"
 #include "Text/MesWindow.h"
@@ -49,6 +50,11 @@ namespace Weltall
 		FDisplayOptions Display;
 		FFieldRenderOptions Field;
 		ESoundOutput SoundOutput = ESoundOutput::Stereo;
+		EVoiceLanguage VoiceLanguage = EVoiceLanguage::Automatic;
+		/** Read replacements from the Assets folder, falling back to the discs for absent files. */
+		bool bExternalAssets = false;
+		/** Save original texture pages as PNG files when they are first drawn. */
+		bool bCaptureTextures = false;
 		FFieldCameraOffsets Camera = FFieldCameraOffsets::Defaults();
 		/** The player's framing of the world map. */
 		FWorldMapCameraOffsets WorldMapCamera;

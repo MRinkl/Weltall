@@ -292,6 +292,7 @@ void BuildWorldMapFrameDraw(const Weltall::FWorldMapFrame& Frame, const Weltall:
 	Draw.Colors.Reset();
 	Draw.DynamicCorners.Reset();
 	Draw.DynamicPolygons.Reset();
+	Draw.SpriteCells.Reset();
 	Draw.Order.Reset();
 	Draw.Runs.Reset();
 	Draw.WaveGrid.Reset();

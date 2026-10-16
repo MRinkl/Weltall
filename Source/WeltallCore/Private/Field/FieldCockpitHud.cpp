@@ -135,7 +135,7 @@ namespace Weltall
 
 	TResult<FFieldCockpitHudLayout> FFieldCockpitHudLayout::Read(const FCdImage& Image, const FGameFileIndex& Index, EDiscRelease Release)
 	{
-		const auto Place = std::find_if(Places.begin(), Places.end(), [Release](const FHudLayoutPlace& Candidate) { return Candidate.Release == Release; });
+		const auto Place = std::find_if(Places.begin(), Places.end(), [Release](const FHudLayoutPlace& Candidate) { return Candidate.Release == GameplayRelease(Release); });
 		if (Place == Places.end())
 		{
 			return MakeError("no cockpit instruments' layout is known for this release");
@@ -160,7 +160,7 @@ namespace Weltall
 
 	TResult<FFieldCockpitHudLayout> FFieldCockpitHudLayout::FromProgram(std::span<const uint8> Bytes, EDiscRelease Release)
 	{
-		const auto Place = std::find_if(Places.begin(), Places.end(), [Release](const FHudLayoutPlace& Candidate) { return Candidate.Release == Release; });
+		const auto Place = std::find_if(Places.begin(), Places.end(), [Release](const FHudLayoutPlace& Candidate) { return Candidate.Release == GameplayRelease(Release); });
 		if (Place == Places.end())
 		{
 			return MakeError("no cockpit instruments' layout is known for this release");

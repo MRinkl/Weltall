@@ -10,6 +10,7 @@
 #include "Media/MoviePlayer.h"
 #include "Misc/FileHelper.h"
 #include "FrameProfile.h"
+#include "Rendering/TextureModLibrary.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "OffscreenRender.h"
@@ -705,9 +706,9 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 		UE_LOG(LogRenderScreen, Error, TEXT("Usage: -run=RenderScreen -Screen=Game|Movie|Field|WorldMap|MenuIcons [-Movie=N] [-EndFrame=N] [-Map=N [-Entrance=k|-Target=x,z|x,y,z -Layer=L -Yaw=0..7 ")
 			TEXT("-Eye=x,y,z -Pitch=D -Projection=H -Zoom=Z -Background=r,g,b -CullMargins=x,y] -Sort=Painter|Depth|Scenery -Filter=Nearest|Crisp|Bilinear|Upscaled -SpriteFilter=Nearest|Crisp|Bilinear|Upscaled -MovieFilter=Smooth|Upscaled ")
 			TEXT("-AA=None|MSAA|SSAA -Cull=Original|InRange -ViewZoom=Z -ViewTilt=D -ViewTurn=D] [-Story=N -Location=N -Entrance=N -Yaw=N -Scene=N -Party=a,b,c -Gears ")
-			TEXT("-Vehicle=x,y,z,h -VehicleFlags=N -Cull=Original|InRange|Extended] [-State=Full|Weak|Strong|Rising] [-Menu=Mode,Parameter -MenuAt=S] [-Battle=Formation,Kind -BattleAt=S -Party=a,b,c -Ride=a,b,c -GearOf=c:g] [-Arena=From,Kind,Gear1,Gear2,Wins,Level -ArenaAt=S] ")
+			TEXT("-Vehicle=x,y,z,h -VehicleFlags=N -Cull=Original|InRange|Extended] [-State=Full|Weak|Strong|Rising] [-Menu=Mode,Parameter -MenuAt=S] [-Battle=Formation,Kind -BattleAt=S -BattleEvery=S -Party=a,b,c -Ride=a,b,c -GearOf=c:g] [-Arena=From,Kind,Gear1,Gear2,Wins,Level -ArenaAt=S] ")
 			TEXT("[-FieldStory=N -FieldEntrance=K -FieldParty=a,b,c -FieldGears=g,h,... -FieldCards=Folder -StoryFolder=Folder -StoryMode=Original|Expanded] [-Disc=1|2] [-Card=Chapter[,Subtitle] -CardAt=S] [-MenuArea=Screen|Wide] [-Icons=Set] [-Saves=Folder] [-Keys=a,b] [-Setting=key=value;...] ")
-			TEXT("[-Pad=a,b+c,... -PadStep=S] [-Route=x,z;!x,z;... [-RouteBattles]] [-Reader=Base,PerGlyph] [-SoundOut=path.wav] [-BattleSpeed=Normal|2x|4x] [-TextSpeed=Normal|2x|4x|Instant] -Seconds=S [-Every=S] [-Profile=Hz] [-From=S] -Size=WxH [-Aspect=Window|16:9|4:3] -Out=path.png"));
+			TEXT("[-Pad=a,b+c,... -PadStep=S] [-Route=x,z;!x,z;... [-RouteBattles]] [-Reader=Base,PerGlyph] [-SoundOut=path.wav] [-BattleSpeed=Normal|2x|4x] [-TextSpeed=Normal|2x|4x|Instant] [-Textures=Folder] -Seconds=S [-Every=S] [-Profile=Hz] [-From=S] -Size=WxH [-Aspect=Window|16:9|4:3] -Out=path.png"));
 		return 1;
 	}
 	const FIntPoint Size(FCString::Atoi(*WidthText), FCString::Atoi(*HeightText));
@@ -720,6 +721,12 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 	if (GShaderCompilingManager != nullptr)
 	{
 		GShaderCompilingManager->FinishAllCompilation();
+	}
+	// Replacement textures from a folder laid out as the game's Assets/textures.
+	FString TexturesFolder;
+	if (FParse::Value(*Params, TEXT("Textures="), TexturesFolder))
+	{
+		FTextureModLibrary::Configure(FPaths::ConvertRelativePathToFull(TexturesFolder), true, false);
 	}
 
 	const Weltall::FGameLibrary Library = Weltall::FGameLibrary::Scan(std::filesystem::path(*FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Games"))));

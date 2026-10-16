@@ -94,6 +94,8 @@ namespace Weltall
 
 		/** Reads the setup program's table of the characters' files (directory 12 file 4). */
 		WELTALLCORE_API static TResult<FBattleSpriteFiles> Load(const FCdImage& Image, const FGameFileIndex& Index);
+		/** Selects compatible USA or undub files for the party's voices and the enemies' bank. */
+		void SetVoiceFiles(const FCdImage& InImage, const FGameFileIndex& InIndex) { VoiceImage = &InImage; VoiceIndex = &InIndex; }
 
 		const FBattleCharacterFiles& Character(int32 Character) const { return Characters[static_cast<std::size_t>(Character)]; }
 		/** How many VRAM columns a character's battle sprite takes, by the setup program's table: its members stand side by side from 100h. */
@@ -106,6 +108,8 @@ namespace Weltall
 		WELTALLCORE_API TResult<FBattleSpriteFile> ReadCharacterSprite(int32 Character) const;
 		WELTALLCORE_API TResult<FBattleSpriteFile> ReadAttacks(int32 Character) const;
 		WELTALLCORE_API TResult<FBattleSpriteFile> ReadEffect(int32 Effect) const;
+		/** Whether an effect's file is one of the build tool's stand-ins ("It's CDMAKE Dummy !"), which nothing plays. */
+		WELTALLCORE_API bool IsEffectStandIn(int32 Effect) const;
 		/** An effect's VRAM stream (images and palettes), whole sectors as the drive streams them; empty for none. */
 		WELTALLCORE_API TResult<std::vector<uint8>> ReadEffectStream(int32 Effect) const;
 		WELTALLCORE_API TResult<FBattleSpriteFile> ReadCommon() const;
@@ -122,6 +126,8 @@ namespace Weltall
 	private:
 		const FCdImage* Image = nullptr;
 		const FGameFileIndex* Index = nullptr;
+		const FCdImage* VoiceImage = nullptr;
+		const FGameFileIndex* VoiceIndex = nullptr;
 		std::array<FBattleCharacterFiles, CharacterCount> Characters{};
 		std::array<uint8, WidthCount> Widths{};
 		uint16 FirstColumn = 0;

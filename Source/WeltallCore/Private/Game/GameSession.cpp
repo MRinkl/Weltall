@@ -19,7 +19,7 @@ namespace Weltall
 
 		int32 DiscNumberOf(EDiscRelease Release)
 		{
-			return Release == EDiscRelease::UsaDisc2 ? 1 : 0;
+			return DiscNumberOfRelease(Release) - 1;
 		}
 	}
 
@@ -29,6 +29,8 @@ namespace Weltall
 		  DrawingTables(std::move(Tables)), MovieCues(std::move(Cues)), BattleData(std::move(Battle))
 	{
 		Discs[static_cast<std::size_t>(DiscNumberOf(Release))] = FGameDisc{&Image, &Index};
+		const std::size_t Language = Release == EDiscRelease::UndubDisc1 || Release == EDiscRelease::UndubDisc2 ? 1 : 0;
+		VoiceDiscs[Language][static_cast<std::size_t>(DiscNumberOf(Release))] = {&Image, &Index};
 		// The game stops at the cases no script reaches until the host lets play carry past them.
 		UnreachedCases.bStops = true;
 	}
@@ -38,6 +40,11 @@ namespace Weltall
 	TResult<std::unique_ptr<FGameSession>> FGameSession::PowerOn(const FCdImage& Image, const FGameFileIndex& Index, const FPsxExecutable& Executable,
 		EDiscRelease Release, FGameSoundSession& Sound)
 	{
+		if (!IsPlayableRelease(Release))
+		{
+			return MakeError("playing requires a USA or supported undub disc");
+		}
+		const EDiscRelease Layout = GameplayRelease(Release);
 		TResult<FGteArctangents> Arctangents = FGteArctangents::Read(Executable);
 		if (!Arctangents)
 		{
@@ -48,12 +55,12 @@ namespace Weltall
 		{
 			return Text.Error();
 		}
-		TResult<FFieldDrawingTables> Tables = FFieldDrawingTables::Read(Image, Index, Executable, Release);
+		TResult<FFieldDrawingTables> Tables = FFieldDrawingTables::Read(Image, Index, Executable, Layout);
 		if (!Tables)
 		{
 			return Tables.Error();
 		}
-		TResult<FFieldMovieCues> Cues = FFieldMovieCues::Read(Image, Index, Release);
+		TResult<FFieldMovieCues> Cues = FFieldMovieCues::Read(Image, Index, Layout);
 		if (!Cues)
 		{
 			return Cues.Error();
@@ -63,7 +70,7 @@ namespace Weltall
 		{
 			return Battle.Error();
 		}
-		TResult<std::unique_ptr<FBattlingGameFiles>> Battling = FBattlingGameFiles::Load(Image, Index, Executable, Release);
+		TResult<std::unique_ptr<FBattlingGameFiles>> Battling = FBattlingGameFiles::Load(Image, Index, Executable, Layout);
 		if (!Battling)
 		{
 			return Battling.Error();
@@ -87,7 +94,60 @@ namespace Weltall
 
 	void FGameSession::AddDisc(int32 Number, const FCdImage& Image, const FGameFileIndex& Index)
 	{
+		if (Number < 0 || Number >= static_cast<int32>(Discs.size()))
+		{
+			return;
+		}
 		Discs[static_cast<std::size_t>(Number)] = FGameDisc{&Image, &Index};
+	}
+
+	void FGameSession::AddVoiceDisc(EVoiceLanguage Language, int32 Number, const FCdImage& Image, const FGameFileIndex& Index)
+	{
+		if (Language == EVoiceLanguage::Automatic || Number < 0 || Number >= 2)
+		{
+			return;
+		}
+		VoiceDiscs[Language == EVoiceLanguage::Japanese ? 1 : 0][static_cast<std::size_t>(Number)] = {&Image, &Index};
+		FollowVoiceLanguage();
+	}
+
+	EVoiceLanguage FGameSession::SelectedVoiceLanguage() const
+	{
+		EVoiceLanguage Language = PlayerSettings.VoiceLanguage;
+		if (Language == EVoiceLanguage::Automatic)
+		{
+			Language = DiscRelease == EDiscRelease::UndubDisc1 || DiscRelease == EDiscRelease::UndubDisc2 ? EVoiceLanguage::Japanese : EVoiceLanguage::English;
+		}
+		return Language;
+	}
+
+	FGameDisc FGameSession::VoiceDisc(int32 Number) const
+	{
+		if (Number < 0 || Number >= static_cast<int32>(Discs.size())) return {};
+		const FGameDisc Selected = VoiceDiscs[SelectedVoiceLanguage() == EVoiceLanguage::Japanese ? 1 : 0][static_cast<std::size_t>(Number)];
+		return Selected.Image != nullptr ? Selected : Discs[static_cast<std::size_t>(Number)];
+	}
+
+	void FGameSession::FollowVoiceLanguage()
+	{
+		const auto& Tracks = VoiceDiscs[SelectedVoiceLanguage() == EVoiceLanguage::Japanese ? 1 : 0];
+		FGameDisc Selected = Tracks[0].Image != nullptr ? Tracks[0] : Tracks[1];
+		if (Selected.Image == nullptr) Selected = Discs[0].Image != nullptr ? Discs[0] : Discs[1];
+		if (Selected.Image != nullptr)
+		{
+			BattleData->SpriteFiles.SetVoiceFiles(*Selected.Image, *Selected.Index);
+			BattleData->EventFiles.SetVoiceFiles(*Selected.Image, *Selected.Index);
+		}
+	}
+
+	TResult<FGameDisc> FGameSession::MovieDisc() const
+	{
+		const TResult<FGameDisc> Gameplay = DriveDisc();
+		if (!Gameplay)
+		{
+			return Gameplay.Error();
+		}
+		return VoiceDisc(DiscNumber());
 	}
 
 	TResult<FGameDisc> FGameSession::DriveDisc() const
@@ -116,6 +176,7 @@ namespace Weltall
 	void FGameSession::SetSettings(const FPlayerSettings& Settings)
 	{
 		PlayerSettings = Settings;
+		FollowVoiceLanguage();
 		++SettingsSet;
 		GameSound.Apply(Settings.SoundOutput, Settings.Fixes.SoundDriver, Settings.Fixes.Music);
 	}

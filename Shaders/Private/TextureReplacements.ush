@@ -1,0 +1,162 @@
+#pragma once
+
+// Replacement pictures for the texture regions a frame draws (FTextureReplacementGpu): a view's lookup gives its map, the
+// map the region a texel belongs to, and the region's two entries its picture's first tile in the atlas and its size,
+// its rectangle of the view's texels, the colours its CLUT held when the picture was matched to it, and where the
+// original picture lies in the view's texels and its size: for part of a picture larger than the view's page, beyond
+// the region.
+Texture2D<uint4> ReplacementViews;
+Texture2D<uint> ReplacementRegionMaps;
+Texture2D<uint4> ReplacementRegions;
+Texture2D<uint> ReplacementPalettes;
+Texture2D<float4> ReplacementAtlas;
+uint ReplacementMask;
+uint ReplacementCount;
+
+#define REPLACEMENT_TILE 64
+#define REPLACEMENT_ATLAS_COLUMNS 128
+#define REPLACEMENT_MAP_TEXELS 256
+#define REPLACEMENT_MAPS_ACROSS 16
+#define REPLACEMENT_NONE 0xFFFFFFFF
+
+uint ReplacementHash(uint Key)
+{
+	Key ^= Key >> 16;
+	Key *= 0x7FEB352D;
+	Key ^= Key >> 15;
+	Key *= 0x846CA68B;
+	return Key ^ (Key >> 16);
+}
+
+// Where the original's CLUT now gives another colour than the one the picture was matched with (a fade, palette
+// animation), each channel of the picture moves as the original's did: toward black by its ratio, toward white by the
+// ratio of what was left to white.
+float3 FollowOriginalColor(float3 Painted, float3 Matched, float3 Now)
+{
+	const float3 Darker = Painted * Now / max(Matched, 1.0 / 255.0);
+	const float3 Lighter = 1.0 - (1.0 - Painted) * (1.0 - Now) / max(1.0 - Matched, 1.0 / 255.0);
+	const float3 Moved = saturate(lerp(Lighter, Darker, float3(Now < Matched)));
+	return lerp(Moved, Painted, float3(Now == Matched));
+}
+
+// The map of a view's texels to its regions, none for a view without replacements.
+uint ReplacementMapOf(uint Texture)
+{
+	uint Slot = ReplacementHash(Texture) & ReplacementMask;
+	for (uint Probe = 0; Probe < 8; ++Probe)
+	{
+		const uint4 Entry = ReplacementViews.Load(int3(Slot & 1023, Slot >> 10, 0));
+		if (Entry.x == Texture) return Entry.y;
+		if (Entry.x == PSX_NO_TEXTURE) return REPLACEMENT_NONE;
+		Slot = (Slot + 1) & ReplacementMask;
+	}
+	return REPLACEMENT_NONE;
+}
+
+// A region's picture: its size in pixels, the original picture's first texel in the view and its size in texels, its
+// pixels to a texel each way, and the region's first and last texels.
+struct FReplacementPicture
+{
+	int2 Size;
+	int2 Origin;
+	int2 Texels;
+	float2 Scale;
+	int2 First;
+	int2 Last;
+};
+
+uint4 ReplacementRegionEntry(uint Index)
+{
+	return ReplacementRegions.Load(int3(Index & 1023, Index >> 10, 0));
+}
+
+FReplacementPicture ReplacementPictureOf(uint4 Entry, uint4 Extent)
+{
+	FReplacementPicture Picture;
+	Picture.Size = int2(Entry.y & 0xFFFF, Entry.y >> 16);
+	Picture.Origin = int2(int(Extent.x << 16) >> 16, int(Extent.x) >> 16);
+	Picture.Texels = int2(Extent.y & 0xFFFF, Extent.y >> 16);
+	Picture.Scale = float2(Picture.Size) / float2(Picture.Texels);
+	Picture.First = int2(Entry.z & 0xFF, (Entry.z >> 8) & 0xFF);
+	Picture.Last = Picture.First + int2((Entry.z >> 16) & 0xFF, Entry.z >> 24);
+	return Picture;
+}
+
+// A pixel of a region's picture, Local counted from its first: its colour following the original's CLUT, and the kind of
+// texel it draws as, the kind of the original texel its centre lies over (the region's nearest, for a pixel of a larger
+// picture beyond it). The original's blend class stays; the picture's alpha below one half leaves a hole, and above it
+// draws where the original texel was transparent too.
+FPsxTexel ReplacementTexel(Texture2D<uint> Vram, uint Texture, uint4 Entry, FReplacementPicture Picture, int2 Local)
+{
+	const uint Across = (uint(Picture.Size.x) + REPLACEMENT_TILE - 1) / REPLACEMENT_TILE;
+	const uint Tile = Entry.x + uint(Local.y / REPLACEMENT_TILE) * Across + uint(Local.x / REPLACEMENT_TILE);
+	const int2 TileOrigin = int2(Tile % REPLACEMENT_ATLAS_COLUMNS, Tile / REPLACEMENT_ATLAS_COLUMNS) * REPLACEMENT_TILE;
+	const float4 Pixel = ReplacementAtlas.Load(int3(TileOrigin + Local % REPLACEMENT_TILE, 0));
+	const int2 Under = clamp(Picture.Origin + int2((float2(Local) + 0.5) / Picture.Scale), Picture.First, Picture.Last);
+	uint Index;
+	const uint Color = PsxFetchColor(Vram, Texture, Under, Index);
+	FPsxTexel Texel = PsxTexelOf(Color);
+	if (Pixel.a < 0.5)
+	{
+		Texel.Kind = TEXEL_TRANSPARENT;
+		return Texel;
+	}
+	if (Texel.Kind == TEXEL_TRANSPARENT) Texel.Kind = TEXEL_PLAIN;
+	Texel.Rgb = Pixel.rgb;
+	if (Entry.w != REPLACEMENT_NONE && Color != 0)
+	{
+		const uint Matched = ReplacementPalettes.Load(int3(Index, Entry.w, 0));
+		if ((Matched & 0x7FFF) != (Color & 0x7FFF)) Texel.Rgb = FollowOriginalColor(Pixel.rgb, PsxTexelOf(Matched).Rgb, PsxTexelOf(Color).Rgb);
+	}
+	return Texel;
+}
+
+// The replacement picture's texel where its region covers the original texel, the picture stretched over the original
+// picture each way: the pixel Fraction lies in, or with bFiltered the bilinear blend of the four around it within the
+// picture, among those whose kind is in DrawnKinds (a bit per TEXEL_ kind): a point is drawn where they cover at least
+// half of it, as the kind weighing most.
+bool SampleReplacement(Texture2D<uint> Vram, uint Texture, int2 OriginalTexel, float2 Fraction, bool bFiltered, uint DrawnKinds, out FPsxTexel Texel)
+{
+	Texel = (FPsxTexel)0;
+	if (ReplacementCount == 0) return false;
+	const uint Map = ReplacementMapOf(Texture);
+	if (Map == REPLACEMENT_NONE) return false;
+	const uint2 At = uint2(OriginalTexel) & 255;
+	const int2 MapOrigin = int2(Map % REPLACEMENT_MAPS_ACROSS, Map / REPLACEMENT_MAPS_ACROSS) * REPLACEMENT_MAP_TEXELS;
+	const uint Region = ReplacementRegionMaps.Load(int3(MapOrigin + int2(At), 0));
+	if (Region == 0) return false;
+	const uint4 Entry = ReplacementRegionEntry((Region - 1) * 2);
+	const FReplacementPicture Picture = ReplacementPictureOf(Entry, ReplacementRegionEntry((Region - 1) * 2 + 1));
+	const float2 Point = (float2(int2(At) - Picture.Origin) + saturate(Fraction)) * Picture.Scale;
+	if (!bFiltered)
+	{
+		Texel = ReplacementTexel(Vram, Texture, Entry, Picture, min(int2(Point), Picture.Size - 1));
+		return true;
+	}
+	const float2 Centered = Point - 0.5;
+	const int2 Base = int2(floor(Centered));
+	const float2 Weights = Centered - float2(Base);
+	float3 Sum = 0.0;
+	float Coverage = 0.0;
+	float Heaviest = -1.0;
+	uint Kind = TEXEL_TRANSPARENT;
+	for (int Y = 0; Y < 2; ++Y)
+	{
+		for (int X = 0; X < 2; ++X)
+		{
+			const FPsxTexel Tap = ReplacementTexel(Vram, Texture, Entry, Picture, clamp(Base + int2(X, Y), int2(0, 0), Picture.Size - 1));
+			const float Weight = (X == 0 ? 1.0 - Weights.x : Weights.x) * (Y == 0 ? 1.0 - Weights.y : Weights.y);
+			if (((DrawnKinds >> Tap.Kind) & 1) == 0) continue;
+			Sum += Tap.Rgb * Weight;
+			Coverage += Weight;
+			if (Weight > Heaviest)
+			{
+				Heaviest = Weight;
+				Kind = Tap.Kind;
+			}
+		}
+	}
+	Texel.Rgb = Coverage > 0.0 ? Sum / Coverage : 0.0;
+	Texel.Kind = Coverage >= 0.5 ? Kind : TEXEL_TRANSPARENT;
+	return true;
+}

@@ -3,6 +3,7 @@
 #include "Foundation/Types.h"
 #include "Graphics/AffineBlend.h"
 #include "Graphics/GteMatrix.h"
+#include "Graphics/TexturePictures.h"
 #include "Presentation/DrawList.h"
 #include "WorldMap/WorldMapPlayerCamera.h"
 
@@ -220,6 +221,8 @@ namespace Weltall
 		bool bGearsUnderGround = false;
 		std::vector<FWorldMapPolygon> Polygons;
 		std::vector<FWorldMapAnchor> Anchors;
+		/** The texture regions of the gears' models drawn for the party's sprites, with their loads' colours (FGearModel::TextureSeeds). */
+		std::vector<FTexturePictureSeed> TextureSeeds;
 		/** The minimap over the scene when it is shown, on the 320 x 216 screen, drawn before the 2D layer. */
 		FDrawList Minimap;
 		/** The place name's and the notice's windows over the minimap, on the 320 x 216 screen. */

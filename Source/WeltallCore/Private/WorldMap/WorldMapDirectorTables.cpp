@@ -67,7 +67,7 @@ namespace Weltall
 		const FDirectorTablesLayout* Layout = nullptr;
 		for (const FDirectorTablesLayout& Candidate : DirectorLayouts)
 		{
-			if (Candidate.Release == Release)
+			if (Candidate.Release == GameplayRelease(Release))
 			{
 				Layout = &Candidate;
 			}

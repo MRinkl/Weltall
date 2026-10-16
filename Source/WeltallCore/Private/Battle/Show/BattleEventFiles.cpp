@@ -47,6 +47,7 @@ namespace Weltall
 		FBattleEventFiles Files;
 		Files.Image = &Image;
 		Files.Index = &Index;
+		Files.SetVoiceFiles(Image, Index);
 		Files.VoiceSets = Voices;
 		TResult<std::vector<uint8>> Program = ReadFile(Image, Index, EventDirectory, EventProgramFile, false);
 		TResult<std::vector<uint8>> Objects = ReadFile(Image, Index, EventDirectory, EventObjectsFile, true);
@@ -111,7 +112,7 @@ namespace Weltall
 		{
 			return MakeError("a battle event names voice set " + std::to_string(Set) + ", past the program's table");
 		}
-		return ReadFile(*Image, *Index, VoiceDirectory, VoiceSets[static_cast<std::size_t>(Set)].File, false);
+		return ReadFile(*VoiceImage, *VoiceIndex, VoiceDirectory, VoiceSets[static_cast<std::size_t>(Set)].File, false);
 	}
 
 	TResult<std::vector<uint8>> FBattleEventFiles::ReadVoiceBank(int32 Set, int32 Number) const
@@ -121,6 +122,6 @@ namespace Weltall
 			return MakeError("a battle event names voice set " + std::to_string(Set) + ", past the program's table");
 		}
 		const int32 First = VoiceSets[static_cast<std::size_t>(Set)].File + 1;
-		return ReadFile(*Image, *Index, VoiceDirectory, Set == FBattleProgramTables::SingleBankVoiceSet ? First : First + Number, false);
+		return ReadFile(*VoiceImage, *VoiceIndex, VoiceDirectory, Set == FBattleProgramTables::SingleBankVoiceSet ? First : First + Number, false);
 	}
 }

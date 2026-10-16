@@ -39,6 +39,12 @@ namespace Weltall
 	};
 
 	/**
+	 * A textured polygon's page and CLUT once its model's load has put the textures at Place: the page's column and row
+	 * and the CLUT's row and 256-unit block moved there (null: as the model holds them).
+	 */
+	WELTALLCORE_API FMdlTextureState PlaceGearTexture(const FMdlPrimitive& Primitive, const FGearTexturePlace* Place);
+
+	/**
 	 * Every bone's part built as the load builds it, in bone order: lit through the builder with
 	 * Lighting in LightMode (the gears' loads 2; 0 keeps the stored colours), each page and CLUT command
 	 * moved to Place unless the textures are absolute (Place null), where an environment-mapped

@@ -13,6 +13,7 @@
 #include "Screens/GameLoopScreen.h"
 #include "Screens/GameScreenSubsystem.h"
 #include "Shell/GameDiscsSubsystem.h"
+#include "Shell/GameAssetsSubsystem.h"
 #include "Shell/GameNotice.h"
 #include "Shell/GameWindowSubsystem.h"
 #include "Shell/PlayerSettingsSubsystem.h"
@@ -54,7 +55,7 @@ void AWeltallGameMode::LookForFirstDisc()
 {
 	UGameDiscsSubsystem* Discs = GetGameInstance()->GetSubsystem<UGameDiscsSubsystem>();
 	Discs->Rescan();
-	if (Discs->Find(Weltall::EDiscRelease::UsaDisc1) == nullptr)
+	if (Discs->Library().PlayableDisc(1) == nullptr)
 	{
 		NoticeText->SetText(FirstDiscMissing());
 		return;
@@ -106,7 +107,7 @@ FText AWeltallGameMode::FirstDiscMissing() const
 	std::string Message = std::string(Text::FirstMissing) + "\n\n" + Weltall::OptionsText::Fill(Text::WhereTheyGo, {std::string(FolderName.begin(), FolderName.end())});
 	for (const Weltall::EDiscRelease Release : Library.Releases())
 	{
-		const std::string_view Number = Release == Weltall::EDiscRelease::UsaDisc1 ? "1" : "2";
+		const std::string_view Number = Weltall::DiscNumberOfRelease(Release) == 1 ? "1" : "2";
 		Message += "\n\n" + Weltall::OptionsText::Fill(Text::Found, {Number, Shown(Library.FileOf(Release))});
 	}
 	constexpr std::size_t MostListed = 12;
@@ -129,7 +130,7 @@ FText AWeltallGameMode::FirstDiscMissing() const
 bool AWeltallGameMode::StartGame()
 {
 	UGameInstance* Game = GetGameInstance();
-	const Weltall::FIso9660* Disc = Game->GetSubsystem<UGameDiscsSubsystem>()->Find(Weltall::EDiscRelease::UsaDisc1);
+	const Weltall::FIso9660* Disc = Game->GetSubsystem<UGameDiscsSubsystem>()->Library().PlayableDisc(1);
 	if (Disc == nullptr)
 	{
 		return false;
@@ -142,7 +143,7 @@ bool AWeltallGameMode::StartGame()
 	// Disc 2 is read beside disc 1 when the player has it, so the disc change's "INSERT DISC 2" is only confirmed;
 	// without it the Games folder is looked in again as the game asks for it.
 	UGameDiscsSubsystem* Discs = Game->GetSubsystem<UGameDiscsSubsystem>();
-	const Weltall::FIso9660* SecondDisc = Discs->Find(Weltall::EDiscRelease::UsaDisc2);
+	const Weltall::FIso9660* SecondDisc = Discs->Library().PlayableDisc(2);
 	auto Started = FGameLoopScreen::PowerOn(*Disc, MoveTemp(StartSound), Settings->Settings(), SecondDisc);
 	if (!Started)
 	{
@@ -159,6 +160,8 @@ bool AWeltallGameMode::StartGame()
 	});
 	Screen->SetBattleSpeedStepped([Settings](Weltall::EBattleSpeed Speed) { Settings->KeepBattleSpeed(Speed); });
 	Screen->SetMenuKeys(Game->GetSubsystem<UKeyListenerSubsystem>());
+	UGameAssetsSubsystem* Assets = Game->GetSubsystem<UGameAssetsSubsystem>();
+	Screen->SetMenuAssets(Assets);
 	Screen->SetDisplayModes([Window = Game->GetSubsystem<UGameWindowSubsystem>()]() { return Window->Modes(); });
 	Screen->SetSettingsFollowed([Settings](const Weltall::FPlayerSettings& Changed) { Settings->Follow(Changed); });
 	Screen->SetSettingsKept([Settings](const Weltall::FPlayerSettings& Kept) { Settings->Change(Kept); });
@@ -169,9 +172,10 @@ bool AWeltallGameMode::StartGame()
 			UKismetSystemLibrary::QuitGame(Playing, nullptr, EQuitPreference::Quit, false);
 		}
 	});
-	Screen->SetDiscSought([Discs](Weltall::EDiscRelease Release)
+	Screen->SetDiscSought([Discs, Assets](Weltall::EDiscRelease Release)
 	{
 		Discs->Rescan();
+		Assets->Refresh();
 		return Discs->Find(Release);
 	});
 	Screen->SetStopped([Mode = TWeakObjectPtr<AWeltallGameMode>(this)](const Weltall::FError& Error)

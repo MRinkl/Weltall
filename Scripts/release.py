@@ -30,7 +30,20 @@ PROJECT_VERSION = re.compile(r"^ProjectVersion=(.*)$", re.MULTILINE)
 
 NOTES = """\
 Weltall {version} is a native port of *Xenogears* (PlayStation, 1998), rebuilt in Unreal Engine 5.
-You'll need your own copy of the USA release. No game data is included.
+You'll need your own copy of the USA release or a supported English undub. No game data is included.
+
+## What's new
+
+- Fixed a crash at startup on Linux with AMD graphics cards (Mesa's RADV driver). The game was compiling
+  Unreal Engine shaders it never uses, and two of them crash that driver.
+- Fixed the floor hiding characters' legs in some battles.
+- Added support for the English undub, which plays with English text and Japanese voices. If you have
+  both versions, choose the voices under Options → Sound → Voices.
+- Added an Original PSX icons option under Options → Controls. It keeps the PlayStation button symbols
+  in prompts and menus while your own bindings still apply.
+- Added modding options on a new Assets page in Options. You can export the game's textures as PNG and
+  its music as WAV, dump the disc's files, and load your own replacements. See the
+  [modding guide](https://github.com/Roman215/Weltall/blob/main/Docs/Modding.md).
 
 ## Playing
 
@@ -46,10 +59,10 @@ controls and more details.
 
 ## What to expect
 
-This is the first release. Both discs are playable, and gameplay behavior has been checked against the
-original game's code. My own playthrough is still in progress, with over ten hours played without a hang.
-Automated tests have run every map and story battle, along with long stretches of the story from save to
-save. You should be able to play from start to finish, and I'm fixing reported issues as they come in.
+Both discs are playable, and gameplay behavior has been checked against the original game's code.
+My own playthrough is still in progress, with around 16 hours played without a hang. Automated tests
+have run every map and story battle, along with long stretches of the story from save to save. You
+should be able to play from start to finish, and I'm fixing reported issues as they come in.
 
 The Linux build has only been tested in Windows Subsystem for Linux (WSL), using software rendering.
 It still needs testing on a Linux system with a graphics card. If you try it, please report any problems

@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <span>
+#include <vector>
 
 namespace Weltall
 {
@@ -28,7 +29,14 @@ namespace Weltall
 		WELTALLCORE_API uint8 IndexAt(int32 X, int32 Y) const;
 	};
 
+	/** A TIM; its image is marked as a picture (FVramImage::Picture) with its depth and its CLUT's first palette. */
 	WELTALLCORE_API TResult<FTim> ParseTim(std::span<const uint8> Bytes);
+
+	/**
+	 * Every TIM within bytes of any kind, at whole words: those whose identifier and flags are a 4-, 8- or 15-bit
+	 * image's (an indexed one with its CLUT) and whose blocks are exactly as long as their rectangles within VRAM.
+	 */
+	WELTALLCORE_API std::vector<FTim> FindTims(std::span<const uint8> Bytes);
 
 	/**
 	 * What libgpu's OpenTIM and ReadTIM hand LoadImage from TIMs stored one after another: each TIM's

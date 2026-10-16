@@ -28,6 +28,57 @@ namespace
 	{
 		return Drawn.Corners[1].X - Drawn.Corners[0].X;
 	}
+
+	class FBindingGlyphs final : public IButtonGlyphs
+	{
+	public:
+		FControlBindings Bindings = FControlBindings::Defaults();
+		uint32 Changes = 0;
+		FButtonGlyph Glyph(EPadButton Button) const override { return ButtonGlyph(Button, Bindings, EButtonIconSet::Keyboard); }
+		uint32 Revision() const override { return Changes; }
+	};
+}
+
+TEST_CASE("Switching to original button icons restores native menu pictures and text on the next frame", "[Menu][Content][Input]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const auto Executable = ReadBootExecutable(*Disc);
+	REQUIRE(Executable);
+	const auto Index = FGameFileIndex::Read(*Executable);
+	REQUIRE(Index);
+	const auto Resources = FMenuResources::Load(Disc->Image(), *Index, *Executable);
+	REQUIRE(Resources);
+	const FMenuSpriteSheet& Sheet = Resources->Sheet();
+	FMenuFrame Frame;
+	Frame.Layer = MenuFlatTransform;
+	Sheet.Draw(0xF9, 100, 50, 0x1000, Frame.Primitives);
+	FMenuDrawBuilder Builder;
+	FDrawList Original;
+	Builder.Build(Frame, nullptr, 1.0f, Original);
+	REQUIRE(Builder.Icons.size() == 1);
+	FBindingGlyphs Glyphs;
+	Glyphs.Bindings.Rebind(EControlAction::Cross, 0, "Gamepad_FaceButton_Right");
+	FMenuButtonIcons Pictures;
+	FDrawList Remapped = Original;
+	Pictures.Apply(Remapped, Builder.Icons, Glyphs, Sheet, MenuSheetButtonPictures);
+	CHECK(Remapped.Primitives[0].Texture->Vram == FMenuButtonIcons::PicturesVram);
+	Glyphs.Bindings.bOriginalButtonIcons = true;
+	++Glyphs.Changes;
+	FDrawList Restored = Original;
+	Pictures.Apply(Restored, Builder.Icons, Glyphs, Sheet, MenuSheetButtonPictures);
+	CHECK(Restored.Primitives[0].Texture->Vram == 0);
+	CHECK(Restored.Primitives[0].Corners[0].U == Original.Primitives[0].Corners[0].U);
+
+	const FDrawTexture Page{0, FTexturePage{0x300, 0x100, ETextureDepth::Indexed4, EBlendMode::Average}, {}};
+	FDrawList Text;
+	Text.Primitives.push_back(MakeSprite(20, 30, 120, 13, Page, 8, 16));
+	const std::array<FTextButtonCell, 4> Cells{{{0, 0, 12, EPadButton::Cross}, {0, 20, 12, EPadButton::L1},
+		{0, 40, 30, EPadButton::Up, true}, {0, 80, 30, EPadButton::Start}}};
+	Pictures.ApplyToText(Text, Cells, Glyphs);
+	REQUIRE(Text.Primitives.size() == 1);
+	CHECK(Text.Primitives[0].Texture->Vram == 0);
+	CHECK(Text.Primitives[0].Corners[0].U == 8);
+	CHECK(Text.Primitives[0].Corners[1].X == 140);
 }
 
 TEST_CASE("A menu's button picture stands for the controller's button the kernel reads as its role", "[Menu]")

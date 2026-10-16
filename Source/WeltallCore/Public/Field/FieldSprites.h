@@ -4,6 +4,7 @@
 #include "Field/FieldArchive.h"
 #include "Field/FieldPartySprites.h"
 #include "Graphics/Sprite.h"
+#include "Graphics/SpriteCells.h"
 #include "Graphics/SpriteFile.h"
 #include "Graphics/SpriteSystem.h"
 
@@ -16,6 +17,12 @@ namespace Weltall
 {
 	class FCdImage;
 	class FGameFileIndex;
+
+	/** Where map sprite Number takes its textures and palettes: its slot's place, its palette row from palette set PaletteSet on. */
+	WELTALLCORE_API FSpriteFilePlace FieldMapSpritePlace(const FFieldSpriteSlot& Slot, int32 Number, int32 PaletteSet);
+
+	/** Where the sprite of the party's first member takes them: a streamed area of its own. */
+	WELTALLCORE_API FSpriteFilePlace FieldPartySpritePlace();
 
 	/**
 	 * The field's actors' sprites: the map's sprite files and the party's, one kernel sprite per

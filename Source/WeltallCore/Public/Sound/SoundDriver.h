@@ -3,6 +3,7 @@
 #include "Foundation/Types.h"
 
 #include <memory>
+#include <span>
 
 namespace Weltall
 {
@@ -57,6 +58,8 @@ namespace Weltall
 
 		/** One tick of the driver's timer. */
 		WELTALLCORE_API void Interrupt();
+		/** Mixes replacement music after the SPU, under the same lock and interrupt timing. */
+		WELTALLCORE_API void MixReplacementMusic(std::span<int16> Stereo);
 
 		/**
 		 * Reserves sound RAM for a bank and uploads its samples: with SpuAddress -1 anywhere, otherwise

@@ -3,6 +3,7 @@
 #include "Foundation/FileByteSource.h"
 #include "Media/ChdDisc.h"
 #include "Media/CueSheet.h"
+#include "Media/DiscAssets.h"
 
 #include <algorithm>
 #include <cctype>
@@ -157,6 +158,23 @@ namespace Weltall
 		return Lba < Sectors && Source->Read(TrackOffset + static_cast<uint64>(Lba) * SectorSize, Destination);
 	}
 
+	TResult<std::vector<uint8>> FCdImage::ReadSourceSector(uint32 Lba) const
+	{
+		std::vector<uint8> Bytes(SectorSize);
+		if (!ReadRaw(Lba, Bytes)) return MakeError("cannot read sector " + std::to_string(Lba));
+		return Bytes;
+	}
+
+	TResult<std::optional<std::vector<uint8>>> FCdImage::ReadAssetOverride(const FIndexRecord& Record) const
+	{
+		return Assets ? Assets->ReadOverride(Record) : TResult<std::optional<std::vector<uint8>>>(std::optional<std::vector<uint8>>{});
+	}
+
+	TResult<std::optional<std::vector<uint8>>> FCdImage::ReadMusicReplacement(uint64 Key) const
+	{
+		return Assets ? Assets->ReadMusic(Key) : TResult<std::optional<std::vector<uint8>>>(std::optional<std::vector<uint8>>{});
+	}
+
 	TResult<FCdSectorHeader> FCdImage::ReadHeader(uint32 Lba) const
 	{
 		if (!IsRaw())
@@ -167,8 +185,15 @@ namespace Weltall
 			}
 			return FCdSectorHeader{};
 		}
-		std::array<uint8, Mode2DataOffset> Head{};
-		if (!ReadRaw(Lba, Head))
+		std::array<uint8, CdSector::RawSize> Head{};
+		bool bExternal = false;
+		if (Assets)
+		{
+			const auto Override = Assets->ReadMovieSector(Lba, Head);
+			if (!Override) return Override.Error();
+			bExternal = *Override;
+		}
+		if (!bExternal && !ReadRaw(Lba, std::span<uint8>(Head).first(Mode2DataOffset)))
 		{
 			return MakeError("cannot read sector " + std::to_string(Lba));
 		}
@@ -187,7 +212,14 @@ namespace Weltall
 	TResult<std::vector<uint8>> FCdImage::ReadUserData(uint32 Lba) const
 	{
 		std::vector<uint8> Sector(SectorSize);
-		if (!ReadRaw(Lba, Sector))
+		bool bExternal = false;
+		if (Assets)
+		{
+			const auto Override = Assets->ReadMovieSector(Lba, Sector);
+			if (!Override) return Override.Error();
+			bExternal = *Override;
+		}
+		if (!bExternal && !ReadRaw(Lba, Sector))
 		{
 			return MakeError("cannot read sector " + std::to_string(Lba));
 		}

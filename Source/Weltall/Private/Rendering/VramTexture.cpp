@@ -1,7 +1,10 @@
 #include "Rendering/VramTexture.h"
+#include "Rendering/TextureModLibrary.h"
+#include "TextureReplacementGpu.h"
 
 #include "GlobalShader.h"
 #include "Graphics/Texture.h"
+#include "Graphics/TextureRegion.h"
 #include "Graphics/TextureUpscale.h"
 #include "PixelShaderUtils.h"
 #include "RHICommandList.h"
@@ -73,9 +76,7 @@ IMPLEMENT_GLOBAL_SHADER(FTextureDoublePS, "/Weltall/Private/TextureUpscale.usf",
 
 uint32 FVramTexture::Pack(const Weltall::FTexturePage& Page, const Weltall::FClutPosition& Clut)
 {
-	const bool bPortRows = Page.Y >= Weltall::FVram::Height;
-	return static_cast<uint32>(Page.X / 64 & 0xF) | static_cast<uint32>(Page.Y / 256 & 1) << 4 | static_cast<uint32>(Page.Depth) << 5
-		| static_cast<uint32>(bPortRows) << 7 | static_cast<uint32>(Clut.X / 16 & 0x3F) << 8 | static_cast<uint32>(Clut.Y & 0x3FF) << 14;
+	return Weltall::PackTextureView(Page, Clut);
 }
 
 void FVramTexture::SetUpscaled(bool bUpscaled)
@@ -100,8 +101,15 @@ void FVramTexture::SetUpscaled(bool bUpscaled)
 	}
 }
 
+bool FVramTexture::Follow(const Weltall::FVram& Vram, std::span<const Weltall::FTextureRegion> Regions, std::span<const Weltall::FTexturePictureSeed> Seeds)
+{
+	FollowReplacements(Vram, Regions, Seeds);
+	return Follow(Vram);
+}
+
 bool FVramTexture::Follow(const Weltall::FVram& Vram)
 {
+	if (!FTextureModLibrary::IsActive()) FollowReplacements(Vram, {}, {});
 	const bool bSameLineage = bSent && Vram.Lineage() == SentLineage;
 	if (bSameLineage && Vram.Revision() == SentRevision && !bSendAll)
 	{
@@ -153,6 +161,7 @@ bool FVramTexture::Follow(const Weltall::FVram& Vram)
 
 void FVramTexture::InitRHI(FRHICommandListBase& RHICmdList)
 {
+	ReplacementGpu->InitRHI(RHICmdList);
 	const FIntPoint Size(Weltall::FVram::Width, Weltall::FVram::Rows);
 	Units = RHICmdList.CreateTexture(FRHITextureCreateDesc::Create2D(TEXT("PlayStationVram"), Size, PF_R16_UINT)
 		.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::RenderTargetable)
@@ -166,6 +175,7 @@ void FVramTexture::ReleaseRHI()
 {
 	Units.SafeRelease();
 	Edges.SafeRelease();
+	ReplacementGpu->ReleaseRHI();
 	for (int32 Depth = 0; Depth < 2; ++Depth)
 	{
 		DoubledTexels[Depth].SafeRelease();

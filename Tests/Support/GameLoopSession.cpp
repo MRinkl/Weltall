@@ -53,7 +53,7 @@ namespace Weltall::Testing
 		OtherIndex = std::make_unique<FGameFileIndex>(std::move(*Other));
 		const auto Identity = IdentifyDisc(Disc);
 		REQUIRE(Identity);
-		Session->AddDisc(Identity->Release == EDiscRelease::UsaDisc2 ? 1 : 0, Disc.Image(), *OtherIndex);
+		Session->AddDisc(DiscNumberOfRelease(Identity->Release) - 1, Disc.Image(), *OtherIndex);
 	}
 
 	void FGameLoopSession::PowerOn()

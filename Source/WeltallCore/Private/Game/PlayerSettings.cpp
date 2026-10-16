@@ -288,6 +288,9 @@ namespace Weltall
 
 			Visitor.Choice("sound.output", Settings.SoundOutput, {"stereo", "wide_stereo", "mono"});
 			Visitor.Flag("sound.in_background", Settings.Display.bSoundInBackground);
+			Visitor.Choice("sound.voices", Settings.VoiceLanguage, {"automatic", "english", "japanese"});
+			Visitor.Flag("assets.external", Settings.bExternalAssets);
+			Visitor.Flag("assets.capture_textures", Settings.bCaptureTextures);
 
 			Visitor.Flag("game.chapter_cards", Settings.bChapterCards);
 			Visitor.Choice("game.text_speed", Settings.TextSpeed, {"original", "double", "quadruple", "instant"});
@@ -306,6 +309,7 @@ namespace Weltall
 
 			Visitor.Flag("controls.always_run", Settings.Controls.bAlwaysRun);
 			Visitor.Flag("controls.walk_into_doors", Settings.Controls.bWalkIntoDoors);
+			Visitor.Flag("controls.original_button_icons", Settings.Controls.bOriginalButtonIcons);
 			Visitor.Level("controls.mouse_sensitivity", Settings.Controls.MouseSensitivity, LowestSensitivity, HighestSensitivity);
 			Visitor.Level("controls.stick_sensitivity", Settings.Controls.StickSensitivity, LowestSensitivity, HighestSensitivity);
 			constexpr std::array<std::string_view, ControlActionCount> ActionKeys{"controls.up", "controls.down", "controls.left", "controls.right",

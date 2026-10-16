@@ -4,6 +4,8 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
+#include <optional>
 #include <span>
 #include <utility>
 #include <vector>
@@ -22,6 +24,23 @@ namespace Weltall
 	};
 
 	/**
+	 * What an uploaded image is when it is one picture, as a TIM describes it: the depth its texels are read at (an
+	 * ETextureDepth) and, for an indexed one, the colours it comes with.
+	 */
+	struct FVramPictureForm
+	{
+		uint8 Depth = 0;
+		std::shared_ptr<const std::vector<uint16>> Palette{};
+	};
+
+	/** A picture VRAM holds: where its uploaded image lies, and its form. */
+	struct FVramPicture
+	{
+		FVramRect Rect;
+		FVramPictureForm Form;
+	};
+
+	/**
 	 * 16-bit units for a rectangle of VRAM, row by row: texture pixels, a CLUT, a font sheet. Units
 	 * always holds Width x Height values.
 	 */
@@ -34,6 +53,8 @@ namespace Weltall
 		 * others): VRAM marks its edges, which the texture upscaler reads nothing beyond.
 		 */
 		bool bSeparateTexture = false;
+		/** Set when the image is one picture (a TIM's): VRAM keeps it among its pictures until something is uploaded over it. */
+		std::optional<FVramPictureForm> Picture{};
 	};
 
 	/** Which edges of a separate texture (FVramImage::bSeparateTexture) a unit of VRAM lies on. */
@@ -132,6 +153,8 @@ namespace Weltall
 
 		/** The tiles of the console's rows an upload wrote into after the VRAM's revision was Earlier. */
 		WELTALLCORE_API FVramTiles TilesChangedSince(uint32 Earlier) const;
+		/** Latest upload touching the tiles of a console rectangle, with texture-fetch wrapping; port rows use the whole revision. */
+		WELTALLCORE_API uint32 RevisionOver(const FVramRect& Rect) const;
 
 		/** Every unit, row by row from the top left: Width x Rows of them, the port's rows after the console's. */
 		std::span<const uint16> AllUnits() const { return Units; }
@@ -148,6 +171,9 @@ namespace Weltall
 		/** The rectangles uploads wrote since the last call, in order, as they were given. */
 		std::vector<FVramRect> TakeWrites() { return std::exchange(Writes, {}); }
 
+		/** The pictures uploaded into the console's rows that nothing has been uploaded over since. */
+		std::span<const FVramPicture> Pictures() const { return PictureList; }
+
 	private:
 		std::vector<uint16> Units;
 		std::vector<uint8> Edges;
@@ -157,6 +183,7 @@ namespace Weltall
 		std::vector<uint32> TileRevisions;
 		bool bTrackingWrites = false;
 		std::vector<FVramRect> Writes;
+		std::vector<FVramPicture> PictureList;
 	};
 
 	static_assert(std::tuple_size_v<FVramTiles> == FVram::TilesDown && FVram::TilesAcross == 64, "a tile row's bits fill an entry");

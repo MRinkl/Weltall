@@ -249,9 +249,10 @@ namespace
 		const FVector2f ScreenSize(Screen.Width, Screen.Height);
 		FRHITexture* TextureArray = Textures.Layers != nullptr ? Textures.Layers->TextureArray() : nullptr;
 		FRHITexture* VramUnits = Textures.Vram != nullptr ? Textures.Vram->Texture() : nullptr;
+		const FTextureReplacementResources Replacements = Textures.Vram != nullptr ? Textures.Vram->Replacements() : FTextureReplacementResources{};
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("ScreenDrawList"), PassParameters, ERDGPassFlags::Raster,
-			[PassParameters, &Runs, VertexShader, PixelShader, TargetSize, Placement, ScreenSize, TextureArray, VramUnits](FRDGAsyncTask, FRHICommandList& RHICmdList)
+			[PassParameters, &Runs, VertexShader, PixelShader, TargetSize, Placement, ScreenSize, TextureArray, VramUnits, Replacements](FRDGAsyncTask, FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, static_cast<float>(TargetSize.X), static_cast<float>(TargetSize.Y), 1.0f);
 				FScreenDrawListVS::FParameters VertexParameters;
@@ -276,6 +277,7 @@ namespace
 					FScreenDrawListPS::FParameters PixelParameters;
 					PixelParameters.Textures = TextureArray;
 					PixelParameters.Vram = VramUnits;
+					PixelParameters.Replacements = TextureReplacementParameters(Replacements);
 					PixelParameters.ScreenRect = Placement;
 					PixelParameters.ScreenSize = ScreenSize;
 					PixelParameters.DrawPass = static_cast<uint32>(Run.Pass);

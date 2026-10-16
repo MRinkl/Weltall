@@ -8,6 +8,19 @@ namespace Weltall
 	namespace
 	{
 		std::atomic<uint32> LineagesMade{0};
+
+		/** Whether two spans of a wrapping axis share a unit. */
+		bool SpansMeet(int32 StartA, int32 LengthA, int32 StartB, int32 LengthB, int32 Limit)
+		{
+			LengthA = std::min(LengthA, Limit);
+			LengthB = std::min(LengthB, Limit);
+			if (LengthA <= 0 || LengthB <= 0)
+			{
+				return false;
+			}
+			const int32 Offset = ((StartB - StartA) % Limit + Limit) % Limit;
+			return Offset < LengthA || Offset + LengthB > Limit;
+		}
 	}
 
 	FVram::FVram()
@@ -22,6 +35,15 @@ namespace Weltall
 		if (bTrackingWrites)
 		{
 			Writes.push_back(Image.Rect);
+		}
+		std::erase_if(PictureList, [&Image](const FVramPicture& Picture)
+		{
+			return SpansMeet(Picture.Rect.X, Picture.Rect.Width, Image.Rect.X, Image.Rect.Width, Width) &&
+				SpansMeet(Picture.Rect.Y, Picture.Rect.Height, Image.Rect.Y, Image.Rect.Height, Height);
+		});
+		if (Image.Picture)
+		{
+			PictureList.push_back({Image.Rect, *Image.Picture});
 		}
 		const int32 RectWidth = Image.Rect.Width;
 		const int32 RectHeight = Image.Rect.Height;
@@ -98,5 +120,24 @@ namespace Weltall
 			}
 		}
 		return Tiles;
+	}
+
+	uint32 FVram::RevisionOver(const FVramRect& Rect) const
+	{
+		if (Rect.Width <= 0 || Rect.Height <= 0) return 0;
+		if (Rect.Y >= Height) return Uploads;
+		uint32 Latest = 0;
+		for (int32 Row = 0; Row < std::min<int32>(Rect.Height, Height);)
+		{
+			const int32 Y = (Rect.Y + Row) & (Height - 1);
+			for (int32 Column = 0; Column < std::min<int32>(Rect.Width, Width);)
+			{
+				const int32 X = (Rect.X + Column) & (Width - 1);
+				Latest = std::max(Latest, TileRevisions[static_cast<std::size_t>(Y / TileHeight * TilesAcross + X / TileWidth)]);
+				Column += TileWidth - X % TileWidth;
+			}
+			Row += TileHeight - Y % TileHeight;
+		}
+		return Latest;
 	}
 }

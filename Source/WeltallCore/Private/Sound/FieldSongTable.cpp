@@ -30,7 +30,7 @@ namespace Weltall
 		const FSongTableLayout* Layout = nullptr;
 		for (const FSongTableLayout& Candidate : Layouts)
 		{
-			if (Candidate.Release == Release)
+			if (Candidate.Release == GameplayRelease(Release))
 			{
 				Layout = &Candidate;
 			}

@@ -86,6 +86,10 @@ namespace Weltall
 		WELTALLCORE_API void AddDisc(int32 Number, const FCdImage& Image, const FGameFileIndex& Index);
 		/** The disc in the drive, which the movies are read from; an error when the session was not given it. */
 		WELTALLCORE_API TResult<FGameDisc> DriveDisc() const;
+		/** An optional USA or undub voice track. Language is English or Japanese, Number is zero or one. */
+		WELTALLCORE_API void AddVoiceDisc(EVoiceLanguage Language, int32 Number, const FCdImage& Image, const FGameFileIndex& Index);
+		/** The selected voice track's disc for the movie in the drive, with the gameplay disc as fallback. */
+		WELTALLCORE_API TResult<FGameDisc> MovieDisc() const;
 		/** Whether the session has disc Number (0 or 1), the host's drive asked for it first when it has not. */
 		WELTALLCORE_API bool HasDisc(int32 Number);
 		void SetDiscDrive(IGameDiscDrive* InDrive) { DiscDrive = InDrive; }
@@ -189,6 +193,9 @@ namespace Weltall
 		[[nodiscard]] WELTALLCORE_API std::optional<FError> InitNewGame();
 
 	private:
+		FGameDisc VoiceDisc(int32 Number) const;
+		EVoiceLanguage SelectedVoiceLanguage() const;
+		void FollowVoiceLanguage();
 		FGameSession(const FCdImage& Image, const FGameFileIndex& Index, EDiscRelease Release, FGameSoundSession& Sound, FGteArctangents Arctangents,
 			FMesResident Text, FFieldDrawingTables Tables, FFieldMovieCues Cues, std::unique_ptr<FBattleGameFiles> Battle);
 
@@ -197,6 +204,7 @@ namespace Weltall
 		EDiscRelease DiscRelease;
 		/** Each disc the session was given, by number. */
 		std::array<FGameDisc, 2> Discs{};
+		std::array<std::array<FGameDisc, 2>, 2> VoiceDiscs{};
 		FGameSoundSession& GameSound;
 		FGteArctangents GteArctangents;
 		FMesResident TextResources;

@@ -51,3 +51,34 @@ TEST_CASE("A face button's place among the four is the one its controller prints
 	CHECK(FaceButtonPlace(EButtonIconSet::PlayStation, "A") == EFaceButtonPlace::None);
 	CHECK(FaceButtonPlace(EButtonIconSet::Keyboard, "A") == EFaceButtonPlace::None);
 }
+
+TEST_CASE("Original button icons keep the PlayStation symbols independently of devices and bindings", "[Input]")
+{
+	FControlBindings Bindings = FControlBindings::Defaults();
+	Bindings.Rebind(EControlAction::Cross, 0, "Gamepad_FaceButton_Right");
+	Bindings.Rebind(EControlAction::Cross, 0, "Z");
+	Bindings.Clear(EControlAction::Triangle, EInputFamily::Gamepad, 0);
+	Bindings.Clear(EControlAction::Triangle, EInputFamily::KeyboardAndMouse, 0);
+	const FControlBindings Rebound = Bindings;
+	Bindings.bOriginalButtonIcons = true;
+	for (const EButtonIconSet Set : {EButtonIconSet::Keyboard, EButtonIconSet::Xbox, EButtonIconSet::PlayStation,
+		EButtonIconSet::Nintendo, EButtonIconSet::SteamDeck})
+	{
+		INFO(static_cast<int32>(Set));
+		const FButtonGlyph Cross = ButtonGlyph(EPadButton::Cross, Bindings, Set);
+		CHECK(Cross.Set == EButtonIconSet::PlayStation);
+		CHECK(Cross.Icon == "Cross");
+		CHECK(ButtonGlyph(EPadButton::Circle, Bindings, Set).Icon == "Circle");
+		CHECK(ButtonGlyph(EPadButton::Triangle, Bindings, Set).Icon == "Triangle");
+		CHECK(ButtonGlyph(EPadButton::L1, Bindings, Set).Icon == "L1");
+		CHECK(ButtonGlyph(EPadButton::L2, Bindings, Set).Icon == "L2");
+		CHECK(ButtonGlyph(EPadButton::Up, Bindings, Set).Icon == "DPad_Up");
+		CHECK(ButtonGlyph(EPadButton::Start, Bindings, Set).Icon == "Start");
+		CHECK(ButtonGlyph(EPadButton::Select, Bindings, Set).Icon == "Select");
+	}
+	Bindings.bOriginalButtonIcons = false;
+	CHECK(Bindings == Rebound);
+	CHECK(ButtonGlyph(EPadButton::Cross, Bindings, EButtonIconSet::Keyboard).Icon == "Z");
+	CHECK(ButtonGlyph(EPadButton::Cross, Bindings, EButtonIconSet::Nintendo).Icon == "A");
+	CHECK(ButtonGlyph(EPadButton::Triangle, Bindings, EButtonIconSet::Xbox).Icon.empty());
+}

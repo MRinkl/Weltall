@@ -94,6 +94,7 @@ namespace Weltall
 
 		/** The song asked for, NoSong for none. */
 		int32 Song() const { return CurrentSong; }
+		int32 SongCount() const { return Songs.Count(); }
 		/** Whether a song is chosen and not loaded yet. */
 		bool IsLoading() const { return bLoading; }
 		/** Whether a song has loaded since the music last stopped. */

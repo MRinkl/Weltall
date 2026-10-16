@@ -43,6 +43,12 @@ struct FScenePolygonItem
 	 * its effects, which a gear's surface would cut.
 	 */
 	bool bOverModels = false;
+	/**
+	 * Of what is drawn over the models, a polygon facing up: the stage's floor, which the original draws before the sprites
+	 * standing on it. Under the depth rule it is never drawn over a sprite's marks, however far a sprite reaches before
+	 * the point it stands at.
+	 */
+	bool bGround = false;
 	/** A textured polygon's page's blend mode, which a later untextured semi-transparent polygon blends by too. */
 	Weltall::EBlendMode PageBlend = Weltall::EBlendMode::Average;
 	/** An untextured polygon drawn after a drawing mode of its own: it sets the blend mode to PageBlend as a textured one does. */

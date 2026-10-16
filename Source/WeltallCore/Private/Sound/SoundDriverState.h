@@ -181,6 +181,8 @@ namespace Weltall
 		FSoundCursor Current;
 		FSoundCursor LoopPoint;
 		uint16 Loops = 0;
+		uint64 FirstLoopFrame = 0;
+		uint64 FirstLoopEndFrame = 0;
 		uint8 LoopOctave = 0;
 		uint8 BankId = 0;
 		uint8 Instrument = 0;
@@ -277,6 +279,9 @@ namespace Weltall
 		int16 ReverbDepth = 0;
 		uint32 Active = 0;
 		uint32 Muted = 0;
+		double WaveFrame = 0.0;
+		uint64 PlaybackFrames = 0;
+		bool bWaveTail = false;
 		int32 TempoAccumulator = 0;
 		int32 TempoStep = 0;
 		/** 16.16. */

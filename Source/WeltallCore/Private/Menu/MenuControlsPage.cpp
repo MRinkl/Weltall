@@ -20,6 +20,7 @@ namespace Weltall
 			Action,
 			AlwaysRun,
 			WalkIntoDoors,
+			OriginalButtonIcons,
 			MouseSensitivity,
 			StickSensitivity,
 			Reset,
@@ -44,7 +45,7 @@ namespace Weltall
 			return {Kind, Words.Label, &Words};
 		}
 
-		constexpr std::array<FControlsRow, 26> PageRows{{
+		constexpr std::array<FControlsRow, 27> PageRows{{
 			{ERowKind::Device, Text::Device},
 			{ERowKind::Heading, Text::ButtonsHeading},
 			KeysOf(Text::Up, EControlAction::Up),
@@ -63,6 +64,7 @@ namespace Weltall
 			KeysOf(Text::Map, EControlAction::Select),
 			Setting(ERowKind::AlwaysRun, Text::AlwaysRun),
 			Setting(ERowKind::WalkIntoDoors, Text::WalkIntoDoors),
+			Setting(ERowKind::OriginalButtonIcons, Text::OriginalButtonIcons),
 			{ERowKind::Heading, Text::CameraHeading},
 			KeysOf(Text::Rotate, EControlAction::ViewTurn),
 			KeysOf(Text::Tilt, EControlAction::ViewTilt),
@@ -201,6 +203,9 @@ namespace Weltall
 			case ERowKind::WalkIntoDoors:
 				Made.Value = std::string(Bindings.bWalkIntoDoors ? OptionsText::On : OptionsText::Off);
 				break;
+			case ERowKind::OriginalButtonIcons:
+				Made.Value = std::string(Bindings.bOriginalButtonIcons ? OptionsText::On : OptionsText::Off);
+				break;
 			case ERowKind::MouseSensitivity:
 			case ERowKind::StickSensitivity:
 				Made.Value = std::to_string(*SensitivityOf(Kind.Kind, Bindings));
@@ -251,6 +256,7 @@ namespace Weltall
 		case ERowKind::WalkIntoDoors:
 			Lines = OptionsText::Fill(At->Words->Help, {LabelOf(EControlAction::Cross)});
 			break;
+		case ERowKind::OriginalButtonIcons:
 		case ERowKind::MouseSensitivity:
 		case ERowKind::StickSensitivity:
 			Lines = OptionsText::Fill(At->Words->Help);
@@ -293,6 +299,9 @@ namespace Weltall
 			return true;
 		case ERowKind::WalkIntoDoors:
 			Bindings.bWalkIntoDoors = !Bindings.bWalkIntoDoors;
+			return true;
+		case ERowKind::OriginalButtonIcons:
+			Bindings.bOriginalButtonIcons = !Bindings.bOriginalButtonIcons;
 			return true;
 		case ERowKind::MouseSensitivity:
 		case ERowKind::StickSensitivity:
@@ -351,6 +360,9 @@ namespace Weltall
 			return true;
 		case ERowKind::WalkIntoDoors:
 			Bindings.bWalkIntoDoors = !Bindings.bWalkIntoDoors;
+			return true;
+		case ERowKind::OriginalButtonIcons:
+			Bindings.bOriginalButtonIcons = !Bindings.bOriginalButtonIcons;
 			return true;
 		case ERowKind::Reset:
 			Bindings.ResetFamily(Shown);

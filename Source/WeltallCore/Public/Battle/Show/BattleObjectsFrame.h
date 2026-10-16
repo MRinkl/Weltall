@@ -5,6 +5,7 @@
 #include "Gears/GearCloth.h"
 #include "Graphics/Gte.h"
 #include "Graphics/MdlModel.h"
+#include "Graphics/TexturePictures.h"
 
 #include <array>
 #include <vector>
@@ -133,6 +134,8 @@ namespace Weltall
 		std::vector<FBattleObjectLink> Links;
 		/** The view the cloths' points and the trails' world corners go through. */
 		FGteMatrix View;
+		/** The texture regions of the objects' models with their loads' colours, each object's once (FBattleObject::TextureSeeds). */
+		std::vector<FTexturePictureSeed> TextureSeeds;
 		std::array<FBattlePointLight, 2> PointLights{};
 	};
 }

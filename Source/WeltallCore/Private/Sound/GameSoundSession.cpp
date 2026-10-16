@@ -28,6 +28,10 @@ namespace Weltall
 		{
 			return Identity.Error();
 		}
+		if (!IsPlayableRelease(Identity->Release))
+		{
+			return MakeError("playing requires a USA or supported undub disc");
+		}
 		const TResult<FPsxExecutable> Executable = ReadBootExecutable(Disc);
 		if (!Executable)
 		{
@@ -43,7 +47,7 @@ namespace Weltall
 		{
 			return Tables.Error();
 		}
-		TResult<FFieldSongTable> Songs = FFieldSongTable::Read(Disc.Image(), *Index, Identity->Release);
+		TResult<FFieldSongTable> Songs = FFieldSongTable::Read(Disc.Image(), *Index, GameplayRelease(Identity->Release));
 		if (!Songs)
 		{
 			return Songs.Error();

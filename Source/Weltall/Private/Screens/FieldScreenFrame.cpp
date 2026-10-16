@@ -84,6 +84,10 @@ void FFieldStillFrame::AddPasses(FRDGBuilder& GraphBuilder, FRDGTextureRef Outpu
 void WriteScreenIntoVram(const TSharedRef<FVramTexture>& Vram, const std::vector<Weltall::FFieldScreenInVram>& Written,
 	const TMap<int32, TSharedPtr<FFieldCoverPicture>>& Pictures)
 {
+	static std::vector<Weltall::FVramRect> Exclusions;
+	Exclusions.clear();
+	for (const auto& Region : Written) Exclusions.push_back(Region.Rect);
+	Vram->SetReplacementExclusions(Exclusions);
 	struct FWrite
 	{
 		FFieldScreenUnits Units;

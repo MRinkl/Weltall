@@ -22,6 +22,7 @@
 #include "Media/Iso9660.h"
 #include "Media/PsxExecutable.h"
 #include "Menu/MenuGameMenus.h"
+#include "Menu/MenuAssetPages.h"
 #include "Misc/Paths.h"
 #include "Rendering/DrawListTextures.h"
 #include "Rendering/SharedRenderResource.h"
@@ -32,6 +33,7 @@
 #include "WeltallLog.h"
 
 #include <filesystem>
+#include <algorithm>
 #include <string>
 
 namespace
@@ -163,6 +165,10 @@ void FGameLoopScreen::SeekDisc(int32 Number)
 	OtherDisc = DiscSought(Wanted);
 	if (OtherDisc == nullptr)
 	{
+		OtherDisc = DiscSought(Number == 0 ? Weltall::EDiscRelease::UndubDisc1 : Weltall::EDiscRelease::UndubDisc2);
+	}
+	if (OtherDisc == nullptr)
+	{
 		return;
 	}
 	if (const std::optional<Weltall::FError> Unread = ReadOtherDisc())
@@ -172,7 +178,50 @@ void FGameLoopScreen::SeekDisc(int32 Number)
 		return;
 	}
 	Session->AddDisc(Number, OtherDisc->Image(), *OtherIndex);
+	RefreshVoiceDiscs();
 	UE_LOG(LogWeltall, Log, TEXT("Disc %d was found where the game asked for it"), Number + 1);
+}
+
+void FGameLoopScreen::SetDiscSought(FDiscSought InDiscSought)
+{
+	DiscSought = MoveTemp(InDiscSought);
+	RefreshVoiceDiscs();
+}
+
+void FGameLoopScreen::RefreshVoiceDiscs()
+{
+	if (!Session)
+	{
+		return;
+	}
+	constexpr std::array Releases{Weltall::EDiscRelease::UsaDisc1, Weltall::EDiscRelease::UsaDisc2,
+		Weltall::EDiscRelease::UndubDisc1, Weltall::EDiscRelease::UndubDisc2};
+	for (const Weltall::EDiscRelease Candidate : Releases)
+	{
+		const bool bKnown = std::any_of(VoiceSources.begin(), VoiceSources.end(), [Candidate](const FVoiceSource& Source) { return Source.Release == Candidate; });
+		if (!bKnown && DiscSought)
+		{
+			const Weltall::FIso9660* Found = DiscSought(Candidate);
+			if (Found == nullptr)
+			{
+				continue;
+			}
+			auto Program = Weltall::ReadBootExecutable(*Found);
+			auto FileIndex = Program ? Weltall::FGameFileIndex::Read(*Program) : Weltall::TResult<Weltall::FGameFileIndex>(Program.Error());
+			if (!FileIndex)
+			{
+				UE_LOG(LogWeltall, Warning, TEXT("Voice disc cannot be read: %hs"), FileIndex.Error().Message.c_str());
+				continue;
+			}
+			VoiceSources.push_back({Candidate, Found, std::make_unique<Weltall::FGameFileIndex>(std::move(*FileIndex))});
+		}
+	}
+	for (const FVoiceSource& Source : VoiceSources)
+	{
+		const bool bJapanese = Source.Release == Weltall::EDiscRelease::UndubDisc1 || Source.Release == Weltall::EDiscRelease::UndubDisc2;
+		Session->AddVoiceDisc(bJapanese ? Weltall::EVoiceLanguage::Japanese : Weltall::EVoiceLanguage::English,
+			Weltall::DiscNumberOfRelease(Source.Release) - 1, Source.Disc->Image(), *Source.Index);
+	}
 }
 
 Weltall::TResult<TSharedRef<FGameLoopScreen>> FGameLoopScreen::PowerOn(const Weltall::FIso9660& Disc, FStartSound StartSound,
@@ -270,7 +319,7 @@ std::optional<Weltall::FError> FGameLoopScreen::Start(std::optional<uint16> Fiel
 	Session = std::move(*Started);
 	if (OtherIndex)
 	{
-		Session->AddDisc(Release == Weltall::EDiscRelease::UsaDisc2 ? 0 : 1, OtherDisc->Image(), *OtherIndex);
+		Session->AddDisc(Weltall::DiscNumberOfRelease(Release) == 2 ? 0 : 1, OtherDisc->Image(), *OtherIndex);
 	}
 	if (!Drive)
 	{
@@ -278,6 +327,7 @@ std::optional<Weltall::FError> FGameLoopScreen::Start(std::optional<uint16> Fiel
 	}
 	Session->SetDiscDrive(Drive.get());
 	Session->SetSettings(StartSettings);
+	RefreshVoiceDiscs();
 #if UE_BUILD_SHIPPING
 	// The player's builds carry play past the cases no script reaches; the editor's and development builds stop there.
 	Session->Unreached().bStops = false;
@@ -348,6 +398,11 @@ void FGameLoopScreen::KeepPlayedSettings()
 		return;
 	}
 	const Weltall::FPlayerSettings& Played = Session->Settings();
+	if (Played.VoiceLanguage != StartSettings.VoiceLanguage)
+	{
+		StartSettings.VoiceLanguage = Played.VoiceLanguage;
+		RefreshVoiceDiscs();
+	}
 	if (CameraMoved && (Played.Camera != StartSettings.Camera || Played.WorldMapCamera != StartSettings.WorldMapCamera))
 	{
 		StartSettings.Camera = Played.Camera;
@@ -607,6 +662,12 @@ void FGameLoopScreen::SetMenuKeys(Weltall::IMenuKeys* InKeys)
 	FollowMenuServices();
 }
 
+void FGameLoopScreen::SetMenuAssets(Weltall::IMenuAssets* InAssets)
+{
+	MenuAssets = InAssets;
+	FollowMenuServices();
+}
+
 void FGameLoopScreen::SetDisplayModes(FDisplayModesAsked InDisplayModes)
 {
 	DisplayModes = MoveTemp(InDisplayModes);
@@ -625,6 +686,7 @@ void FGameLoopScreen::FollowMenuServices()
 	{
 		return;
 	}
+	Menus->SetAssets(MenuAssets);
 	Menus->SetKeys(MenuKeys);
 	if (Quit)
 	{

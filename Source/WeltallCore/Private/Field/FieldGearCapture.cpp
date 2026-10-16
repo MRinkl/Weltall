@@ -49,6 +49,7 @@ namespace Weltall
 			Gears.Cloths.clear();
 			Gears.ClothSpaces.clear();
 			Gears.Links.clear();
+			Gears.TextureSeeds.clear();
 		}
 		else
 		{

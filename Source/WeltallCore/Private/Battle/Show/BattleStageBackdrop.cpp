@@ -1,6 +1,7 @@
 #include "Battle/Show/BattleStageBackdrop.h"
 
 #include "Battle/Show/BattleStageFiles.h"
+#include "Gears/GearTextureRegions.h"
 #include "Graphics/GteMath.h"
 #include "Graphics/GteVectors.h"
 
@@ -283,6 +284,30 @@ namespace Weltall
 			}
 		}
 		return Backdrop;
+	}
+
+	std::vector<FTexturePictureSeed> BattleBackdropTextureSeeds(const FBattleStageBackdrop& Backdrop, const FGearModelPack& Pack)
+	{
+		std::vector<FTextureRegion> Regions;
+		for (const std::optional<FFieldPanorama>& Panorama : Backdrop.Panoramas)
+		{
+			if (Panorama)
+			{
+				const std::vector<FTextureRegion> Strip = PanoramaTextureRegions(*Panorama);
+				Regions.insert(Regions.end(), Strip.begin(), Strip.end());
+			}
+		}
+		if (Backdrop.Dome && Backdrop.Dome->Tile > 0)
+		{
+			// The window keeps a texel's bits below the tile's side and takes the rest from its offset.
+			const FBattleFloorDome& Dome = *Backdrop.Dome;
+			const int32 Kept = ~(Dome.Tile - 1) & 0xFF;
+			const int32 U = Dome.WindowX & Kept;
+			const int32 V = Dome.WindowY & Kept;
+			Regions.push_back(TextureRegionBetween(PackTextureView(FTexturePage::FromAttribute(Dome.TexturePage), FClutPosition::FromAttribute(Dome.Clut)),
+				static_cast<uint8>(U), static_cast<uint8>(V), static_cast<uint8>(std::min(U + Dome.Tile - 1, 255)), static_cast<uint8>(std::min(V + Dome.Tile - 1, 255))));
+		}
+		return GearTextureSeeds(Pack, nullptr, Regions);
 	}
 
 	void DrawBattleStageBackdrop(FBattleStageBackdrop& Backdrop, const FGteVector& Eye, const FGteVector& Target, const FGte& Gte,

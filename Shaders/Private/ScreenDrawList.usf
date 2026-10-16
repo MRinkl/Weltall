@@ -7,6 +7,7 @@
 
 #include "/Engine/Public/Platform.ush"
 #include "/Weltall/Private/PsxVram.ush"
+#include "/Weltall/Private/TextureReplacements.ush"
 
 #define NO_TEXTURE 0xFFFF
 #define FLAG_MODULATE 1
@@ -101,7 +102,11 @@ float4 MainPS(
 		const int2 Last = int2((Texture.w >> 16) & 0xFF, Texture.w >> 24);
 		const int2 Texel = First.x > Last.x ? int2(floor(TexCoord)) & 255 : clamp(int2(floor(TexCoord)), First, Last);
 #if RAW_VRAM
-		const FPsxTexel Fetched = PsxFetchTexel(Vram, Texture.z, Texel);
+		FPsxTexel Fetched;
+		const float2 Bounded = First.x > Last.x ? TexCoord : clamp(TexCoord, float2(First), float2(Last) + 0.99999);
+		const uint PassKinds = DrawPass == PASS_PLAIN_TEXELS ? 1u << TEXEL_PLAIN
+			: DrawPass == PASS_SEMI_TRANSPARENT_TEXELS ? 1u << TEXEL_SEMI_TRANSPARENT : (1u << TEXEL_PLAIN) | (1u << TEXEL_SEMI_TRANSPARENT);
+		if (!SampleReplacement(Vram, Texture.z, Texel, frac(Bounded), true, PassKinds, Fetched)) Fetched = PsxFetchTexel(Vram, Texture.z, Texel);
 		const float3 SampleRgb = Fetched.Rgb;
 		const bool bTransparent = Fetched.Kind == TEXEL_TRANSPARENT;
 		const bool bSemiTransparentTexel = Fetched.Kind == TEXEL_SEMI_TRANSPARENT;

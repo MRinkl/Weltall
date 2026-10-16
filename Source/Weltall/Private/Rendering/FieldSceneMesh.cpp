@@ -1,6 +1,7 @@
 #include "Rendering/FieldSceneRendering.h"
 
 #include "FieldDrawBuilder.h"
+#include "Field/FieldTextureRegions.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "Rendering/VramTexture.h"
@@ -36,14 +37,28 @@ FFieldSceneMesh::FFieldSceneMesh(const Weltall::FFieldScene& Scene)
 {
 	AddScenery(Scene);
 	PolygonCorners.Add(static_cast<uint32>(CornerData.Num()));
+	Regions = Weltall::FieldSceneryTextureRegions(Scene);
 }
 
-FFieldSceneMesh::FFieldSceneMesh(const Weltall::FFieldScene& Scene, std::span<const Weltall::FFieldGearLayoutItem> Gears, uint32 GearLayout)
+FFieldSceneMesh::FFieldSceneMesh(const Weltall::FFieldScene& Scene, std::span<const Weltall::FFieldGearLayoutItem> Gears, uint32 GearLayout,
+	std::span<const Weltall::FTextureRegion> SpriteSheets)
 	: GearRevision(GearLayout)
 {
 	AddScenery(Scene);
 	AddGears(Gears);
 	PolygonCorners.Add(static_cast<uint32>(CornerData.Num()));
+	Regions = Weltall::FieldSceneryTextureRegions(Scene);
+	Regions.insert(Regions.end(), SpriteSheets.begin(), SpriteSheets.end());
+	std::vector<Weltall::FTextureRegion> GearFootprints;
+	for (int32 Index = static_cast<int32>(SceneryPolygons); Index < PolygonData.Num(); ++Index)
+	{
+		const FFieldScenePolygonState& State = PolygonData[Index];
+		if (State.Texture == FVramTexture::NoTexture || (State.Flags & FieldPolygonFlags::Window) != 0) continue;
+		GearFootprints.push_back(Weltall::TextureRegionBetween(State.Texture, static_cast<uint8>(State.TexelMin), static_cast<uint8>(State.TexelMin >> 8),
+			static_cast<uint8>(State.TexelMax), static_cast<uint8>(State.TexelMax >> 8)));
+	}
+	const std::vector<Weltall::FTextureRegion> Gear = Weltall::MergeTextureRegions(std::move(GearFootprints));
+	Regions.insert(Regions.end(), Gear.begin(), Gear.end());
 }
 
 void FFieldSceneMesh::AddScenery(const Weltall::FFieldScene& Scene)
@@ -139,6 +154,7 @@ void BuildFieldSceneDraw(const Weltall::FFieldScene& Scene, const Weltall::FFiel
 	}
 	Draw.DynamicCorners.Reset();
 	Draw.DynamicPolygons.Reset();
+	Draw.SpriteCells.Reset();
 	Draw.Order.Reset();
 	Draw.Runs.Reset();
 	FFieldDrawBuilder Builder(Scene, Frame, {}, {}, {}, Mesh, Draw);

@@ -10,12 +10,14 @@
 #include "Battle/Show/BattleSceneGraphics.h"
 #include "Battle/Show/BattleShow.h"
 #include "Battle/Show/BattleSpriteFiles.h"
+#include "Battle/Show/BattleSpriteTextures.h"
 #include "Battle/Show/BattleStageFiles.h"
 #include "Field/FieldArchive.h"
 #include "Game/GameState.h"
 #include "Game/PsxRandom.h"
 #include "Foundation/LittleEndian.h"
 #include "Graphics/GteMath.h"
+#include "Graphics/TextureRegion.h"
 #include "Media/GameFileIndex.h"
 #include "Media/PsxExecutable.h"
 #include "Support/BattleObjectDigest.h"
@@ -31,7 +33,9 @@
 #include <catch_amalgamated.hpp>
 
 #include <algorithm>
+#include <functional>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -295,6 +299,8 @@ namespace
 		Testing::FBattleShowDigester Shown{*Show, *Context, Random, Sound};
 		/** A call from the rules' code ran past CallFrames. */
 		bool bEndless = false;
+		/** Shown each frame displayed, after the oracle's digest of it. */
+		std::function<void(const FBattleShow&)> Watch;
 
 		FShowCase(const FShowData& Data, FOpeningCase& Case) : Random(Case.Seed)
 		{
@@ -538,6 +544,10 @@ namespace
 				return false;
 			}
 			C.Shown.DigestPlayed(One);
+			if (C.Watch)
+			{
+				C.Watch(Show);
+			}
 			const bool bBack = Show.FinishFrame();
 			if (Show.Fault() != EBattleShowFault::None)
 			{
@@ -690,9 +700,11 @@ namespace
 	}
 
 	/** One case of the records part (ShowRig.records), of the model records part (bModels) or of a part casting effects among Effects. */
-	std::string RunRecords(const FShowData& Data, FXorShift32& G, FOracleDigest& One, FOpeningCase& Case, bool bModels, const std::vector<int32>* Effects = nullptr)
+	std::string RunRecords(const FShowData& Data, FXorShift32& G, FOracleDigest& One, FOpeningCase& Case, bool bModels, const std::vector<int32>* Effects = nullptr,
+		const std::function<void(const FBattleShow&)>& Watch = {})
 	{
 		FShowCase C(Data, Case);
+		C.Watch = Watch;
 		FBattleShow& Show = *C.Show;
 		FBattleContext& Context = *C.Context;
 		for (int32 Frame = 0; Frame < StartFrames && !Show.HasStarted(); ++Frame)
@@ -948,6 +960,73 @@ TEST_CASE("The battle's show plays effects as the original's, frame by frame: th
 	}
 	INFO(Cases);
 	CHECK(Whole.Hex() == "2dc5a2c451501f0c135954adccd52a40c4ff1de9");
+}
+
+TEST_CASE("Effects and the sprites they play draw cells whose pictures the texture export keys", "[Battle][Content][TextureRegion]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const auto Data = std::make_unique<FShowData>();
+	REQUIRE(ReadData(*Disc, *Data));
+	// Every sprite's cell the effect cases draw: the combatants', the effects' (a streamed one through its actor's CLUT,
+	// a resident one or a section's through the effect resource's) and the common effects'.
+	std::map<FTextureRegion, std::set<uint64>> Drawn;
+	const auto Watch = [&Drawn](const FBattleShow& Show)
+	{
+		const FBattleShowFrame& Shown = Show.Frame();
+		for (const FBattleShowQuad& Entry : Shown.Quads)
+		{
+			if (Shown.Drawers[Entry.Drawer].Kind != EBattleShowDrawer::Sprite)
+			{
+				continue;
+			}
+			const FSpriteQuad& Quad = Entry.Quad;
+			const auto Texel = [](int32 Value) { return static_cast<uint8>(std::clamp(Value, 0, 255)); };
+			const FTextureRegion Cell = TextureRegionBetween(PackTextureView(FTexturePage::FromAttribute(Quad.TexturePage), FClutPosition::FromAttribute(Quad.Clut)),
+				Texel(std::min(Quad.U0, Quad.U1)), Texel(std::min(Quad.V0, Quad.V1)), Texel(std::max(Quad.U0, Quad.U1) - 1), Texel(std::max(Quad.V0, Quad.V1) - 1));
+			Drawn[Cell].insert(TextureRegionKey(Show.Vram, Cell));
+		}
+	};
+	FXorShift32 G(0x0BE7A005);
+	for (int32 Case = 0; Case < 10; ++Case)
+	{
+		INFO("case " << Case);
+		FOracleDigest One;
+		FRecordsCase Played(G, Data->FootFormations);
+		RunRecords(*Data, G, One, Played, false, &Data->Effects, Watch);
+	}
+	REQUIRE(Drawn.size() > 1000);
+	std::set<uint64> Effects;
+	std::set<uint64> Others;
+	const auto Into = [](std::set<uint64>& Keys)
+	{
+		return FBattleSpriteCellVisit([&Keys](const FVram& Vram, const FTextureRegion& Cell, const std::string&) { Keys.insert(TextureRegionKey(Vram, Cell)); });
+	};
+	REQUIRE_FALSE(ForEachBattleCommonEffectCell(*Data->Files, Into(Effects)));
+	for (int32 Effect = 0; Effect < Data->Files->EffectCount(); ++Effect)
+	{
+		INFO("effect " << Effect);
+		REQUIRE_FALSE(ForEachBattleEffectCell(*Data->Files, Effect, Into(Effects)));
+	}
+	for (int32 Character = 0; Character < FBattleSpriteFiles::CharacterCount; ++Character)
+	{
+		REQUIRE_FALSE(ForEachBattleCharacterCell(*Data->Files, Character, Into(Others)));
+	}
+	for (const FBattleSceneGraphics& Scene : Data->Graphics)
+	{
+		REQUIRE_FALSE(ForEachBattleSceneSpriteCell(Scene, Into(Others)));
+	}
+	int32 Missing = 0;
+	int32 EffectsOnly = 0;
+	for (const auto& [Cell, Keys] : Drawn)
+	{
+		const bool bEffect = std::any_of(Keys.begin(), Keys.end(), [&Effects](uint64 Key) { return Effects.contains(Key); });
+		const bool bOther = std::any_of(Keys.begin(), Keys.end(), [&Others](uint64 Key) { return Others.contains(Key); });
+		Missing += bEffect || bOther ? 0 : 1;
+		EffectsOnly += bEffect && !bOther ? 1 : 0;
+	}
+	INFO("drawn " << Drawn.size() << ", the effects' alone " << EffectsOnly << ", not exported " << Missing);
+	CHECK(EffectsOnly > 50);
+	CHECK(Missing == 0);
 }
 
 TEST_CASE("The battle's show plays the animation extensions as the original's: waves, shards and scrolls", "[Battle][Oracle][Content]")

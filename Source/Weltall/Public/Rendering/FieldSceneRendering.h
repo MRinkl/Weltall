@@ -4,10 +4,12 @@
 #include "Field/FieldBackdrop.h"
 #include "Field/FieldRenderOptions.h"
 #include "Field/FieldSceneFrame.h"
+#include "Graphics/TextureRegion.h"
 #include "RenderGraphFwd.h"
 #include "RenderGraphResources.h"
 
 #include <span>
+#include <vector>
 
 class FVramTexture;
 
@@ -61,8 +63,9 @@ class WELTALL_API FFieldSceneMesh
 {
 public:
 	explicit FFieldSceneMesh(const Weltall::FFieldScene& Scene);
-	/** The scenery and the gears laid out as Gears, whose models' revision is GearLayout. */
-	FFieldSceneMesh(const Weltall::FFieldScene& Scene, std::span<const Weltall::FFieldGearLayoutItem> Gears, uint32 GearLayout);
+	/** The scenery and the gears laid out as Gears, whose models' revision is GearLayout; the map's sprites drawn from SpriteSheets. */
+	FFieldSceneMesh(const Weltall::FFieldScene& Scene, std::span<const Weltall::FFieldGearLayoutItem> Gears, uint32 GearLayout,
+		std::span<const Weltall::FTextureRegion> SpriteSheets = {});
 	~FFieldSceneMesh();
 
 	/** The gears' polygons follow the scenery's: the frame's gear polygon Index is mesh polygon FirstGearPolygon() + Index. */
@@ -75,6 +78,12 @@ public:
 	/** How a gear polygon blends: bit 0 semi-transparent, bit 1 textured, bits 2-3 its page's blend mode. */
 	uint8 GearBlend(uint32 Index) const { return GearBlends[static_cast<int32>(Index)]; }
 
+	/**
+	 * The pictures its polygons read, the scenery's as Weltall::FieldSceneryTextureRegions finds them, the map's sprite
+	 * sheets, then the gears', merged as the scenery's are.
+	 */
+	TConstArrayView<Weltall::FTextureRegion> TextureRegions() const { return MakeArrayView(Regions.data(), static_cast<int32>(Regions.size())); }
+
 	/** The scenery's polygons with a joined corner, in rising order: drawn from corners of their own while a join of theirs does not hold. */
 	TConstArrayView<uint32> JoinedPolygons() const { return JoinedPolygonList; }
 
@@ -83,6 +92,7 @@ public:
 	uint32 CornerCount(uint32 Polygon) const { return PolygonCorners[Polygon + 1] - PolygonCorners[Polygon]; }
 	uint32 Corners() const { return static_cast<uint32>(CornerData.Num()); }
 	uint32 Polygons() const { return static_cast<uint32>(PolygonData.Num()); }
+	TConstArrayView<FFieldScenePolygonState> States() const { return PolygonData; }
 
 	/** The mesh's buffers in a render graph, made on the first call. Rendering thread only. */
 	FRDGBufferRef CornerBuffer(FRDGBuilder& GraphBuilder) const;
@@ -100,6 +110,7 @@ private:
 	uint32 GearRevision = 0;
 	uint32 GearObjectRow = 0;
 	TArray<uint8> GearBlends;
+	std::vector<Weltall::FTextureRegion> Regions;
 	mutable TRefCountPtr<FRDGPooledBuffer> PooledCorners;
 	mutable TRefCountPtr<FRDGPooledBuffer> PooledPolygons;
 };
@@ -113,6 +124,8 @@ enum class EFieldRunDepth : uint8
 	Mask,
 	/** As Mask, beside the models' marks alone, once they are made: the scenery drawn over the models (OverModels) where none stands. */
 	MaskBesideModels,
+	/** As MaskBesideModels, beside the sprites' marks too: the ground drawn over the models (GroundOverModels). */
+	MaskBesideMarks,
 	/**
 	 * As the painter's order draws it outside the marked pixels, its depth kept there; against the depth inside them
 	 * (the scenery sorted by depth: against the depth everywhere).
@@ -124,6 +137,8 @@ enum class EFieldRunDepth : uint8
 	 * against the depth inside them. The scenery's: against the depth beside the models' marks.
 	 */
 	OverModels,
+	/** As OverModels, but never over the sprites' marks: the ground the sprites stand on (FScenePolygonItem::bGround). */
+	GroundOverModels,
 	/** A sprite's or a model's own texels: inside the marked pixels, against the depth less the margin, noting where it drew. */
 	InsideMask,
 	/**
@@ -221,6 +236,8 @@ struct FFieldSceneDraw
 	 */
 	TArray<FFieldSceneCorner> DynamicCorners;
 	TArray<FFieldScenePolygonState> DynamicPolygons;
+	/** The whole cells the characters' quads show, of which a quad clipped at a waterline shows some rows. */
+	TArray<Weltall::FTextureRegion> SpriteCells;
 	uint32 ParticleCorners = 0;
 	/** Per polygon of the children's models, the dynamic corner it starts at, or NoRedirect for one not drawn. */
 	TArray<uint32> SpriteModelCorners;
@@ -228,6 +245,8 @@ struct FFieldSceneDraw
 	uint32 BackdropCornerCount = 0;
 	/** The panorama's packets across the widest view drawn. */
 	std::vector<Weltall::FFieldBackdropQuad> BackdropQuads;
+	/** The pictures its strip is drawn from (Weltall::PanoramaTextureRegions). */
+	TArray<Weltall::FTextureRegion> BackdropRegions;
 	/** Per polygon of the mesh, the dynamic corner its changed copy starts at, or NoRedirect to draw the mesh's. */
 	TArray<uint32> Redirects;
 	/** The first corner (in the whole numbering) of the gears' cloth triangles, three each. */

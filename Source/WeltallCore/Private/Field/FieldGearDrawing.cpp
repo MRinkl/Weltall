@@ -302,6 +302,7 @@ namespace Weltall
 		Frame.Cloths.clear();
 		Frame.ClothSpaces.clear();
 		Frame.Links.clear();
+		Frame.TextureSeeds.clear();
 		return AddFieldGears(Models, 0, {}, View, Lights, FarBucket, Culling, bDrawn, Frame, OrderingShift, LightBefore);
 	}
 
@@ -311,6 +312,14 @@ namespace Weltall
 	{
 		const std::size_t FirstItem = Frame.Items.size();
 		AddFieldGearLayout(Models, FirstSlot, Frame.Items);
+		for (int32 Slot = 0; Slot < FGearModels::Slots; ++Slot)
+		{
+			const FGearModel* Model = Models.Model(Slot);
+			if (Model != nullptr && Model->TextureSeeds)
+			{
+				Frame.TextureSeeds.insert(Frame.TextureSeeds.end(), Model->TextureSeeds->begin(), Model->TextureSeeds->end());
+			}
+		}
 		Frame.Objects.resize(Frame.Items.size());
 		Frame.Polygons.resize(Frame.Items.empty() ? 0 : Frame.Items.back().FirstPolygon + Frame.Items.back().PolygonCount);
 		FDrawing Drawing{View, FieldDrawingGte(View), {}, FarBucket, Culling, OrderingShift,

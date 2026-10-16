@@ -63,6 +63,7 @@ private:
 
 	FFieldRenderOptions Options;
 	TSharedRef<FVramTexture> Vram;
+	const Weltall::FVram* SourceVram = nullptr;
 	/** The last two frames: the latest, and the one before it the display draws from. */
 	std::array<Weltall::FMenuFrame, 2> Frames;
 	int32 Latest = -1;

@@ -76,7 +76,7 @@ namespace Weltall
 		{
 			for (const FBattlingTablesLayout& Candidate : Layouts)
 			{
-				if (Candidate.Release == Release)
+				if (Candidate.Release == GameplayRelease(Release))
 				{
 					return &Candidate;
 				}

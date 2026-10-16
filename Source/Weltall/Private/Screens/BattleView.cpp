@@ -1,6 +1,7 @@
 #include "BattleView.h"
 
 #include "Battle/BattleRuntime.h"
+#include "Battle/Show/BattleObjectsFrame.h"
 #include "Battle/Show/BattlePresentation.h"
 #include "Battle/Show/BattleShowFrame.h"
 #include "Battle/Show/BattleShowTransition.h"
@@ -11,6 +12,7 @@
 #include "Rendering/BattleTransitionRendering.h"
 #include "Rendering/SharedRenderResource.h"
 #include "Rendering/VramTexture.h"
+#include "Rendering/TextureModSources.h"
 
 /** A displayed frame of the battle: its drawing and what it is textured from. */
 class FBattleScreenFrame final : public IScreenFrame
@@ -135,6 +137,11 @@ TSharedPtr<const IScreenFrame> FBattleView::Capture(const Weltall::FBattleGamePr
 		Icons.Apply(Next->Draw.Hud, HudBuilder.Icons, *Glyphs, Program.HudSheet(), Weltall::BattleHudButtonPictures);
 		Icons.ApplyToText(Next->Draw.Hud, HudBuilder.TextCells, *Glyphs);
 		IconVram->Follow(Icons.Pictures());
+	}
+	if (Frame.Vram != nullptr)
+	{
+		FollowTextureModSources(*Vram, *Frame.Vram, nullptr, {&Next->Draw.Scene, &Next->Draw.OverFade, &Next->Draw.OverHud}, {&Next->Draw.Fade, &Next->Draw.Hud},
+			Frame.Objects != nullptr ? std::span<const Weltall::FTexturePictureSeed>(Frame.Objects->TextureSeeds) : std::span<const Weltall::FTexturePictureSeed>());
 	}
 	return Next;
 }

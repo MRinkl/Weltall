@@ -563,6 +563,7 @@ namespace Weltall
 		Gears.Cloths.clear();
 		Gears.ClothSpaces.clear();
 		Gears.Links.clear();
+		Gears.TextureSeeds.clear();
 		const FGteMatrix NoLight = FGteMatrix::Identity();
 		for (int32 Module = 0; Module < GearModels->ModuleCount(); ++Module)
 		{
@@ -715,9 +716,11 @@ namespace Weltall
 			return;
 		}
 		const FWorldMapDrawState State = DrawState(Context);
+		Drawn->TextureSeeds.clear();
 		if (GearModels)
 		{
 			GearError = DrawGears(State);
+			Drawn->TextureSeeds.assign(GearsFrame.TextureSeeds.begin(), GearsFrame.TextureSeeds.end());
 		}
 		if (Context.bTerrainRestarted)
 		{

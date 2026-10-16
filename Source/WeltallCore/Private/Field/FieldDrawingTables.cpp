@@ -185,7 +185,7 @@ namespace Weltall
 		const FDrawingTablesLayout* Layout = nullptr;
 		for (const FDrawingTablesLayout& Candidate : Layouts)
 		{
-			if (Candidate.Release == Release)
+			if (Candidate.Release == GameplayRelease(Release))
 			{
 				Layout = &Candidate;
 			}

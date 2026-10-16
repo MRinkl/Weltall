@@ -37,6 +37,7 @@ namespace Weltall
 	class FPsxExecutable;
 	class IButtonGlyphs;
 	class IMenuKeys;
+	class IMenuAssets;
 	class FSaveStore;
 	class FStoryPacks;
 }
@@ -128,6 +129,7 @@ public:
 
 	/** The player's keys, which the options screen's Controls page rebinds; it must outlive the screen. None: no Controls page. */
 	void SetMenuKeys(Weltall::IMenuKeys* InKeys);
+	void SetMenuAssets(Weltall::IMenuAssets* InAssets);
 
 	/** What the display offers the options screen's Display page, asked as the screen opens. None: the page offers no window sizes. */
 	void SetDisplayModes(FDisplayModesAsked InDisplayModes);
@@ -141,7 +143,7 @@ public:
 	 * Where the game's other disc is looked for when the game asks for it and was not given it at power-on (the
 	 * player may put it there while the game asks); the disc found must outlive the screen. None: it is never found.
 	 */
-	void SetDiscSought(FDiscSought InDiscSought) { DiscSought = MoveTemp(InDiscSought); }
+	void SetDiscSought(FDiscSought InDiscSought);
 
 	/** For the tools that stage a scene: the state the game plays, changed before the next frame; null before the game has started. */
 	Weltall::FGameState* GameState();
@@ -192,6 +194,7 @@ private:
 	void Stop(const Weltall::FError& Error);
 	/** The session asks for disc Number, which it was not given: the other disc looked for, and given it when found. */
 	void SeekDisc(int32 Number);
+	void RefreshVoiceDiscs();
 	friend class FGameLoopDiscDrive;
 
 	const Weltall::FIso9660& Disc;
@@ -199,6 +202,13 @@ private:
 	const Weltall::FIso9660* OtherDisc = nullptr;
 	std::unique_ptr<Weltall::FGameFileIndex> OtherIndex;
 	FDiscSought DiscSought;
+	struct FVoiceSource
+	{
+		Weltall::EDiscRelease Release;
+		const Weltall::FIso9660* Disc;
+		std::unique_ptr<Weltall::FGameFileIndex> Index;
+	};
+	std::vector<FVoiceSource> VoiceSources;
 	/** The session's drive, which asks DiscSought. */
 	std::unique_ptr<Weltall::IGameDiscDrive> Drive;
 	FStartSound StartSound;
@@ -212,6 +222,7 @@ private:
 	FSettingsKept SettingsKept;
 	FSettingsKept SettingsFollowed;
 	Weltall::IMenuKeys* MenuKeys = nullptr;
+	Weltall::IMenuAssets* MenuAssets = nullptr;
 	FDisplayModesAsked DisplayModes;
 	FQuit Quit;
 	FStopped Stopped;

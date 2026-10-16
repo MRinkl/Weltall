@@ -62,7 +62,7 @@ namespace Weltall
 		{
 			for (const FWorldMapTablesLayout& Candidate : Layouts)
 			{
-				if (Candidate.Release == Release)
+				if (Candidate.Release == GameplayRelease(Release))
 				{
 					return &Candidate;
 				}

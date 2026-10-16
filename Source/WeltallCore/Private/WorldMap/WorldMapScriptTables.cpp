@@ -79,7 +79,7 @@ namespace Weltall
 		const FScriptTablesLayout* Layout = nullptr;
 		for (const FScriptTablesLayout& Candidate : Layouts)
 		{
-			if (Candidate.Release == Release)
+			if (Candidate.Release == GameplayRelease(Release))
 			{
 				Layout = &Candidate;
 			}

@@ -7,6 +7,7 @@
 #include "Rendering/DrawListRendering.h"
 #include "Rendering/SharedRenderResource.h"
 #include "Rendering/VramTexture.h"
+#include "Rendering/TextureModSources.h"
 
 namespace
 {
@@ -188,5 +189,7 @@ TSharedPtr<const IScreenFrame> FWorldMapView::CaptureMap(const Weltall::FWorldMa
 	Next->Overlays = Overlays;
 	Next->Fade = Fade;
 	Next->Alpha = Alpha;
+	FollowTextureModSources(*Vram, Program.Drawing().Vram(), nullptr, {&Next->Draw},
+		{&Latest->Minimap, &Latest->Windows, &Latest->Screen}, Latest->TextureSeeds);
 	return Next;
 }

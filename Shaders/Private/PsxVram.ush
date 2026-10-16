@@ -56,9 +56,9 @@ FPsxTexel PsxTexelOf(uint Color)
 	return Texel;
 }
 
-// The texel at (U, V) of the packed texture: U and V wrap within the page's 256 x 256 as the GPU's
-// 8-bit coordinates do.
-FPsxTexel PsxFetchTexel(Texture2D<uint> Vram, uint Texture, int2 UV)
+// The colour of the texel at (U, V) of the packed texture, and its index into the CLUT (its colour on a direct page): U and V
+// wrap within the page's 256 x 256 as the GPU's 8-bit coordinates do.
+uint PsxFetchColor(Texture2D<uint> Vram, uint Texture, int2 UV, out uint Index)
 {
 	const uint U = uint(UV.x) & 255;
 	const uint V = uint(UV.y) & 255;
@@ -67,22 +67,27 @@ FPsxTexel PsxFetchTexel(Texture2D<uint> Vram, uint Texture, int2 UV)
 	const uint Depth = (Texture >> 5) & 3;
 	const int ClutX = int((Texture >> 8) & 0x3F) * 16;
 	const int ClutY = PsxClutY(Texture);
-	uint Color;
 	if (Depth == 0)
 	{
 		const uint Unit = PsxVramUnit(Vram, PageX + int(U >> 2), PageY + int(V));
-		Color = PsxVramUnit(Vram, ClutX + int((Unit >> ((U & 3) * 4)) & 0xF), ClutY);
+		Index = (Unit >> ((U & 3) * 4)) & 0xF;
+		return PsxVramUnit(Vram, ClutX + int(Index), ClutY);
 	}
-	else if (Depth == 1)
+	if (Depth == 1)
 	{
 		const uint Unit = PsxVramUnit(Vram, PageX + int(U >> 1), PageY + int(V));
-		Color = PsxVramUnit(Vram, ClutX + int((Unit >> ((U & 1) * 8)) & 0xFF), ClutY);
+		Index = (Unit >> ((U & 1) * 8)) & 0xFF;
+		return PsxVramUnit(Vram, ClutX + int(Index), ClutY);
 	}
-	else
-	{
-		Color = PsxVramUnit(Vram, PageX + int(U), PageY + int(V));
-	}
-	return PsxTexelOf(Color);
+	Index = PsxVramUnit(Vram, PageX + int(U), PageY + int(V));
+	return Index;
+}
+
+// The texel at (U, V) of the packed texture.
+FPsxTexel PsxFetchTexel(Texture2D<uint> Vram, uint Texture, int2 UV)
+{
+	uint Index;
+	return PsxTexelOf(PsxFetchColor(Vram, Texture, UV, Index));
 }
 
 // How many times finer the upscaled texels are than the page's (TextureUpscale::Factor).

@@ -3,15 +3,19 @@
 Weltall is a native port of *Xenogears* (PlayStation, 1998), rebuilt in Unreal Engine 5. The goal is to
 make the game feel like a modern PC release while keeping the original gameplay intact.
 
-You'll need your own copy of the USA release. Weltall doesn't include any game data. Put your disc
-images in the `Games` folder and the game will find them automatically. BIN/CUE and CHD preserve movie
-audio; ISO/IMG also work, but the movies will be silent. Convert PBP, ECM or other formats to BIN/CUE
-first. You can add Disc 2 while the game is running when it asks for it.
+You'll need your own copy of the USA release or a supported English undub. Weltall doesn't include
+any game data. Put your disc images in the `Games` folder and the game will find them automatically.
+BIN/CUE and CHD preserve movie audio; ISO/IMG also work, but the movies will be silent. Convert PBP,
+ECM or other formats to BIN/CUE first. You can add Disc 2 while the game is running when it asks for it.
+
+The undub plays with English text and Japanese voices. If you have both versions, choose which voices
+you hear under **Options → Sound → Voices**. Japanese retail discs aren't playable, but you can dump
+their files (see [the modding guide](Docs/Modding.md)).
 
 **Status:** Both discs are playable, including field exploration, character and Gear battles, the
 world map, menus, the Battling arena and movies. Gameplay behavior has been checked against the
-original game's code. My own playthrough is still in progress, with over ten hours played without a
-hang. Automated tests have run every map and story battle, along with long stretches of the story
+original game's code. My own playthrough is still in progress, with around 16 hours played without
+a hang. Automated tests have run every map and story battle, along with long stretches of the story
 from save to save. You should be able to play from start to finish, and I'm fixing reported issues as
 they come in. If something goes wrong, the game displays an error and tells you which log to include
 in a bug report.
@@ -33,6 +37,8 @@ in a bug report.
 - **Save options** to load from the menu anywhere, import PlayStation memory-card or emulator saves, and export
   memory-card images.
 - **Fixes for bugs in the original game**.
+- **Modding options** to export the game's textures as PNG and its music as WAV, dump the disc's files, and
+  load your replacements from the `Assets` folder. See [the modding guide](Docs/Modding.md) for the details.
 
 You can adjust these in Options from the title screen or in-game menu, including switching back to the
 original behavior.
@@ -45,8 +51,8 @@ trademarks belong to their respective owners.
 
 ## Playing
 
-Download the build for your system and unzip it wherever you want. Put the USA disc images in the
-`Games` folder (subfolders work too), then run `Weltall.exe` on Windows or `Weltall.sh` on Linux.
+Download the build for your system and unzip it wherever you want. Put the USA or undub disc images in
+the `Games` folder (subfolders work too), then run `Weltall.exe` on Windows or `Weltall.sh` on Linux.
 Windows requires 64-bit Windows 10 or 11 and a DirectX 12 graphics card. Linux requires a 64-bit
 system with a Vulkan graphics driver. If Disc 1 is missing, the game shows where it looked and what
 it found, then starts once you add the disc.
@@ -55,6 +61,9 @@ Linux testing has been limited to Windows Subsystem for Linux (WSL) with softwar
 
 Options covers display, sound, camera, text speed, bug fixes and controls. During battles, R1 increases
 the speed from 1x to 2x to 4x, and L1 decreases it.
+
+To keep the original PlayStation button symbols in prompts and menus, turn on **Original PSX icons**
+under **Options → Controls**. Your bindings still apply, and the rebinding rows show your actual keys.
 
 To rearrange the party, open the menu and press Right from the command list. Select a character with
 ×, then select another to swap them. Press △ to restore the story's order. The first character leads
@@ -151,7 +160,7 @@ builds share the same settings and saves in your user folders.
 `python Scripts/package.py --archive Shipping` also creates a release zip in `out/releases`, without
 disc images, and a separate debug symbols archive.
 
-`python Scripts/release.py 0.8.0` builds both Shipping packages from a pushed commit whose
+`python Scripts/release.py 0.8.1` builds both Shipping packages from a pushed commit whose
 `ProjectVersion` matches that version. It creates the archives and a GitHub draft release with the
 player downloads and release notes, using the GitHub CLI. Publish the draft from the release page.
 

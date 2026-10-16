@@ -3,7 +3,9 @@
 #include "Foundation/LittleEndian.h"
 #include "Media/GameFileIndex.h"
 
+#include <algorithm>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace Weltall
@@ -120,6 +122,7 @@ namespace Weltall
 		FBattleSpriteFiles Files;
 		Files.Image = &Image;
 		Files.Index = &Index;
+		Files.SetVoiceFiles(Image, Index);
 		for (std::size_t Character = 0; Character < CharacterCount; ++Character)
 		{
 			Files.Characters[Character] = {ReadU32(*Setup, CharacterFilesOffset + 8 * Character), ReadU32(*Setup, CharacterFilesOffset + 8 * Character + 4)};
@@ -140,13 +143,13 @@ namespace Weltall
 
 	TResult<FBattleSpriteFile> FBattleSpriteFiles::ReadCharacterSprite(int32 Character) const
 	{
-		return ParseFile(ReadWhole(*Image, *Index, PartyDirectory, static_cast<int32>(Characters[static_cast<std::size_t>(Character)].Sprite)),
+		return ParseFile(ReadWhole(*VoiceImage, *VoiceIndex, PartyDirectory, static_cast<int32>(Characters[static_cast<std::size_t>(Character)].Sprite)),
 			"character " + std::to_string(Character) + "'s battle sprite");
 	}
 
 	TResult<FBattleSpriteFile> FBattleSpriteFiles::ReadAttacks(int32 Character) const
 	{
-		return ParseFile(ReadWhole(*Image, *Index, PartyDirectory, static_cast<int32>(Characters[static_cast<std::size_t>(Character)].Attacks)),
+		return ParseFile(ReadWhole(*VoiceImage, *VoiceIndex, PartyDirectory, static_cast<int32>(Characters[static_cast<std::size_t>(Character)].Attacks)),
 			"character " + std::to_string(Character) + "'s attacks");
 	}
 
@@ -157,6 +160,17 @@ namespace Weltall
 			return MakeError("the disc has no battle effect " + std::to_string(Effect));
 		}
 		return ParseFile(ReadWhole(*Image, *Index, EffectDirectory, EffectFirstFile + 2 * Effect), "effect " + std::to_string(Effect));
+	}
+
+	bool FBattleSpriteFiles::IsEffectStandIn(int32 Effect) const
+	{
+		constexpr std::string_view StandIn = "It's CDMAKE Dummy !";
+		if (Effect < 0 || Effect >= Effects)
+		{
+			return false;
+		}
+		const TResult<std::vector<uint8>> Bytes = ReadWhole(*Image, *Index, EffectDirectory, EffectFirstFile + 2 * Effect);
+		return Bytes && Bytes->size() >= StandIn.size() && std::equal(StandIn.begin(), StandIn.end(), Bytes->begin());
 	}
 
 	TResult<std::vector<uint8>> FBattleSpriteFiles::ReadEffectStream(int32 Effect) const
@@ -202,6 +216,6 @@ namespace Weltall
 
 	TResult<std::vector<uint8>> FBattleSpriteFiles::ReadEnemySounds() const
 	{
-		return ReadWhole(*Image, *Index, CommonDirectory, EnemyBankFile);
+		return ReadWhole(*VoiceImage, *VoiceIndex, CommonDirectory, EnemyBankFile);
 	}
 }

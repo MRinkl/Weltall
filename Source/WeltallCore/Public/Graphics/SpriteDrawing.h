@@ -37,6 +37,9 @@ namespace Weltall
 		int16 U1 = 0;
 		int16 V0 = 0;
 		int16 V1 = 0;
+		/** The rows of the part's whole cell, of which a quad clipped at a line shows V0 to V1; both 0 for a quad that is no part's. */
+		int16 CellV0 = 0;
+		int16 CellV1 = 0;
 		uint16 TexturePage = 0;
 		uint16 Clut = 0;
 		/** The colour, and the GPU code in the top byte (bit 24 raw texture, bit 25 semi-transparent). */

@@ -4,6 +4,7 @@
 #include "Field/FieldRenderState.h"
 #include "Foundation/Types.h"
 #include "Graphics/Gte.h"
+#include "Graphics/TexturePictures.h"
 
 #include <array>
 #include <optional>
@@ -12,6 +13,7 @@
 namespace Weltall
 {
 	class FBattleStageRecord;
+	struct FGearModelPack;
 	struct FGteArctangents;
 
 	/**
@@ -72,6 +74,13 @@ namespace Weltall
 	};
 
 	WELTALLCORE_API FBattleStageBackdrop MakeBattleStageBackdrop(const FBattleStageRecord& Record);
+
+	/**
+	 * The texture regions the backdrop's quads read, with the colours the stage's texture blocks (Pack, where its files put
+	 * them) give their CLUTs (GearTextureSeeds): each panorama's strip, one picture however the pages it crosses cut it (the
+	 * part each page holds standing for the whole), and the dome's tile, the texture window its cells read.
+	 */
+	WELTALLCORE_API std::vector<FTexturePictureSeed> BattleBackdropTextureSeeds(const FBattleStageBackdrop& Backdrop, const FGearModelPack& Pack);
 
 	/**
 	 * One frame of the backdrop as the stage's drawing draws it after the stage's model, into the ordering table's last entry:

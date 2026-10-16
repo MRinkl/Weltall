@@ -1,8 +1,10 @@
 # Game images supplied by the player, and everything derived from them
 /Games/
+/Assets/
 
 # Machine-specific configuration
 /local.env
+__pycache__/
 
 # Unreal Engine generated content
 /Binaries/

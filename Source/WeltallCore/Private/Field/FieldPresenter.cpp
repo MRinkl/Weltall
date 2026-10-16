@@ -8,6 +8,7 @@
 #include "Field/FieldScenePictures.h"
 #include "Field/FieldScreenLayer.h"
 #include "Field/FieldSprites.h"
+#include "Field/FieldTextureRegions.h"
 #include "Formats/Tim.h"
 #include "Field/FieldRenderState.h"
 #include "Field/FieldVramChanges.h"
@@ -133,9 +134,11 @@ namespace Weltall
 			Scratch.Units.assign(Tim.Clut->Units.begin(), Tim.Clut->Units.begin() + static_cast<std::ptrdiff_t>(Units));
 			FieldVram.Upload(Scratch);
 		}
-		Scratch.Rect = {Place.X, Place.Y, Tim.Image.Rect.Width, Tim.Image.Rect.Height};
-		Scratch.Units = Tim.Image.Units;
-		FieldVram.Upload(Scratch);
+		// The image keeps what kind of picture it is; the scratch image that other uploads reuse does not.
+		FVramImage Picture = Tim.Image;
+		Picture.Rect.X = Place.X;
+		Picture.Rect.Y = Place.Y;
+		FieldVram.Upload(Picture);
 		return std::nullopt;
 	}
 
@@ -199,6 +202,7 @@ namespace Weltall
 			MarkScenePictures(Context.RunningMap, *Scene);
 		}
 		MapScene = std::move(*Scene);
+		MapSpriteSheets = FieldSpriteSheetRegions(Runtime.Map());
 		MapLoadsSeen = Runtime.MapLoads();
 		GearLoadsSeen = Context.Gears.Loads;
 		Ticks = 0;

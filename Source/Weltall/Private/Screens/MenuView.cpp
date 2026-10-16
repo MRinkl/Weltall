@@ -10,6 +10,7 @@
 #include "Rendering/DrawListRendering.h"
 #include "Rendering/SharedRenderResource.h"
 #include "Rendering/VramTexture.h"
+#include "Rendering/TextureModSources.h"
 #include "WeltallLog.h"
 
 namespace
@@ -112,6 +113,7 @@ void FMenuView::Follow(const Weltall::FMenuProgram& Menu)
 	Latest = Next;
 	Vram->SetUpscaled(Weltall::UpscalesTextures(Options.Filter, Options.SpriteFilter));
 	Vram->Follow(Menu.Vram());
+	SourceVram = &Menu.Vram();
 	Sheet = &Menu.Resources().Sheet();
 }
 
@@ -141,6 +143,7 @@ void FMenuView::Reset()
 	bGearScene = false;
 	GearMesh.Reset();
 	MeshModels = nullptr;
+	SourceVram = nullptr;
 }
 
 TSharedPtr<const IScreenFrame> FMenuView::Capture(TSharedPtr<const IScreenFrame> Background, float Alpha) const
@@ -171,6 +174,11 @@ TSharedPtr<const IScreenFrame> FMenuView::Capture(TSharedPtr<const IScreenFrame>
 	{
 		Next->Background = MoveTemp(Background);
 		Next->GearMesh = nullptr;
+	}
+	if (SourceVram != nullptr)
+	{
+		FollowTextureModSources(*Vram, *SourceVram, Next->GearMesh.Get(), {Next->GearMesh.IsValid() ? &Next->GearDraw : nullptr}, {&Next->Layer},
+			Next->GearMesh.IsValid() ? std::span<const Weltall::FTexturePictureSeed>(GearFrames[Now].Gears.TextureSeeds) : std::span<const Weltall::FTexturePictureSeed>());
 	}
 	return Next;
 }

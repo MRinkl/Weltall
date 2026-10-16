@@ -5,6 +5,7 @@
 #include "BattleObjectMachine.h"
 #include "Gears/GearPackets.h"
 #include "Gears/GearSkeleton.h"
+#include "Gears/GearTextureRegions.h"
 
 #include <algorithm>
 #include <string>
@@ -38,6 +39,19 @@ namespace Weltall
 			Object.Trails.clear();
 			Object.Cloths.clear();
 			Object.ClutAnimations.clear();
+		}
+
+		/** An object's pictures named again as what its making uploads after its own (a variant's images, its parts' textures) leaves them. */
+		void KeyAfter(FBattleObject& Object, const FGearTexturePlace& Place, std::span<const FGearTextureBlock> Over, const FGearTexturePlace* OverPlace)
+		{
+			std::vector<FTextureRegion> Regions;
+			for (const FTexturePictureSeed& Seed : *Object.TextureSeeds)
+			{
+				Regions.push_back(Seed.Region);
+			}
+			const bool bPlaced = (Object.Flags & BattleObjectFlags::AbsoluteTextures) == 0;
+			Object.TextureSeeds = std::make_shared<const std::vector<FTexturePictureSeed>>(
+				GearTextureSeeds(*Object.Model, bPlaced ? &Place : nullptr, Regions, Over, OverPlace));
 		}
 	}
 
@@ -80,19 +94,17 @@ namespace Weltall
 		Object.RadiusZ = Header.ShadowHalfDepth;
 		Object.Stance = Header.DefaultRecord;
 		Object.Flags = Header.Flags;
+		const bool bPlaced = (Flags & Still) == 0 && (Object.Flags & BattleObjectFlags::AbsoluteTextures) == 0;
 		if ((Flags & SharesModel) == 0)
 		{
-			const bool bRelative = (Flags & Still) == 0 && (Object.Flags & BattleObjectFlags::AbsoluteTextures) == 0;
 			for (const FGearTextureBlock& Block : Model->Textures)
 			{
-				const int16 BaseX = bRelative ? (Block.bClut ? Place.ClutX : Place.X) : Block.X;
-				const int16 BaseY = bRelative ? (Block.bClut ? Place.ClutY : Place.Y) : Block.Y;
-				Services->UploadImage(Block, static_cast<int16>(BaseX + Block.OffsetX), static_cast<int16>(BaseY + Block.OffsetY));
+				const std::array<int16, 2> Corner = GearTextureBlockCorner(Block, bPlaced ? &Place : nullptr);
+				Services->UploadImage(Block, Corner[0], Corner[1]);
 			}
 		}
 		MakeGearSkeleton(Model->Skeleton, Object.Bones);
 		// The Gouraud quads keep their build's light, which the drawing gives them afresh: no lighting of the build's matters.
-		const bool bPlaced = (Flags & Still) == 0 && (Object.Flags & BattleObjectFlags::AbsoluteTextures) == 0;
 		TResult<std::vector<FGearBonePackets>> Packets = BuildGearPackets(Model->Model, Object.Bones, (Flags & Still) != 0 ? StillLightMode : ObjectLightMode,
 			bPlaced ? &Place : nullptr, FGte{});
 		if (!Packets)
@@ -112,18 +124,15 @@ namespace Weltall
 		Object.Scale = (Flags & Still) == 0 ? static_cast<int16>((Header.Scale * Stage->ObjectScale()) >> 12) : Header.Scale;
 		Object.Trails.assign(Header.Trails, FBattleTrailEmitter{});
 		Object.ClutAnimations.assign(Header.TextureAnimations, FBattleClutAnimation{});
-		for (std::size_t Cloth = 0; Cloth < Header.Cloths; ++Cloth)
+		std::optional<std::vector<FGearCloth>> Cloths = MakeGearCloths(*Model, Place);
+		if (!Cloths)
 		{
-			const FGearClothSpec& Spec = Model->Cloths[Cloth];
-			std::optional<FGearCloth> Made = MakeGearCloth(Spec, Model->ClothMeshes[Cloth], static_cast<int16>(Place.X + Spec.TextureX),
-				static_cast<int16>(Place.Y + Spec.TextureY), static_cast<int16>(Place.ClutX + Spec.ClutX), Place.ClutY);
-			if (!Made)
-			{
-				Fail("object " + std::to_string(Slot) + " has a cloth whose making divides by zero or leaves triangles unmade");
-				return;
-			}
-			Object.Cloths.push_back(std::move(*Made));
+			Fail("object " + std::to_string(Slot) + " has a cloth whose making divides by zero or leaves triangles unmade");
+			return;
 		}
+		Object.Cloths = std::move(*Cloths);
+		const std::vector<FTextureRegion> Regions = GearTextureRegions(Model->Model, Object.Cloths, bPlaced ? &Place : nullptr);
+		Object.TextureSeeds = std::make_shared<const std::vector<FTexturePictureSeed>>(GearTextureSeeds(*Model, bPlaced ? &Place : nullptr, Regions));
 		Object.bFromFiles = false;
 		Object.Slot = static_cast<uint8>(Slot);
 		Object.bVisible = Slot >= CombatantSlots || Context->Slots[static_cast<std::size_t>(Slot)].Presence == 0 ? 1 : 0;
@@ -165,6 +174,7 @@ namespace Weltall
 				const int16 BaseY = Block.bClut ? Place.ClutY : Place.Y;
 				Services->UploadImage(Block, static_cast<int16>(BaseX + Block.OffsetX), static_cast<int16>(BaseY + Block.OffsetY));
 			}
+			KeyAfter(*Made, Place, Variant.Images, &Place);
 			return;
 		}
 		FGearMotionPack* PartsMotion = HoldPack(std::move(*Variant.Motion));
@@ -197,6 +207,11 @@ namespace Weltall
 			Sub->NoFloorSnap = 1;
 			const FGteVector& Offset = Variant.Parts[static_cast<std::size_t>(Part)].Offset;
 			Sub->AttachOffset = {Offset[0], Offset[1], Offset[2]};
+		}
+		if (FBattleObject* Host = Object(Slot))
+		{
+			const bool bPartsPlaced = (PartsModel->Header.Flags & BattleObjectFlags::AbsoluteTextures) == 0;
+			KeyAfter(*Host, Place, PartsModel->Textures, bPartsPlaced ? &Place : nullptr);
 		}
 	}
 

@@ -1,10 +1,15 @@
 #pragma once
 
+#include "Formats/Wave.h"
 #include "Foundation/Result.h"
 #include "Media/GameFileIndex.h"
+#include "Media/CdImage.h"
+#include "Sound/MusicReplacements.h"
+#include "Sound/SoundFiles.h"
 
 #include <string>
 #include <vector>
+#include <type_traits>
 
 namespace Weltall
 {
@@ -23,6 +28,21 @@ namespace Weltall
 			return Sectors.Error();
 		}
 		Sectors->resize(static_cast<std::size_t>(Record->Size));
-		return TFile::Parse(std::move(*Sectors));
+		TResult<TFile> Parsed = TFile::Parse(std::move(*Sectors));
+		if constexpr (std::is_same_v<TFile, FSoundSequenceFile>)
+		{
+			if (Parsed)
+			{
+				TResult<std::optional<std::vector<uint8>>> Override = Image.ReadMusicReplacement(MusicSequenceKey(Parsed->Bytes()));
+				if (!Override) return Override.Error();
+				if (*Override)
+				{
+					TResult<FWave> Wave = FWave::Parse(**Override);
+					if (!Wave) return Wave.Error();
+					Parsed->Replacement = std::make_shared<const FWave>(std::move(*Wave));
+				}
+			}
+		}
+		return Parsed;
 	}
 }

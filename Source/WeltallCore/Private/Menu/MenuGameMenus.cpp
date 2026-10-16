@@ -27,6 +27,7 @@ namespace Weltall
 		}
 		void Keep() override { Owner.SettingsKept(Session.Settings()); }
 		FDisplayModes DisplayModes() const override { return Owner.DisplayModes ? Owner.DisplayModes() : FDisplayModes{}; }
+		IMenuAssets* Assets() const override { return Owner.Assets; }
 
 	private:
 		FMenuGameMenus& Owner;

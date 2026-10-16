@@ -484,6 +484,7 @@ namespace
 		Draw.Colors.Reset();
 		Draw.DynamicCorners.Reset();
 		Draw.DynamicPolygons.Reset();
+		Draw.SpriteCells.Reset();
 		Draw.SpriteModelCorners.Reset();
 		Draw.Order.Reset();
 		Draw.Runs.Reset();

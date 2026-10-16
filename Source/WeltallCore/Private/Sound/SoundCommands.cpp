@@ -51,6 +51,7 @@ namespace Weltall
 		case 0x8D: // Loop point, if the sequence's variable matches.
 			if (At.Byte() == Sequence.VariableB)
 			{
+				if (Track.Loops == 0) Track.FirstLoopFrame = Sequence.PlaybackFrames;
 				Track.LoopPoint = At.At(1);
 				Track.LoopOctave = static_cast<uint8>(Track.Octave);
 			}
@@ -58,6 +59,7 @@ namespace Weltall
 		case 0x90: // End: back to the loop point, or the track ends.
 			if (Track.LoopPoint.IsSet())
 			{
+				if (Track.Loops == 0) Track.FirstLoopEndFrame = Sequence.PlaybackFrames;
 				++Track.Loops;
 				Track.Octave = Track.LoopOctave;
 				return Track.LoopPoint;
@@ -65,6 +67,7 @@ namespace Weltall
 			EndTrack(Track);
 			return At;
 		case 0x91:
+			if (Track.Loops == 0) Track.FirstLoopFrame = Sequence.PlaybackFrames;
 			Track.LoopPoint = At;
 			Track.LoopOctave = static_cast<uint8>(Track.Octave);
 			return At;

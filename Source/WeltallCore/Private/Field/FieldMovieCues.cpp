@@ -37,7 +37,7 @@ namespace Weltall
 		const FMovieCuesLayout* Layout = nullptr;
 		for (const FMovieCuesLayout& Candidate : Layouts)
 		{
-			if (Candidate.Release == Release)
+			if (Candidate.Release == GameplayRelease(Release))
 			{
 				Layout = &Candidate;
 			}

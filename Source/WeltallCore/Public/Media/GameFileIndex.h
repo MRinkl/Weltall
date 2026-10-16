@@ -6,6 +6,7 @@
 #include "Media/PsxExecutable.h"
 
 #include <array>
+#include <optional>
 #include <vector>
 
 namespace Weltall
@@ -38,6 +39,15 @@ namespace Weltall
 
 		/** File Number of Directory, or null when the directory or the file does not exist. */
 		WELTALLCORE_API const FIndexRecord* Find(int32 Directory, int32 Number) const;
+
+		/** A file's name within the directories: in the directory starting closest before it (the lowest of directories starting together), its number. */
+		struct FFileName
+		{
+			int32 Directory = 0;
+			int32 Number = 0;
+		};
+		/** Record's name, or none for a record before every directory's start. */
+		WELTALLCORE_API std::optional<FFileName> NameOf(std::size_t Record) const;
 
 	private:
 		std::vector<FIndexRecord> AllRecords;

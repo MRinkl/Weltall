@@ -47,7 +47,7 @@ namespace Weltall
 	TResult<std::unique_ptr<FFieldMovie>> FFieldMovie::Start(FGameSession& Session, const FFieldRequest& Request)
 	{
 		// The movies are the drive's disc's: each disc has its own.
-		const TResult<FGameDisc> Disc = Session.DriveDisc();
+		const TResult<FGameDisc> Disc = Session.MovieDisc();
 		if (!Disc)
 		{
 			return Disc.Error();

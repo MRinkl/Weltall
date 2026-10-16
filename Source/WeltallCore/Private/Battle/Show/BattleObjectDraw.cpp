@@ -445,6 +445,22 @@ namespace Weltall
 		}
 	}
 
+	void FBattleObjects::ExchangeFrame(FBattleObjectsFrame& Kept)
+	{
+		Drawn.TextureSeeds.clear();
+		const std::vector<FTexturePictureSeed>* Last = nullptr;
+		for (const FSlot& Entry : Slots)
+		{
+			const std::vector<FTexturePictureSeed>* Seeds = Entry.bPresent ? Entry.Object.TextureSeeds.get() : nullptr;
+			if (Seeds != nullptr && Seeds != Last)
+			{
+				Drawn.TextureSeeds.insert(Drawn.TextureSeeds.end(), Seeds->begin(), Seeds->end());
+				Last = Seeds;
+			}
+		}
+		std::swap(Drawn, Kept);
+	}
+
 	void FBattleObjects::DrawStage(const FGteMatrix& View, bool bShown)
 	{
 		Drawn.Parts.clear();

@@ -11,7 +11,13 @@ namespace Weltall
 {
 	struct FTexturePage;
 	struct FClutPosition;
+	struct FTextureRegion;
+	struct FTexturePictureSeed;
 }
+
+class FTextureReplacementBindings;
+class FTextureReplacementGpu;
+struct FTextureReplacementResources;
 
 /**
  * A VRAM state on the GPU, 1024 x 512 16-bit units as the PlayStation keeps them and the port's own rows
@@ -27,6 +33,7 @@ public:
 	 * textureless primitives have NoTexture.
 	 */
 	static constexpr uint32 NoTexture = 0xFFFFFFFF;
+	/** Weltall::PackTextureView: the shaders unpack it as the core packs it. */
 	static uint32 Pack(const Weltall::FTexturePage& Page, const Weltall::FClutPosition& Clut);
 
 	/**
@@ -35,11 +42,25 @@ public:
 	 */
 	void SetUpscaled(bool bUpscaled);
 
+	FVramTexture();
+	virtual ~FVramTexture() override;
+
 	/**
 	 * Sends the VRAM's units to the GPU unless they are the ones sent last; true when it sent them. Game
 	 * thread; the resource must be initialised.
 	 */
 	bool Follow(const Weltall::FVram& Vram);
+	/**
+	 * Also binds the texture regions the frame draws, in order of precedence, to their replacements and captures (an empty
+	 * set releases the previous scene's); Follow alone keeps those bound. Seeds teach replacements their colours beside
+	 * the pictures VRAM holds (FTextureReplacementBindings).
+	 */
+	bool Follow(const Weltall::FVram& Vram, std::span<const Weltall::FTextureRegion> Regions, std::span<const Weltall::FTexturePictureSeed> Seeds = {});
+	/** Regions written from rendered pictures rather than CPU VRAM cannot identify a disc texture. Game thread. */
+	void SetReplacementExclusions(std::span<const Weltall::FVramRect> Rectangles);
+
+	/** The replacements bound by the last Follow with regions. Rendering thread. */
+	const FTextureReplacementResources& Replacements() const;
 
 	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
@@ -61,6 +82,9 @@ public:
 	FUpscaled Upscaled(FRDGBuilder& GraphBuilder) const;
 
 private:
+	void FollowReplacements(const Weltall::FVram& Vram, std::span<const Weltall::FTextureRegion> Regions, std::span<const Weltall::FTexturePictureSeed> Seeds);
+	/** Whether the units of Region's picture, or unless bOwnColours its CLUT, overlap a region written from rendered pictures. */
+	bool IsReplacementExcluded(const Weltall::FTextureRegion& Region, bool bOwnColours) const;
 	/** A copy of the VRAM on its way to the rendering thread, and which tiles changed since the one before. */
 	struct FCopy
 	{
@@ -71,6 +95,10 @@ private:
 
 	FTextureRHIRef Units;
 	FTextureRHIRef Edges;
+	TUniquePtr<FTextureReplacementBindings> ReplacementBindings;
+	TUniquePtr<FTextureReplacementGpu> ReplacementGpu;
+	std::vector<Weltall::FVramRect> ReplacementExclusions;
+	bool bReplacementsBound = false;
 	uint32 SentRevision = 0;
 	uint32 SentLineage = 0;
 	bool bSent = false;

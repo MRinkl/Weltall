@@ -7,11 +7,15 @@
 #include <array>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <span>
+#include <string_view>
 #include <vector>
 
 namespace Weltall
 {
+	class FDiscAssetStore;
+	struct FIndexRecord;
 	namespace CdSector
 	{
 		constexpr uint32 RawSize = 2352;
@@ -54,6 +58,15 @@ namespace Weltall
 		bool IsRaw() const { return SectorSize == CdSector::RawSize; }
 		uint32 SectorCount() const { return Sectors; }
 
+		/** Original sectors, including XA headers and padding, for lossless asset export. */
+		WELTALLCORE_API TResult<std::vector<uint8>> ReadSourceSector(uint32 Lba) const;
+		void SetAssetStore(std::shared_ptr<FDiscAssetStore> Store) const { Assets = std::move(Store); }
+		const std::shared_ptr<FDiscAssetStore>& GetAssetStore() const { return Assets; }
+		/** The asset store's replacement of a native file, none without one. */
+		WELTALLCORE_API TResult<std::optional<std::vector<uint8>>> ReadAssetOverride(const FIndexRecord& Record) const;
+		/** The asset store's recording of a music sequence by its key (Weltall::MusicSequenceKey), none without one. */
+		WELTALLCORE_API TResult<std::optional<std::vector<uint8>>> ReadMusicReplacement(uint64 Key) const;
+
 		WELTALLCORE_API TResult<FCdSectorHeader> ReadHeader(uint32 Lba) const;
 
 		/** The sector's user data: 2048 bytes for Mode 1 and Form 1, 2324 for Form 2. */
@@ -69,5 +82,6 @@ namespace Weltall
 		uint32 SectorSize;
 		uint64 TrackOffset;
 		uint32 Sectors;
+		mutable std::shared_ptr<FDiscAssetStore> Assets;
 	};
 }

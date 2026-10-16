@@ -22,9 +22,6 @@ namespace Weltall
 		constexpr uint32 HeaderKeepVelocity = 0x800;
 		constexpr uint32 HeaderKeepRotation = 0x1000;
 		constexpr uint32 HeaderKeepScale = 0x2000;
-		/** Where battle mode streams the frames of a file it takes that is not resident. */
-		constexpr int16 BattleStreamX = 0x300;
-		constexpr int16 BattleStreamY = 0x100;
 
 		/** A register's absolute value: the negation wraps, as the CPU's does. */
 		int32 WrappedAbs(int32 Value)

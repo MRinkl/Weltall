@@ -28,6 +28,7 @@ namespace Weltall
 			}
 			const std::size_t Count = std::min(Frames - Made, static_cast<std::size_t>(Clock.SamplesToInterrupt()));
 			Spu.Render(Stereo.subspan(Made * 2, Count * 2));
+			Driver.MixReplacementMusic(Stereo.subspan(Made * 2, Count * 2));
 			Clock.MakeSamples(static_cast<int32>(Count));
 			Made += Count;
 		}

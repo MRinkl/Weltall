@@ -11,6 +11,7 @@
 #include "Gears/GearSkeleton.h"
 #include "Graphics/AffineBlend.h"
 #include "Graphics/Gte.h"
+#include "Graphics/TexturePictures.h"
 
 #include <array>
 #include <memory>
@@ -78,6 +79,11 @@ namespace Weltall
 		int16 TextureY = 0;
 		int16 ClutX = 0;
 		int16 ClutY = 0;
+		/**
+		 * The texture regions its parts and cloths read where the load put the textures, with the colours the load gave
+		 * them (Weltall::GearTextureRegions): what names its pictures, whatever later changes their colours.
+		 */
+		std::shared_ptr<const std::vector<FTexturePictureSeed>> TextureSeeds;
 		/** The timeline: its tick (-1 off), its loop length (-1 none), the events done and in it. */
 		int16 TimelineTick = -1;
 		int16 TimelineLoop = 0;

@@ -290,6 +290,7 @@ bool FRenderStaging::Parse(const FString& Params, FRenderStaging& Staging)
 		Staging.BattleFormation = FCString::Atoi(*Parts[0]);
 		Staging.BattleKind = Parts.Num() > 1 ? FCString::Atoi(*Parts[1]) : 0;
 		FParse::Value(*Params, TEXT("BattleAt="), Staging.BattleAt);
+		FParse::Value(*Params, TEXT("BattleEvery="), Staging.BattleEvery);
 	}
 	FString LeaderAt;
 	if (FParse::Value(*Params, TEXT("LeaderAt="), LeaderAt, false))
@@ -438,7 +439,7 @@ void FRenderStaging::Advance(FGameLoopScreen& Screen, double Elapsed)
 		}
 		bMenuAsked = Screen.RequestMenu(static_cast<uint8>(MenuMode), static_cast<uint8>(MenuParameter));
 	}
-	if (BattleFormation >= 0 && !bBattleAsked && Elapsed >= BattleAt)
+	if (BattleFormation >= 0 && (!bBattleAsked || BattleEvery > 0.0) && Elapsed >= BattleAt)
 	{
 		if (Weltall::FGameState* State = Screen.GameState())
 		{
@@ -449,7 +450,11 @@ void FRenderStaging::Advance(FGameLoopScreen& Screen, double Elapsed)
 				State->SetCharacterPoints(Character, Weltall::FGameState::ECharacterPoints::Hp, 1);
 			}
 		}
-		bBattleAsked = Screen.RequestBattle(static_cast<uint8>(BattleFormation), static_cast<uint8>(BattleKind));
+		if (Screen.RequestBattle(static_cast<uint8>(BattleFormation), static_cast<uint8>(BattleKind)))
+		{
+			bBattleAsked = true;
+			BattleAt = Elapsed + BattleEvery;
+		}
 	}
 	if (!LeaderAt.IsEmpty() && !bLeaderPlaced && Elapsed >= LeaderAtTime)
 	{

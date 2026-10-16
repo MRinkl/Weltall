@@ -2,6 +2,7 @@
 
 #include "Battle/Show/BattleSceneGraphics.h"
 #include "Battle/Show/BattleShowObjects.h"
+#include "Battle/Show/BattleShowVram.h"
 
 namespace Weltall
 {
@@ -51,6 +52,34 @@ namespace Weltall
 			}
 		}
 		return Columns;
+	}
+
+	std::optional<int16> FBattleSceneImageSets::Place(const FBattleSceneGraphics& Scene, std::size_t Index, int16 Column, FVram& Vram)
+	{
+		const FBattleSceneEntry& Entry = Scene.Entries()[Index];
+		uint32 Set = Entry.Images;
+		if (Entry.HasOwnImages())
+		{
+			TResult<std::vector<FBattleImageSetImage>> Images = ReadBattleImageSet(Scene.Bytes(), Entry.Images);
+			if (!Images || Count >= Room)
+			{
+				return std::nullopt;
+			}
+			for (std::size_t Image = 0; Image < Images->size(); ++Image)
+			{
+				const FBattleImageSetImage& Read = (*Images)[Image];
+				UploadBattleUnits(Vram, Scene.Bytes(), Read.Units,
+					{static_cast<int16>(Column + SetColumns * static_cast<int32>(Image)), TextureY, static_cast<int16>(Read.Width), static_cast<int16>(Read.Height)});
+			}
+			Sets[Count] = Column;
+			Set = Count++;
+		}
+		// A set named by number that the scene has not placed yet would be read from the setup's stack.
+		if (Set >= Count)
+		{
+			return std::nullopt;
+		}
+		return Sets[Set];
 	}
 
 	FBattleSceneModels CreateBattleSceneModels(FBattleObjects& Objects, const FBattleSceneGraphics& Scene, std::size_t Index, int16 Column,

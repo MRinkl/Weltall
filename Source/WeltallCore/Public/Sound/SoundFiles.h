@@ -4,11 +4,14 @@
 #include "Foundation/Types.h"
 
 #include <array>
+#include <memory>
 #include <span>
 #include <vector>
 
 namespace Weltall
 {
+	struct FWave;
+
 	/**
 	 * The files of the game's sound driver, checked as far as the driver needs to read them safely.
 	 * All three start with a four-letter magic; sequences and effects are command streams in which a
@@ -96,6 +99,8 @@ namespace Weltall
 		uint8 ReverbDepth() const { return Data[0x1B]; }
 		uint8 ReverbDelay() const { return Data[0x1C]; }
 		uint8 ReverbFeedback() const { return Data[0x1D]; }
+		/** Optional mixed music from the player's assets folder; the native sequence still drives timing. */
+		std::shared_ptr<const FWave> Replacement;
 
 	private:
 		std::vector<uint8> Data;

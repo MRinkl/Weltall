@@ -165,18 +165,24 @@ namespace Weltall
 
 	bool FMenuMain::OnSavesPages() const
 	{
-		return OptionsState.SavePages && OptionsState.Turned == TurnedPages() - 1;
+		return OptionsState.SavePages && OptionsState.Turned == TurnedSettingsPages + (OptionsState.ControlsPage ? 1 : 0);
 	}
 
 	int32 FMenuMain::TurnedPages() const
 	{
-		return TurnedSettingsPages + (OptionsState.ControlsPage ? 1 : 0) + (OptionsState.SavePages ? 1 : 0);
+		return TurnedSettingsPages + (OptionsState.ControlsPage ? 1 : 0) + (OptionsState.SavePages ? 1 : 0)
+			+ (Services.Settings->Assets() != nullptr ? 1 : 0);
 	}
 
 	void FMenuMain::FillOptionsRows()
 	{
 		FMenuOptionsState& State = OptionsState;
 		State.Rows.clear();
+		if (OnAssetsPage())
+		{
+			FillAssetRows();
+			return;
+		}
 		if (OnSavesPages())
 		{
 			State.Title = State.SavePages->Title();
@@ -284,6 +290,10 @@ namespace Weltall
 		while (true)
 		{
 			co_await Frame();
+			if (OnAssetsPage() && RefreshAssetProgress())
+			{
+				bChanged = true;
+			}
 			if (bChanged)
 			{
 				DrawOptionsPage();
@@ -417,6 +427,10 @@ namespace Weltall
 	bool FMenuMain::StepOption(int32 Direction)
 	{
 		FMenuOptionsState& State = OptionsState;
+		if (OnAssetsPage())
+		{
+			return StepAssetOption();
+		}
 		if (OnSavesPages())
 		{
 			if (!State.SavePages->Step(State.Row, Direction))
@@ -467,6 +481,10 @@ namespace Weltall
 	bool FMenuMain::ActivateOption()
 	{
 		FMenuOptionsState& State = OptionsState;
+		if (OnAssetsPage())
+		{
+			return ActivateAssetOption();
+		}
 		if (OnSavesPages())
 		{
 			const uint32 Was = State.SavePages->View();

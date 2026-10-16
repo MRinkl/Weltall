@@ -139,7 +139,7 @@ namespace Weltall
 
 		namespace Sound
 		{
-			enum : int32 { Output, InBackground, Count };
+			enum : int32 { Output, InBackground, Voices, Count };
 		}
 
 		namespace Display
@@ -252,6 +252,10 @@ namespace Weltall
 				return Shown(Text::Display::PauseInBackground, OnOff(Settings.Display.bPauseInBackground));
 			}
 		case ESettingsPage::Sound:
+			if (Row == Sound::Voices)
+			{
+				return Shown(Text::Sound::Voices, ChoiceName(Settings.VoiceLanguage, Text::Sound::VoiceValues));
+			}
 			if (Row == Sound::InBackground)
 			{
 				return Shown(Text::Sound::InBackground, OnOff(Settings.Display.bSoundInBackground));
@@ -361,6 +365,10 @@ namespace Weltall
 				return true;
 			}
 		case ESettingsPage::Sound:
+			if (Row == Sound::Voices)
+			{
+				return StepChoice(Settings.VoiceLanguage, Direction, 3);
+			}
 			if (Row == Sound::InBackground)
 			{
 				Settings.Display.bSoundInBackground = !Settings.Display.bSoundInBackground;

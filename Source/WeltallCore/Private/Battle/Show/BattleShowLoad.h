@@ -55,8 +55,6 @@ namespace Weltall
 		/** A scene's graphics hold an entry for each of its eight enemy types at most. */
 		static constexpr int32 SceneEntries = 8;
 		static constexpr int32 PartySlots = 3;
-		/** The image sets a scene can place before the setup's list of their columns runs into its other locals. */
-		static constexpr int32 SetRoom = 16;
 
 		/** The image sets uploaded, the sprite enemies' resources, the model enemies made. */
 		void LoadScene();

@@ -29,7 +29,7 @@ namespace Weltall
  * menu the field opens as its scripts would ask for it, -MenuAt=S seconds into play (0: at once);
  * -MenuArea=Screen|Wide, how far the menus draw on a display wider than the original's screen;
  * -Battle=Formation[,Kind], a battle of the map's formation the field starts as its scripts would, -BattleAt=S seconds
- * into play (0: at once);
+ * into play (0: at once), and with -BattleEvery=S again each time the field runs S seconds or more after the last;
  * -LeaderAt=X,Z,Layer, the field's leader stood at that ground point of a walkmesh layer, its followers with it and the
  * view snapping to it, -LeaderAtTime=S seconds into play (1 by default: the map's entry over);
  * -Icons=Keyboard|Xbox|PlayStation|Nintendo|SteamDeck, the player's buttons shown with a set's icons
@@ -105,6 +105,7 @@ struct FRenderStaging
 	int32 BattleFormation = -1;
 	int32 BattleKind = 0;
 	double BattleAt = 0.0;
+	double BattleEvery = 0.0;
 	bool bBattleAsked = false;
 	/** -LeaderAt=X,Z,Layer: where the field's leader is stood, -LeaderAtTime seconds into play; empty for where the map puts it. */
 	TArray<int32> LeaderAt;

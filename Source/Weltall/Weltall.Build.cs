@@ -6,6 +6,6 @@ public class Weltall : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		PublicDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine", "WeltallCore", "RenderCore" });
-		PrivateDependencyModuleNames.AddRange(new[] { "ApplicationCore", "AudioExtensions", "EnhancedInput", "InputCore", "RHI", "Slate", "SlateCore" });
+		PrivateDependencyModuleNames.AddRange(new[] { "ApplicationCore", "AudioExtensions", "EnhancedInput", "ImageWrapper", "InputCore", "RHI", "Slate", "SlateCore" });
 	}
 }

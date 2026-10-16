@@ -9,6 +9,7 @@ namespace Weltall
 {
 	class FMenuProgram;
 	class IMenuKeys;
+	class IMenuAssets;
 	struct FPlayerSettings;
 	class FPsxExecutable;
 
@@ -41,6 +42,7 @@ namespace Weltall
 
 		/** The player's keys, which the options screen's Controls page rebinds; none (or no settings kept): no Controls page. It must outlive the menus. */
 		void SetKeys(IMenuKeys* InKeys) { Keys = InKeys; }
+		void SetAssets(IMenuAssets* InAssets) { Assets = InAssets; }
 
 		/** What the display offers, asked as the options screen opens; none: the screen offers no window sizes. */
 		void SetDisplayModes(std::function<FDisplayModes()> InModes) { DisplayModes = std::move(InModes); }
@@ -57,6 +59,7 @@ namespace Weltall
 		std::function<void(const FPlayerSettings&)> SettingsKept;
 		std::function<void(const FPlayerSettings&)> SettingsFollowed;
 		IMenuKeys* Keys = nullptr;
+		IMenuAssets* Assets = nullptr;
 		std::function<FDisplayModes()> DisplayModes;
 		std::function<void()> Quit;
 	};

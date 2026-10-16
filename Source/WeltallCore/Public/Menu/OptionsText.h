@@ -37,6 +37,7 @@ namespace Weltall::OptionsText
 		inline constexpr std::string_view Controls = "Controls";
 		inline constexpr std::string_view Saves = "Saves";
 		inline constexpr std::string_view Import = "Import";
+		inline constexpr std::string_view Assets = "Assets";
 	}
 
 	namespace Display
@@ -76,6 +77,20 @@ namespace Weltall::OptionsText
 		inline constexpr FRow Output{"Sound mode", {"Wide-Stereo spreads the", "sound wider. Mono plays the", "same sound on both sides."}};
 		inline constexpr std::array<std::string_view, 3> OutputValues{"Stereo", "Wide-Stereo", "Mono"};
 		inline constexpr FRow InBackground{"Background audio", {"Keeps the sound playing", "while the game's window", "isn't in focus."}};
+		inline constexpr FRow Voices{"Voices", {"Auto follows the play disc.", "USA or undub discs supply", "voices for new movies/battles."}};
+		inline constexpr std::array<std::string_view, 3> VoiceValues{"Auto", "English", "Japanese"};
+	}
+
+	namespace Assets
+	{
+		inline constexpr FRow External{"External assets", {"Loads files from Assets", "beside Games. Missing files", "come from your discs."}};
+		inline constexpr FRow Capture{"Capture textures", {"Also saves textures as drawn,", "for any the export can't", "reach. Turn off when done."}};
+		inline constexpr FRow Textures{"Export textures", {"Saves every map's and sprite's", "texture as a PNG to edit.", "Existing files are kept."}};
+		inline constexpr FRow Export{"Dump disc assets", {"Copies your discs to Assets.", "Existing files are kept.", "Keep dumps on your computer."}};
+		inline constexpr FRow Music{"Export music WAVs", {"Renders songs as editable WAV.", "This can use several GB.", "Existing files are kept."}};
+		inline constexpr FRow Cancel{"Cancel export", {"Stops after this step.", "Completed files are kept.", "Start again to resume."}};
+		inline constexpr FRow Progress{"Export status", {"Files are in Assets beside", "Games. See Docs/Modding.md", "for formats and editing."}};
+		inline constexpr std::array<std::string_view, 6> States{"Ready", "Working", "Complete", "Cancelled", "Failed", "Unavailable"};
 	}
 
 	namespace Camera
@@ -223,6 +238,7 @@ namespace Weltall::OptionsText
 		inline constexpr FRow AlwaysRun{"Always run", {"Run without holding a {}.", "Hold {} to walk.", ""}};
 		/** The help's "{}": the Confirm row's label. */
 		inline constexpr FRow WalkIntoDoors{"Walk into doors", {"Doors open as you walk into", "them. When off, press {}.", ""}};
+		inline constexpr FRow OriginalButtonIcons{"Original PSX icons", {"Keep the original PSX icons.", "Your bindings still apply.", ""}};
 		inline constexpr FRow MouseSensitivity{"Mouse sensitivity", {"How fast the mouse rotates", "the camera.", ""}};
 		inline constexpr FRow StickSensitivity{"Stick sensitivity", {"How fast the stick rotates", "the camera.", ""}};
 		/** The reset row's label, and what it says when done, for the keyboard and for a controller. */

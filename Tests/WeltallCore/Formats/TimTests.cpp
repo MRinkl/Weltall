@@ -86,3 +86,54 @@ TEST_CASE("A TIM sequence gives each TIM's CLUT then its pixels until a word tha
 	REQUIRE(Empty);
 	CHECK(Empty->empty());
 }
+
+TEST_CASE("A TIM's image is marked as a picture with its depth and its CLUT's first palette", "[Formats]")
+{
+	FByteWriter File;
+	File.U32(0x10).U32(0x08).U32(12 + 64).Rect(0, 480, 16, 2);
+	for (uint16 Color = 0; Color < 32; ++Color)
+	{
+		File.U16(Color);
+	}
+	File.U32(12 + 4).Rect(832, 256, 1, 2).U8s({0x21, 0x43, 0x65, 0x87});
+	const auto Tim = ParseTim(File.Bytes);
+	REQUIRE(Tim);
+	REQUIRE(Tim->Image.Picture);
+	CHECK(Tim->Image.Picture->Depth == 0);
+	REQUIRE(Tim->Image.Picture->Palette);
+	CHECK(Tim->Image.Picture->Palette->size() == 16);
+	CHECK(Tim->Image.Picture->Palette->back() == 15);
+	CHECK_FALSE(Tim->Clut->Picture);
+
+	FByteWriter Direct;
+	Direct.U32(0x10).U32(0x02).U32(12 + 4).Rect(448, 0, 1, 2).U16(0x5555).U16(0x1234);
+	const auto Colors = ParseTim(Direct.Bytes);
+	REQUIRE(Colors);
+	REQUIRE(Colors->Image.Picture);
+	CHECK(Colors->Image.Picture->Depth == 2);
+	CHECK_FALSE(Colors->Image.Picture->Palette);
+}
+
+TEST_CASE("TIMs are found among other bytes only where every block is exactly as long as its rectangle", "[Formats]")
+{
+	FByteWriter Bytes;
+	Bytes.U32(0x12345678).U32(0x10).U32(0x08);
+	// A TIM's identifier and flags with a CLUT block one unit short.
+	Bytes.U32(12 + 4).Rect(0, 480, 3, 1).U16(1).U16(2);
+	const std::size_t First = Bytes.Size();
+	Bytes.U32(0x10).U32(0x08).U32(12 + 4).Rect(0, 480, 2, 1).U16(0x1111).U16(0x2222);
+	Bytes.U32(12 + 4).Rect(320, 0, 2, 1).U16(0x3333).U16(0);
+	// An indexed image without a CLUT, and an image lying past VRAM, are not pictures to find.
+	Bytes.U32(0x10).U32(0x00).U32(12 + 4).Rect(320, 0, 1, 2).U16(1).U16(2);
+	Bytes.U32(0x10).U32(0x02).U32(12 + 4).Rect(1024, 0, 1, 2).U16(1).U16(2);
+	const std::size_t Second = Bytes.Size();
+	Bytes.U32(0x10).U32(0x02).U32(12 + 4).Rect(448, 0, 1, 2).U16(0x5555).U16(0x1234);
+	Bytes.U32(0x10).U32(0x02);
+	const std::vector<FTim> Found = FindTims(Bytes.Bytes);
+	REQUIRE(Found.size() == 2);
+	CHECK(Found[0].BitsPerPixel == 4);
+	CHECK(Found[0].Image.Units == std::vector<uint16>{0x3333, 0});
+	CHECK(Found[0].ByteSize == Second - First - 2 * (8 + 12 + 4));
+	CHECK(Found[1].BitsPerPixel == 16);
+	CHECK(Found[1].Image.Rect.X == 448);
+}

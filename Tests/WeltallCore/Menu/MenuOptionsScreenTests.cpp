@@ -1,6 +1,7 @@
 #include "Game/PlayerSettings.h"
 #include "Media/PsxExecutable.h"
 #include "Menu/MenuPlay.h"
+#include "Menu/MenuAssetPages.h"
 #include "Support/GameDiscs.h"
 #include "Support/PressedKeys.h"
 
@@ -26,11 +27,13 @@ namespace
 		}
 		void Keep() override { Kept.push_back(Current); }
 		FDisplayModes DisplayModes() const override { return Display; }
+		IMenuAssets* Assets() const override { return AssetExport; }
 
 		FPlayerSettings Current;
 		FDisplayModes Display;
 		int32 Changes = 0;
 		std::vector<FPlayerSettings> Kept;
+		IMenuAssets* AssetExport = nullptr;
 	};
 
 	FPadState Holding(EPadButton Button)
@@ -64,6 +67,56 @@ namespace
 			REQUIRE(Drawn(Menu.Frame({})));
 		}
 	}
+}
+
+TEST_CASE("The Assets page changes replacements and starts, refreshes and cancels an export", "[Menu][Content][Assets]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const auto Executable = ReadBootExecutable(*Disc);
+	REQUIRE(Executable);
+	class FExporter final : public IMenuAssets
+	{
+	public:
+		FMenuAssetProgress Progress() const override { return Current; }
+		bool StartExport(EAssetExportKind Kind) override
+		{
+			++Starts;
+			Started = Kind;
+			Current = {EAssetExportState::Running, Kind, 0, 100, Current.Revision + 1};
+			return true;
+		}
+		void CancelExport() override { ++Cancels; Current.State = EAssetExportState::Cancelled; ++Current.Revision; }
+		FMenuAssetProgress Current;
+		EAssetExportKind Started = EAssetExportKind::Dump;
+		int32 Starts = 0;
+		int32 Cancels = 0;
+	} Exporter;
+	FRecordedSettings Settings;
+	Settings.AssetExport = &Exporter;
+	auto Play = FMenuPlay::NewGame(Disc->Image(), *Executable, 1, {EMenuMode::LoadGame, 0, false}, nullptr, &Settings);
+	REQUIRE(Play);
+	FMenuPlay& Menu = **Play;
+	Wait(Menu, 30);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Cross, 40);
+	Press(Menu, EPadButton::L1);
+	Press(Menu, EPadButton::Right);
+	CHECK(Settings.Current.bExternalAssets);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Right);
+	CHECK(Settings.Current.bCaptureTextures);
+	Press(Menu, EPadButton::Down);
+	Press(Menu, EPadButton::Cross);
+	CHECK(Exporter.Starts == 1);
+	CHECK(Exporter.Started == EAssetExportKind::Textures);
+	Exporter.Current.Completed = 75;
+	++Exporter.Current.Revision;
+	Wait(Menu, 4);
+	Press(Menu, EPadButton::Cross);
+	CHECK(Exporter.Cancels == 1);
+	Press(Menu, EPadButton::Circle, 40);
+	REQUIRE(Settings.Kept.size() == 1);
+	CHECK(Settings.Kept.front().bExternalAssets);
 }
 
 TEST_CASE("The title's first orb opens the options screen, whose changes are made at once and kept as it closes", "[Menu][Content]")

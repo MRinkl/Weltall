@@ -4,6 +4,7 @@
 #include "Field/FieldRenderState.h"
 #include "Foundation/Types.h"
 #include "Graphics/Gte.h"
+#include "Graphics/TextureRegion.h"
 
 #include <array>
 #include <vector>
@@ -85,4 +86,11 @@ namespace Weltall
 	 * a picture of it alone). Quads keeps its capacity from call to call.
 	 */
 	WELTALLCORE_API void DrawFieldBackdrop(const FFieldBackdrop& Backdrop, int32 Left, int32 Right, std::vector<FFieldBackdropQuad>& Quads);
+
+	/**
+	 * The texture regions a panorama's strip is drawn from: one picture, its VRAM rectangle, however the pages its quads
+	 * take cut it (a quad takes the page of its first column, the strip's first row's row of pages), the part each page
+	 * holds standing for the whole.
+	 */
+	WELTALLCORE_API std::vector<FTextureRegion> PanoramaTextureRegions(const FFieldPanorama& Panorama);
 }
