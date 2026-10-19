@@ -10,9 +10,11 @@
 #include "Field/FieldRenderOptions.h"
 #include "Foundation/Types.h"
 #include "Game/BattleSpeed.h"
+#include "Game/GameBalance.h"
 #include "Game/SaveLoad.h"
 #include "Input/ControlBindings.h"
 #include "Menu/MenuOptions.h"
+#include "Mods/PerfectWorks.h"
 #include "Media/VoiceLanguage.h"
 #include "Presentation/DisplayOptions.h"
 #include "Sound/GameSoundSession.h"
@@ -51,6 +53,7 @@ namespace Weltall
 		FFieldRenderOptions Field;
 		ESoundOutput SoundOutput = ESoundOutput::Stereo;
 		EVoiceLanguage VoiceLanguage = EVoiceLanguage::Automatic;
+		EMovieSubtitles MovieSubtitles = EMovieSubtitles::Automatic;
 		/** Read replacements from the Assets folder, falling back to the discs for absent files. */
 		bool bExternalAssets = false;
 		/** Save original texture pages as PNG files when they are first drawn. */
@@ -64,6 +67,10 @@ namespace Weltall
 		EMesTextSpeed TextSpeed = EMesTextSpeed::Double;
 		/** How fast battles are fought, which L1 and R1 step during one. */
 		EBattleSpeed BattleSpeed = EBattleSpeed::Normal;
+		/** The player's changes to the game's balance: rewards and how often battles come. */
+		FGameBalance Balance;
+		/** What the game takes from Perfect Works Build where the player has it, from the game's next start. */
+		FPerfectWorksOptions PerfectWorks;
 		FControlBindings Controls = FControlBindings::Defaults();
 	};
 

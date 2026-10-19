@@ -1,6 +1,7 @@
 # Game images supplied by the player, and everything derived from them
 /Games/
 /Assets/
+/Mods/
 
 # Machine-specific configuration
 /local.env

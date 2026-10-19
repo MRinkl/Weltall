@@ -25,9 +25,9 @@ void UWeltallViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	const UGameScreenSubsystem* Screens = Game != nullptr ? Game->GetSubsystem<UGameScreenSubsystem>() : nullptr;
 	TSharedPtr<const IScreenFrame> Frame = Screens != nullptr ? Screens->CaptureFrame() : nullptr;
 	const UPlayerSettingsSubsystem* Settings = Game != nullptr ? Game->GetSubsystem<UPlayerSettingsSubsystem>() : nullptr;
-	const Weltall::EDisplayAspect Aspect = Settings != nullptr ? Settings->Settings().Display.Aspect : Weltall::EDisplayAspect::Window;
+	const Weltall::FDisplayOptions Options = Settings != nullptr ? Settings->Settings().Display : Weltall::FDisplayOptions{};
 	const FIntPoint Size = InViewport->GetSizeXY();
-	ENQUEUE_RENDER_COMMAND(DrawGameScreen)([InViewport, Frame = MoveTemp(Frame), Size, Aspect](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(DrawGameScreen)([InViewport, Frame = MoveTemp(Frame), Size, Options](FRHICommandListImmediate& RHICmdList)
 	{
 		FRHITexture* Target = InViewport->GetRenderTargetTexture();
 		if (Target == nullptr)
@@ -37,7 +37,7 @@ void UWeltallViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		FRDGBuilder GraphBuilder(RHICmdList);
 		FRDGTextureRef Output = RegisterExternalTexture(GraphBuilder, Target, TEXT("GameViewport"));
 		GraphBuilder.SetTextureAccessFinal(Output, ERHIAccess::RTV);
-		AddDisplayFramePasses(GraphBuilder, Output, FIntRect(FIntPoint::ZeroValue, Size.ComponentMin(Output->Desc.Extent)), Aspect, Frame.Get());
+		AddDisplayFramePasses(GraphBuilder, Output, FIntRect(FIntPoint::ZeroValue, Size.ComponentMin(Output->Desc.Extent)), Options, Frame.Get());
 		GraphBuilder.Execute();
 	});
 }
