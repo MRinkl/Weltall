@@ -33,7 +33,7 @@
  * Seconds of play pass before the frame is taken, the controller holding the buttons of the pad
  * script's steps in turn (none after its last step, or without one). -Profile=Hz plays them as a display
  * of that rate takes frames, draws each at the size given, and from -From seconds on logs what
- * the frames cost (FFrameProfile). Without
+ * the frames cost (FFrameProfile); -ProfileGpuAt=S logs the engine's breakdown by pass of the frame at that moment. Without
  * -AllowCommandletRendering a commandlet has no renderer and every frame comes out black.
  */
 UCLASS()

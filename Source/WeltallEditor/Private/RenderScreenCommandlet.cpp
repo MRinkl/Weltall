@@ -716,7 +716,7 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 			TEXT("-AA=None|MSAA|SSAA -Cull=Original|InRange -ViewZoom=Z -ViewTilt=D -ViewTurn=D] [-Story=N -Location=N -Entrance=N -Yaw=N -Scene=N -Party=a,b,c -Gears ")
 			TEXT("-Vehicle=x,y,z,h -VehicleFlags=N -Cull=Original|InRange|Extended] [-State=Full|Weak|Strong|Rising] [-Menu=Mode,Parameter -MenuAt=S] [-Battle=Formation,Kind -BattleAt=S -BattleEvery=S -Party=a,b,c -Ride=a,b,c -GearOf=c:g] [-Arena=From,Kind,Gear1,Gear2,Wins,Level -ArenaAt=S] ")
 			TEXT("[-FieldStory=N -FieldEntrance=K -FieldParty=a,b,c -FieldGears=g,h,... -FieldCards=Folder -StoryFolder=Folder -StoryMode=Original|Expanded] [-Disc=1|2 [-Undub]] [-Card=Chapter[,Subtitle] -CardAt=S] [-MenuArea=Screen|Wide] [-Icons=Set] [-Saves=Folder] [-Keys=a,b] [-MenuAssets] [-Setting=key=value;...] ")
-			TEXT("[-Pad=a,b+c,... -PadStep=S] [-Route=x,z;!x,z;... [-RouteBattles]] [-Reader=Base,PerGlyph] [-SoundOut=path.wav] [-BattleSpeed=Normal|2x|4x] [-TextSpeed=Normal|2x|4x|Instant] [-Textures=Folder] [-Mods=Folder] [-Assets=Folder] -Seconds=S [-Every=S] [-Profile=Hz] [-From=S] -Size=WxH [-Aspect=Window|16:9|4:3] [-Crt=Off|Monitor|TV|Custom] -Out=path.png"));
+			TEXT("[-Pad=a,b+c,... -PadStep=S] [-Route=x,z;!x,z;... [-RouteBattles]] [-Reader=Base,PerGlyph] [-SoundOut=path.wav] [-BattleSpeed=Normal|2x|4x] [-TextSpeed=Normal|2x|4x|Instant] [-Textures=Folder] [-Mods=Folder] [-Assets=Folder] [-Games=Folder] -Seconds=S [-Every=S] [-Profile=Hz [-ProfileGpuAt=S]] [-From=S] -Size=WxH [-Aspect=Window|16:9|4:3] [-Crt=Off|Monitor|TV|Custom] -Out=path.png"));
 		return 1;
 	}
 	const FIntPoint Size(FCString::Atoi(*WidthText), FCString::Atoi(*HeightText));
@@ -740,7 +740,10 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 		FTextureModLibrary::Configure(FPaths::ConvertRelativePathToFull(TexturesFolder), true, false);
 	}
 
-	const Weltall::FGameLibrary Library = Weltall::FGameLibrary::Scan(std::filesystem::path(*FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Games"))));
+	// -Games=Folder: the discs of another folder than the checkout's Games, as the game's -Games= takes them.
+	FString GamesFolder = FPaths::ProjectDir() / TEXT("Games");
+	FParse::Value(*Params, TEXT("Games="), GamesFolder);
+	const Weltall::FGameLibrary Library = Weltall::FGameLibrary::Scan(std::filesystem::path(*FPaths::ConvertRelativePathToFull(GamesFolder)));
 	int32 DiscNumber = 1;
 	FParse::Value(*Params, TEXT("Disc="), DiscNumber);
 	// -Undub plays the supported undub's disc in place of the USA's: its movies with its sound and subtitles.
@@ -754,10 +757,11 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 	}
 	// -Mods=Folder: the mods in a folder laid out as the game's Mods, their files given to the discs as the settings choose.
 	Weltall::FMenuMods Mods;
+	Weltall::FFoundMods Found;
 	FString ModsFolder;
 	if (FParse::Value(*Params, TEXT("Mods="), ModsFolder))
 	{
-		const Weltall::FFoundMods Found = Weltall::FindMods(std::filesystem::path(*FPaths::ConvertRelativePathToFull(ModsFolder)));
+		Found = Weltall::FindMods(std::filesystem::path(*FPaths::ConvertRelativePathToFull(ModsFolder)));
 		if (!Found.PerfectWorks)
 		{
 			UE_LOG(LogRenderScreen, Warning, TEXT("No mod is in %s"), *ModsFolder);
@@ -828,6 +832,10 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 		// The disc the game asks for is found where the player keeps the discs, as in play.
 		Game->SetDiscSought([&Library](Weltall::EDiscRelease Wanted) { return Library.Find(Wanted); });
 		Game->SetMenuMods(Mods);
+		if (Found.PerfectWorks)
+		{
+			Game->SetPerfectWorksSubtitles({Found.PerfectWorks->MovieSubtitles(1), Found.PerfectWorks->MovieSubtitles(2)}, Presentation.PerfectWorks.bEnabled);
+		}
 	}
 	if (Game.IsValid())
 	{
@@ -852,10 +860,12 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 	FParse::Value(*Params, TEXT("Profile="), ProfileRate);
 	double ProfileFrom = 0.0;
 	FParse::Value(*Params, TEXT("From="), ProfileFrom);
+	double ProfileGpuAt = -1.0;
+	FParse::Value(*Params, TEXT("ProfileGpuAt="), ProfileGpuAt);
 	TOptional<FFrameProfile> Profile;
 	if (ProfileRate > 0.0)
 	{
-		Profile.Emplace(Size, Display, ProfileFrom);
+		Profile.Emplace(Size, Display, ProfileFrom, ProfileGpuAt);
 	}
 	const double DisplaySeconds = Profile ? 1.0 / ProfileRate : TickSeconds;
 	for (double Elapsed = 0.0; Elapsed + DisplaySeconds / 2 < Seconds; Elapsed += DisplaySeconds)

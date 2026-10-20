@@ -169,6 +169,7 @@ bool AWeltallGameMode::StartGame()
 	UGameAssetsSubsystem* Assets = Game->GetSubsystem<UGameAssetsSubsystem>();
 	Screen->SetMenuAssets(Assets);
 	Screen->SetMenuMods(Mods->MenuMods());
+	Screen->SetPerfectWorksSubtitles(Mods->PerfectWorksSubtitles(), Mods->MenuMods().PerfectWorksInUse.bEnabled);
 	Screen->SetDisplayModes([Window = Game->GetSubsystem<UGameWindowSubsystem>()]() { return Window->Modes(); });
 	Screen->SetSettingsFollowed([Settings](const Weltall::FPlayerSettings& Changed) { Settings->Follow(Changed); });
 	Screen->SetSettingsKept([Settings](const Weltall::FPlayerSettings& Kept) { Settings->Change(Kept); });
