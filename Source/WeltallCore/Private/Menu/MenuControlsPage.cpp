@@ -3,6 +3,7 @@
 #include "Menu/MenuButtonIcons.h"
 #include "Menu/MenuProgram.h"
 #include "Menu/OptionsText.h"
+#include "Menu/SettingsRows.h"
 
 #include <algorithm>
 #include <optional>
@@ -21,6 +22,7 @@ namespace Weltall
 			AlwaysRun,
 			WalkIntoDoors,
 			OriginalButtonIcons,
+			ButtonLayout,
 			MouseSensitivity,
 			StickSensitivity,
 			Reset,
@@ -45,7 +47,7 @@ namespace Weltall
 			return {Kind, Words.Label, &Words};
 		}
 
-		constexpr std::array<FControlsRow, 27> PageRows{{
+		constexpr std::array<FControlsRow, 28> PageRows{{
 			{ERowKind::Device, Text::Device},
 			{ERowKind::Heading, Text::ButtonsHeading},
 			KeysOf(Text::Up, EControlAction::Up),
@@ -65,6 +67,7 @@ namespace Weltall
 			Setting(ERowKind::AlwaysRun, Text::AlwaysRun),
 			Setting(ERowKind::WalkIntoDoors, Text::WalkIntoDoors),
 			Setting(ERowKind::OriginalButtonIcons, Text::OriginalButtonIcons),
+			Setting(ERowKind::ButtonLayout, Text::ButtonLayout),
 			{ERowKind::Heading, Text::CameraHeading},
 			KeysOf(Text::Rotate, EControlAction::ViewTurn),
 			KeysOf(Text::Tilt, EControlAction::ViewTilt),
@@ -206,6 +209,9 @@ namespace Weltall
 			case ERowKind::OriginalButtonIcons:
 				Made.Value = std::string(Bindings.bOriginalButtonIcons ? OptionsText::On : OptionsText::Off);
 				break;
+			case ERowKind::ButtonLayout:
+				Made.Value = SettingsRows::ChoiceName(Bindings.ButtonLayout, Text::ButtonLayoutValues);
+				break;
 			case ERowKind::MouseSensitivity:
 			case ERowKind::StickSensitivity:
 				Made.Value = std::to_string(*SensitivityOf(Kind.Kind, Bindings));
@@ -257,6 +263,7 @@ namespace Weltall
 			Lines = OptionsText::Fill(At->Words->Help, {LabelOf(EControlAction::Cross)});
 			break;
 		case ERowKind::OriginalButtonIcons:
+		case ERowKind::ButtonLayout:
 		case ERowKind::MouseSensitivity:
 		case ERowKind::StickSensitivity:
 			Lines = OptionsText::Fill(At->Words->Help);
@@ -302,6 +309,9 @@ namespace Weltall
 			return true;
 		case ERowKind::OriginalButtonIcons:
 			Bindings.bOriginalButtonIcons = !Bindings.bOriginalButtonIcons;
+			return true;
+		case ERowKind::ButtonLayout:
+			StepLayout(Row, Direction, Bindings);
 			return true;
 		case ERowKind::MouseSensitivity:
 		case ERowKind::StickSensitivity:
@@ -363,6 +373,9 @@ namespace Weltall
 			return true;
 		case ERowKind::OriginalButtonIcons:
 			Bindings.bOriginalButtonIcons = !Bindings.bOriginalButtonIcons;
+			return true;
+		case ERowKind::ButtonLayout:
+			StepLayout(Row, 1, Bindings);
 			return true;
 		case ERowKind::Reset:
 			Bindings.ResetFamily(Shown);
@@ -471,6 +484,20 @@ namespace Weltall
 	{
 		ToldRow = Row;
 		Told = std::move(Line);
+	}
+
+	void FMenuControlsPage::StepLayout(int32 Row, int32 Direction, FControlBindings& Bindings)
+	{
+		EButtonLayout Next = Bindings.ButtonLayout;
+		SettingsRows::StepChoice(Next, Direction, static_cast<int32>(Text::ButtonLayoutValues.size()));
+		if (Bindings.ChangeButtonLayout(Next))
+		{
+			CursorMoved();
+		}
+		else
+		{
+			Tell(Row, std::string(Text::OwnButtonsKept));
+		}
 	}
 
 	void FMenuControlsPage::StopListening()

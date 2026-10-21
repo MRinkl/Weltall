@@ -353,6 +353,7 @@ namespace Weltall
 			Visitor.Flag("controls.always_run", Settings.Controls.bAlwaysRun);
 			Visitor.Flag("controls.walk_into_doors", Settings.Controls.bWalkIntoDoors);
 			Visitor.Flag("controls.original_button_icons", Settings.Controls.bOriginalButtonIcons);
+			Visitor.Choice("controls.button_layout", Settings.Controls.ButtonLayout, {"usa", "circle_confirms", "japan"});
 			Visitor.Level("controls.mouse_sensitivity", Settings.Controls.MouseSensitivity, LowestSensitivity, HighestSensitivity);
 			Visitor.Level("controls.stick_sensitivity", Settings.Controls.StickSensitivity, LowestSensitivity, HighestSensitivity);
 			constexpr std::array<std::string_view, ControlActionCount> ActionKeys{"controls.up", "controls.down", "controls.left", "controls.right",

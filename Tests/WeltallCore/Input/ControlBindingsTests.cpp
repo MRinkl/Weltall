@@ -172,3 +172,88 @@ TEST_CASE("A binding's slots are counted within its family, and a family is put 
 	CHECK(AsDefaults(EInputFamily::KeyboardAndMouse));
 	CHECK(AsDefaults(EInputFamily::Gamepad));
 }
+
+TEST_CASE("A button layout's defaults put the face buttons where its release has them", "[Input]")
+{
+	const auto PadKey = [](const FControlBindings& Bindings, EControlAction Action) { return Bindings.FirstKey(Action, EInputFamily::Gamepad); };
+	const FControlBindings Usa = FControlBindings::Defaults();
+	CHECK(Usa.ButtonLayout == EButtonLayout::Usa);
+	CHECK(PadKey(Usa, EControlAction::Cross) == "Gamepad_FaceButton_Bottom");
+	CHECK(PadKey(Usa, EControlAction::Circle) == "Gamepad_FaceButton_Right");
+	CHECK(PadKey(Usa, EControlAction::Square) == "Gamepad_FaceButton_Left");
+	CHECK(PadKey(Usa, EControlAction::Triangle) == "Gamepad_FaceButton_Top");
+
+	const FControlBindings Circle = FControlBindings::Defaults(EButtonLayout::CircleConfirms);
+	CHECK(Circle.ButtonLayout == EButtonLayout::CircleConfirms);
+	CHECK(PadKey(Circle, EControlAction::Cross) == "Gamepad_FaceButton_Right");
+	CHECK(PadKey(Circle, EControlAction::Circle) == "Gamepad_FaceButton_Bottom");
+	CHECK(PadKey(Circle, EControlAction::Square) == "Gamepad_FaceButton_Left");
+	CHECK(PadKey(Circle, EControlAction::Triangle) == "Gamepad_FaceButton_Top");
+
+	// The Japanese kernel's own buttons: the USA's menu (its Square) on Triangle, its jump (its Triangle) on Square.
+	const FControlBindings Japan = FControlBindings::Defaults(EButtonLayout::Japan);
+	CHECK(PadKey(Japan, EControlAction::Cross) == "Gamepad_FaceButton_Right");
+	CHECK(PadKey(Japan, EControlAction::Circle) == "Gamepad_FaceButton_Bottom");
+	CHECK(PadKey(Japan, EControlAction::Square) == "Gamepad_FaceButton_Top");
+	CHECK(PadKey(Japan, EControlAction::Triangle) == "Gamepad_FaceButton_Left");
+
+	// The keyboard's keys and every other button are the same in all three.
+	for (int32 Action = 0; Action < ControlActionCount; ++Action)
+	{
+		const EControlAction Each = static_cast<EControlAction>(Action);
+		INFO(Action);
+		for (const FControlBindings* Other : {&Circle, &Japan})
+		{
+			CHECK(Other->Count(Each, EInputFamily::KeyboardAndMouse) == Usa.Count(Each, EInputFamily::KeyboardAndMouse));
+			CHECK(Other->Count(Each, EInputFamily::Gamepad) == Usa.Count(Each, EInputFamily::Gamepad));
+			for (int32 Slot = 0; Slot < Usa.Count(Each, EInputFamily::KeyboardAndMouse); ++Slot)
+			{
+				CHECK(Other->KeyAt(Each, EInputFamily::KeyboardAndMouse, Slot) == Usa.KeyAt(Each, EInputFamily::KeyboardAndMouse, Slot));
+			}
+			if (Each != EControlAction::Cross && Each != EControlAction::Circle && Each != EControlAction::Square && Each != EControlAction::Triangle)
+			{
+				CHECK(Other->Keys(Each) == Usa.Keys(Each));
+			}
+		}
+	}
+}
+
+TEST_CASE("Another layout moves the face buttons still at the old one's places and keeps the player's own", "[Input]")
+{
+	FControlBindings Bindings = FControlBindings::Defaults();
+	Bindings.Rebind(EControlAction::Cross, 0, "K");
+	CHECK(Bindings.ChangeButtonLayout(EButtonLayout::Japan));
+	CHECK(Bindings.ButtonLayout == EButtonLayout::Japan);
+	FControlBindings Expected = FControlBindings::Defaults(EButtonLayout::Japan);
+	Expected.Rebind(EControlAction::Cross, 0, "K");
+	CHECK(Bindings == Expected);
+	// Japan to Circle confirms changes only menu and jump back.
+	CHECK(Bindings.ChangeButtonLayout(EButtonLayout::CircleConfirms));
+	CHECK(Bindings.FirstKey(EControlAction::Cross, EInputFamily::Gamepad) == "Gamepad_FaceButton_Right");
+	CHECK(Bindings.FirstKey(EControlAction::Square, EInputFamily::Gamepad) == "Gamepad_FaceButton_Left");
+	CHECK(Bindings.FirstKey(EControlAction::Triangle, EInputFamily::Gamepad) == "Gamepad_FaceButton_Top");
+	CHECK(Bindings.ChangeButtonLayout(EButtonLayout::Usa));
+	Expected = FControlBindings::Defaults();
+	Expected.Rebind(EControlAction::Cross, 0, "K");
+	CHECK(Bindings == Expected);
+
+	// A player who put confirm on Circle themselves keeps it; menu and jump, still at their places, move.
+	Bindings = FControlBindings::Defaults();
+	Bindings.Rebind(EControlAction::Cross, 0, "Gamepad_FaceButton_Right");
+	const FControlBindings Own = Bindings;
+	CHECK_FALSE(Bindings.ChangeButtonLayout(EButtonLayout::Japan));
+	CHECK(Bindings.ButtonLayout == EButtonLayout::Japan);
+	CHECK(Bindings.Keys(EControlAction::Cross) == Own.Keys(EControlAction::Cross));
+	CHECK(Bindings.Keys(EControlAction::Circle) == Own.Keys(EControlAction::Circle));
+	CHECK(Bindings.FirstKey(EControlAction::Square, EInputFamily::Gamepad) == "Gamepad_FaceButton_Top");
+	CHECK(Bindings.FirstKey(EControlAction::Triangle, EInputFamily::Gamepad) == "Gamepad_FaceButton_Left");
+	// A second key on one of a pair keeps the pair too.
+	Bindings = FControlBindings::Defaults();
+	Bindings.Rebind(EControlAction::Circle, 1, "Gamepad_LeftThumbstick");
+	CHECK_FALSE(Bindings.ChangeButtonLayout(EButtonLayout::CircleConfirms));
+	CHECK(Bindings.FirstKey(EControlAction::Cross, EInputFamily::Gamepad) == "Gamepad_FaceButton_Bottom");
+
+	// The reset puts back the layout's own.
+	Bindings.ResetFamily(EInputFamily::Gamepad);
+	CHECK(Bindings == FControlBindings::Defaults(EButtonLayout::CircleConfirms));
+}

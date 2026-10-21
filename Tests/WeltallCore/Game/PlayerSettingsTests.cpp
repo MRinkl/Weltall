@@ -54,6 +54,7 @@ namespace
 		Settings.Controls.MouseSensitivity = 8;
 		Settings.Controls.StickSensitivity = 2;
 		Settings.Controls.bOriginalButtonIcons = true;
+		Settings.Controls.ChangeButtonLayout(EButtonLayout::Japan);
 		Settings.TextSpeed = EMesTextSpeed::Quadruple;
 		Settings.BattleSpeed = EBattleSpeed::Quadruple;
 		Settings.Balance = {ERewardRate::OneAndAHalf, ERewardRate::Quadruple, EEncounterRate::Quarter};
@@ -191,6 +192,9 @@ TEST_CASE("The settings' text lists every setting and reads back the same", "[Se
 	CHECK(ValueOf(Defaults, "controls.original_button_icons") == "false");
 	CHECK(ReadPlayerSettings("controls.original_button_icons = true\n").Controls.bOriginalButtonIcons);
 	CHECK_FALSE(ReadPlayerSettings("controls.original_button_icons = invalid\n").Controls.bOriginalButtonIcons);
+	CHECK(ValueOf(Defaults, "controls.button_layout") == "usa");
+	CHECK(ReadPlayerSettings("controls.button_layout = circle_confirms\n").Controls.ButtonLayout == EButtonLayout::CircleConfirms);
+	CHECK(ReadPlayerSettings("controls.button_layout = invalid\n").Controls.ButtonLayout == EButtonLayout::Usa);
 	CHECK_FALSE(ReadPlayerSettings("camera.steady_follow = false\n").Camera.bSteadyFollow);
 	CHECK(ValueOf(Defaults, "game.text_speed") == "double");
 	CHECK(ReadPlayerSettings("game.text_speed = original\n").TextSpeed == EMesTextSpeed::Original);
@@ -244,7 +248,9 @@ TEST_CASE("The settings' text lists every setting and reads back the same", "[Se
 	CHECK(ValueOf(Text, "crt.mask_size") == "medium");
 	CHECK(ValueOf(Text, "crt.glow") == "10");
 	CHECK(ValueOf(Text, "camera.tilt") == "-7.25");
-	CHECK(ValueOf(Text, "controls.cross") == "SpaceBar Enter Gamepad_FaceButton_Bottom");
+	CHECK(ValueOf(Text, "controls.cross") == "SpaceBar Enter Gamepad_FaceButton_Right");
+	CHECK(ValueOf(Text, "controls.square") == "F Gamepad_FaceButton_Top");
+	CHECK(ValueOf(Text, "controls.button_layout") == "japan");
 	CHECK(ValueOf(Text, "controls.view_reset") == "Gamepad_RightThumbstick");
 	CHECK(ValueOf(Text, "game.battle_speed") == "4x");
 	CHECK(ValueOf(Text, "balance.experience") == "1.5x");

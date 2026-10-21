@@ -38,6 +38,18 @@ namespace Weltall
 
 	inline constexpr int32 ControlActionCount = 18;
 
+	/**
+	 * Where a controller's face buttons put the USA release's buttons: as the USA release has them; with confirm and cancel
+	 * changed over (Circle confirms and is the fierce attack, Cross cancels); or as the Japanese release has them, whose
+	 * kernel leaves the face buttons unswapped (also Square jumps and is the weak attack, Triangle opens the menu).
+	 */
+	enum class EButtonLayout : uint8
+	{
+		Usa,
+		CircleConfirms,
+		Japan,
+	};
+
 	/** The devices a key belongs to, which draw its glyph from their own icons. */
 	enum class EInputFamily : uint8
 	{
@@ -98,9 +110,10 @@ namespace Weltall
 		 * (the face buttons by position, the shoulders and triggers, the menu buttons for Start and
 		 * Select, the D-pad and the left stick for the directions) and the right stick for the view; on
 		 * the keyboard W A S D and the arrows, E and Enter to confirm, Q and Escape to cancel, F for the
-		 * menu, Space to jump, Tab and R, 1 and 4, P and Backspace, with the mouse for the view.
+		 * menu, Space to jump, Tab and R, 1 and 4, P and Backspace, with the mouse for the view. A layout
+		 * other than the USA's moves the face buttons as it says; the keyboard's keys are the same in all.
 		 */
-		WELTALLCORE_API static FControlBindings Defaults();
+		WELTALLCORE_API static FControlBindings Defaults(EButtonLayout Layout = EButtonLayout::Usa);
 
 		const std::vector<std::string>& Keys(EControlAction Action) const { return Bound[static_cast<std::size_t>(Action)]; }
 
@@ -129,8 +142,15 @@ namespace Weltall
 		/** Action's first two keys of a family change places (the first is the one its glyph shows); false when it has fewer than two. */
 		WELTALLCORE_API bool SwapFirstTwo(EControlAction Action, EInputFamily Family);
 
-		/** A family's keys put back as the defaults have them, the other family's kept. */
+		/** A family's keys put back as the layout's defaults have them, the other family's kept. */
 		WELTALLCORE_API void ResetFamily(EInputFamily Family);
+
+		/**
+		 * Takes another layout: each pair of face buttons it changes over (confirm and cancel; menu and jump) moves to its
+		 * places where both still have the old layout's gamepad keys and no others. Returns false when a pair the player
+		 * bound otherwise kept its keys.
+		 */
+		WELTALLCORE_API bool ChangeButtonLayout(EButtonLayout Layout);
 
 		/** The first key of a family bound to Action (the one its glyph shows), empty when there is none. */
 		WELTALLCORE_API std::string_view FirstKey(EControlAction Action, EInputFamily Family) const;
@@ -150,6 +170,8 @@ namespace Weltall
 		bool bWalkIntoDoors = true;
 		/** Keep the original PlayStation button pictures instead of showing the bound keys or controller buttons. */
 		bool bOriginalButtonIcons = false;
+		/** The face buttons' layout, whose places the original pictures show (ChangeButtonLayout moves the keys). */
+		EButtonLayout ButtonLayout = EButtonLayout::Usa;
 		/** How fast the mouse and a stick move the view: levels from LowestSensitivity to HighestSensitivity. */
 		int32 MouseSensitivity = DefaultSensitivity;
 		int32 StickSensitivity = DefaultSensitivity;

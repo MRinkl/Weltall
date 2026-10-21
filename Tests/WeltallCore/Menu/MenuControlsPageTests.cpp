@@ -61,7 +61,7 @@ TEST_CASE("The Controls page shows two keys of each button and camera action, of
 	FMenuControlsPage Page(Keys);
 	FControlBindings Bindings = FControlBindings::Defaults();
 	const std::vector<FSettingsRow> Rows = Page.Rows(Bindings);
-	REQUIRE(Rows.size() == 27);
+	REQUIRE(Rows.size() == 28);
 	CHECK(Rows[0].Label == Text::Device);
 	CHECK(Rows[0].Value == Text::Keyboard);
 	CHECK(Rows[0].bReadOnly);
@@ -69,9 +69,10 @@ TEST_CASE("The Controls page shows two keys of each button and camera action, of
 	CHECK(Rows[16].Label == Text::AlwaysRun.Label);
 	CHECK(Rows[17].Label == Text::WalkIntoDoors.Label);
 	CHECK(Rows[18].Label == Text::OriginalButtonIcons.Label);
-	CHECK(Rows[19].Label == Text::CameraHeading);
-	CHECK(Rows[24].Label == Text::MouseSensitivity.Label);
-	CHECK(Rows[25].Label == Text::StickSensitivity.Label);
+	CHECK(Rows[19].Label == Text::ButtonLayout.Label);
+	CHECK(Rows[20].Label == Text::CameraHeading);
+	CHECK(Rows[25].Label == Text::MouseSensitivity.Label);
+	CHECK(Rows[26].Label == Text::StickSensitivity.Label);
 	CHECK(Rows.back().Label == Text::ResetKeys);
 	for (const std::string_view Label : ActionLabels)
 	{
@@ -352,6 +353,14 @@ TEST_CASE("Every Controls row's words are in the game's font and fit beside its 
 			}
 			REQUIRE(Page.Activate(static_cast<int32>(Page.Rows(Bindings).size()) - 1, Bindings));
 			Fits(Page.Rows(Bindings));
+			// Each layout, and what the row tells when the player's own buttons stay.
+			FControlBindings Own = FControlBindings::Defaults();
+			Own.Rebind(EControlAction::Cross, 0, "Gamepad_FaceButton_Right");
+			for (std::size_t Layout = 0; Layout < Text::ButtonLayoutValues.size(); ++Layout)
+			{
+				REQUIRE(Page.Step(RowOf(Page, Text::ButtonLayout.Label), 1, Own));
+				Fits(Page.Rows(Own));
+			}
 		}
 	}
 }
@@ -464,6 +473,49 @@ TEST_CASE("Original PSX icons can be selected without changing the Controls page
 	REQUIRE(Page.Activate(Row, Bindings));
 	CHECK(Bindings == Before);
 	CHECK_FALSE(Page.Listening());
+}
+
+TEST_CASE("The Button layout row moves the controller's face buttons and tells when the player's own stay", "[Menu][Input]")
+{
+	FPressedKeys Keys;
+	Keys.Family = EInputFamily::Gamepad;
+	Keys.Icons = EButtonIconSet::PlayStation;
+	FMenuControlsPage Page(Keys);
+	FControlBindings Bindings = FControlBindings::Defaults();
+	const int32 Row = RowOf(Page, Text::ButtonLayout.Label);
+	const auto Shown = [&] { return RowNamed(Page, Bindings, Text::ButtonLayout.Label); };
+	CHECK(Shown().Value == Text::ButtonLayoutValues[0]);
+	CHECK(Shown().Help == OptionsText::Fill(Text::ButtonLayout.Help));
+
+	// Confirm steps forward; Left and Right step either way, round the three.
+	REQUIRE(Page.Activate(Row, Bindings));
+	CHECK(Bindings.ButtonLayout == EButtonLayout::CircleConfirms);
+	CHECK(Shown().Value == Text::ButtonLayoutValues[1]);
+	CHECK(RowNamed(Page, Bindings, Text::Confirm.Label).Cells[0] == FButtonGlyph{EButtonIconSet::PlayStation, "Gamepad_FaceButton_Right", "Circle"});
+	CHECK(RowNamed(Page, Bindings, Text::Cancel.Label).Cells[0].Icon == "Cross");
+	REQUIRE(Page.Step(Row, 1, Bindings));
+	CHECK(Shown().Value == Text::ButtonLayoutValues[2]);
+	CHECK(RowNamed(Page, Bindings, Text::Menu.Label).Cells[0].Icon == "Triangle");
+	CHECK(RowNamed(Page, Bindings, Text::Jump.Label).Cells[0].Icon == "Square");
+	CHECK(Shown().Help[2].empty());
+	REQUIRE(Page.Step(Row, 1, Bindings));
+	CHECK(Bindings == FControlBindings::Defaults());
+	REQUIRE(Page.Step(Row, -1, Bindings));
+	CHECK(Bindings == FControlBindings::Defaults(EButtonLayout::Japan));
+
+	// The player's own confirm and cancel stay, and the row says so until the cursor leaves it.
+	REQUIRE(Page.Step(Row, 1, Bindings));
+	Bindings.Rebind(EControlAction::Cross, 0, "Gamepad_FaceButton_Top");
+	REQUIRE(Page.Step(Row, 1, Bindings));
+	CHECK(Bindings.ButtonLayout == EButtonLayout::CircleConfirms);
+	CHECK(Bindings.FirstKey(EControlAction::Cross, EInputFamily::Gamepad) == "Gamepad_FaceButton_Top");
+	CHECK(Shown().Help[2] == Text::OwnButtonsKept);
+	Page.CursorMoved();
+	CHECK(Shown().Help[2].empty());
+
+	// The reset gives the layout's own buttons.
+	REQUIRE(Page.Activate(static_cast<int32>(Page.Rows(Bindings).size()) - 1, Bindings));
+	CHECK(Bindings == FControlBindings::Defaults(EButtonLayout::CircleConfirms));
 }
 
 TEST_CASE("The Controls page's sensitivity rows step the mouse's and the stick's levels", "[Menu]")

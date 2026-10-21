@@ -84,6 +84,8 @@ namespace Weltall
 		std::string_view KeyNoun() const;
 		std::array<std::string, 3> Help(int32 Row) const;
 		void Tell(int32 Row, std::string Line);
+		/** The layout's row stepped: the bindings take the next layout, and the row tells when the player's own buttons stay. */
+		void StepLayout(int32 Row, int32 Direction, FControlBindings& Bindings);
 		void StopListening();
 
 		IMenuKeys& Keys;

@@ -27,6 +27,26 @@ namespace Weltall
 			{EControlAction::Start, EPadButton::Start},
 			{EControlAction::Select, EPadButton::Select},
 		}};
+
+		/** The pairs of face buttons a layout changes over: confirm and cancel, then menu and jump. */
+		constexpr std::array<std::pair<EControlAction, EControlAction>, 2> FacePairs{{
+			{EControlAction::Cross, EControlAction::Circle},
+			{EControlAction::Square, EControlAction::Triangle},
+		}};
+
+		/** An action's keys of one family, in their order. */
+		std::vector<std::string> FamilyKeys(const FControlBindings& Bindings, EControlAction Action, EInputFamily Family)
+		{
+			std::vector<std::string> Keys;
+			for (const std::string& Key : Bindings.Keys(Action))
+			{
+				if (FamilyOfKey(Key) == Family)
+				{
+					Keys.push_back(Key);
+				}
+			}
+			return Keys;
+		}
 	}
 
 	float MouseDegreesPerCount(int32 Level)
@@ -89,22 +109,27 @@ namespace Weltall
 		return BoundKeyName(Binding).starts_with(GamepadPrefix) ? EInputFamily::Gamepad : EInputFamily::KeyboardAndMouse;
 	}
 
-	FControlBindings FControlBindings::Defaults()
+	FControlBindings FControlBindings::Defaults(EButtonLayout Layout)
 	{
 		FControlBindings Bindings;
+		Bindings.ButtonLayout = Layout;
 		const auto Set = [&Bindings](EControlAction Action, std::initializer_list<const char*> Keys)
 		{
 			Bindings.Bound[static_cast<std::size_t>(Action)].assign(Keys.begin(), Keys.end());
 		};
+		// The Japanese kernel reads each face button as itself, where the USA's swaps them: the USA's Cross (confirm) is
+		// Circle there and its Square (the menu) Triangle.
+		const bool bCircleConfirms = Layout != EButtonLayout::Usa;
+		const bool bJapan = Layout == EButtonLayout::Japan;
 		Set(EControlAction::Up, {"W", "Up", "Gamepad_DPad_Up", "Gamepad_LeftStick_Up"});
 		Set(EControlAction::Down, {"S", "Down", "Gamepad_DPad_Down", "Gamepad_LeftStick_Down"});
 		Set(EControlAction::Left, {"A", "Left", "Gamepad_DPad_Left", "Gamepad_LeftStick_Left"});
 		Set(EControlAction::Right, {"D", "Right", "Gamepad_DPad_Right", "Gamepad_LeftStick_Right"});
 		// Enter confirms and Escape cancels as on any computer; the menus need only these and the arrows.
-		Set(EControlAction::Cross, {"E", "Enter", "Gamepad_FaceButton_Bottom"});
-		Set(EControlAction::Circle, {"Q", "Escape", "Gamepad_FaceButton_Right"});
-		Set(EControlAction::Square, {"F", "Gamepad_FaceButton_Left"});
-		Set(EControlAction::Triangle, {"SpaceBar", "Gamepad_FaceButton_Top"});
+		Set(EControlAction::Cross, {"E", "Enter", bCircleConfirms ? "Gamepad_FaceButton_Right" : "Gamepad_FaceButton_Bottom"});
+		Set(EControlAction::Circle, {"Q", "Escape", bCircleConfirms ? "Gamepad_FaceButton_Bottom" : "Gamepad_FaceButton_Right"});
+		Set(EControlAction::Square, {"F", bJapan ? "Gamepad_FaceButton_Top" : "Gamepad_FaceButton_Left"});
+		Set(EControlAction::Triangle, {"SpaceBar", bJapan ? "Gamepad_FaceButton_Left" : "Gamepad_FaceButton_Top"});
 		Set(EControlAction::L1, {"Tab", "Gamepad_LeftShoulder"});
 		Set(EControlAction::R1, {"R", "Gamepad_RightShoulder"});
 		Set(EControlAction::L2, {"One", "Gamepad_LeftTrigger"});
@@ -210,7 +235,7 @@ namespace Weltall
 
 	void FControlBindings::ResetFamily(EInputFamily Family)
 	{
-		const FControlBindings Defaults = FControlBindings::Defaults();
+		const FControlBindings Defaults = FControlBindings::Defaults(ButtonLayout);
 		for (std::size_t Action = 0; Action < Bound.size(); ++Action)
 		{
 			std::erase_if(Bound[Action], [Family](const std::string& Key) { return FamilyOfKey(Key) == Family; });
@@ -222,6 +247,37 @@ namespace Weltall
 				}
 			}
 		}
+	}
+
+	bool FControlBindings::ChangeButtonLayout(EButtonLayout Layout)
+	{
+		const FControlBindings From = Defaults(ButtonLayout);
+		const FControlBindings To = Defaults(Layout);
+		bool bMoved = true;
+		for (const auto& [First, Second] : FacePairs)
+		{
+			if (FamilyKeys(From, First, EInputFamily::Gamepad) == FamilyKeys(To, First, EInputFamily::Gamepad))
+			{
+				continue;
+			}
+			if (FamilyKeys(*this, First, EInputFamily::Gamepad) != FamilyKeys(From, First, EInputFamily::Gamepad)
+				|| FamilyKeys(*this, Second, EInputFamily::Gamepad) != FamilyKeys(From, Second, EInputFamily::Gamepad))
+			{
+				bMoved = false;
+				continue;
+			}
+			// The pair's keys change places between its two actions, so each key stays on one action.
+			for (const EControlAction Action : {First, Second})
+			{
+				const std::vector<std::string> Moved = FamilyKeys(To, Action, EInputFamily::Gamepad);
+				for (int32 Slot = 0; Slot < static_cast<int32>(Moved.size()); ++Slot)
+				{
+					*KeyIn(Action, EInputFamily::Gamepad, Slot) = Moved[static_cast<std::size_t>(Slot)];
+				}
+			}
+		}
+		ButtonLayout = Layout;
+		return bMoved;
 	}
 
 	std::string_view FControlBindings::KeyAt(EControlAction Action, EInputFamily Family, int32 Slot) const

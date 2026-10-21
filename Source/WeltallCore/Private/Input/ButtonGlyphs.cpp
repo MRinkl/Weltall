@@ -144,8 +144,10 @@ namespace Weltall
 		const FControlBindings* Shown = &Bindings;
 		if (Bindings.bOriginalButtonIcons)
 		{
-			static const FControlBindings Original = FControlBindings::Defaults();
-			Shown = &Original;
+			// The PlayStation's symbols at the places the layout gives each button.
+			static const std::array<FControlBindings, 3> Originals{FControlBindings::Defaults(EButtonLayout::Usa),
+				FControlBindings::Defaults(EButtonLayout::CircleConfirms), FControlBindings::Defaults(EButtonLayout::Japan)};
+			Shown = &Originals[static_cast<std::size_t>(Bindings.ButtonLayout)];
 			Set = EButtonIconSet::PlayStation;
 		}
 		FButtonGlyph Glyph;

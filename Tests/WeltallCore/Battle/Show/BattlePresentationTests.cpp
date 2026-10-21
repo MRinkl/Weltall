@@ -6,6 +6,7 @@
 #include "Game/GameStateNames.h"
 #include "Game/KernelState.h"
 #include "Game/PsxRandom.h"
+#include "Input/ButtonGlyphs.h"
 #include "Input/KernelPad.h"
 #include "Menu/MenuButtonIcons.h"
 #include "Menu/MenuDrawing.h"
@@ -523,6 +524,29 @@ TEST_CASE("The battle HUD's button pictures are shown as the player's controller
 		CHECK(Drawn.Blend == Before.Blend);
 		CHECK(Drawn.Corners[1].X - Drawn.Corners[0].X == Catch::Approx(Before.Corners[1].X - Before.Corners[0].X));
 	}
+
+	// The original icons in the Japanese layout, as the player's glyphs give them on any pad: the ring's cross and circle
+	// change places, and so do its square and triangle (the weak attack on the square, the strong on the triangle).
+	struct FLayoutGlyphs final : IButtonGlyphs
+	{
+		FControlBindings Bindings = FControlBindings::Defaults();
+		FButtonGlyph Glyph(EPadButton Button) const override { return ButtonGlyph(Button, Bindings, EButtonIconSet::Xbox); }
+		uint32 Revision() const override { return 1; }
+	} Japan;
+	Japan.Bindings.bOriginalButtonIcons = true;
+	Japan.Bindings.ChangeButtonLayout(EButtonLayout::Japan);
+	const uint32 RingSquare = IconOf(0x10, EMenuIconSlot::FaceButton);
+	const uint32 RingTriangle = IconOf(0x80, EMenuIconSlot::FaceButton);
+	List = Original;
+	Pictures.Apply(List, Icons, Japan, Sheet, BattleHudButtonPictures);
+	for (const auto& [Cell, Shown] : {std::pair{RingCross, RingCircle}, std::pair{RingCircle, RingCross}, std::pair{RingSquare, RingTriangle},
+		std::pair{RingTriangle, RingSquare}})
+	{
+		CHECK(List.Primitives[Cell].Texture->Vram == 0);
+		CHECK(List.Primitives[Cell].Corners[0].U == Original.Primitives[Shown].Corners[0].U);
+		CHECK(List.Primitives[Cell].Corners[0].V == Original.Primitives[Shown].Corners[0].V);
+	}
+	CHECK(List.Primitives[Pressed].Texture->Vram == FMenuButtonIcons::PicturesVram);
 }
 
 TEST_CASE("A scripted battle's message is typed in its window by the game's HUD and goes on at the player's button", "[Battle][Content]")

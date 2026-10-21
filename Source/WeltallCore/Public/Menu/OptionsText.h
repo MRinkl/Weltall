@@ -335,6 +335,11 @@ namespace Weltall::OptionsText
 		/** The help's "{}": the Confirm row's label. */
 		inline constexpr FRow WalkIntoDoors{"Walk into doors", {"Doors open as you walk into", "them. When off, press {}.", ""}};
 		inline constexpr FRow OriginalButtonIcons{"Original PSX icons", {"Keep the original PSX icons.", "Your bindings still apply.", ""}};
+		inline constexpr FRow ButtonLayout{"Button layout", {"Swaps confirm and cancel.", "Japan swaps jump and menu too.", ""}};
+		/** In EButtonLayout's order. */
+		inline constexpr std::array<std::string_view, 3> ButtonLayoutValues{"USA", "Circle confirms", "Japan"};
+		/** What the layout's row tells when a pair the player bound keeps its buttons. */
+		inline constexpr std::string_view OwnButtonsKept = "Your own buttons are kept.";
 		inline constexpr FRow MouseSensitivity{"Mouse sensitivity", {"How fast the mouse rotates", "the camera.", ""}};
 		inline constexpr FRow StickSensitivity{"Stick sensitivity", {"How fast the stick rotates", "the camera.", ""}};
 		/** The reset row's label, and what it says when done, for the keyboard and for a controller. */

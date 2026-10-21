@@ -82,6 +82,10 @@ L1 decreases it.
 
 To keep the original PlayStation button symbols in prompts and menus, turn on **Original PSX icons**
 under **Options → Controls**. Your bindings still apply, and the rebinding rows show your actual keys.
+**Button layout**, just below it, moves the controller's buttons. With **Circle confirms**, ○ confirms and is the
+3-point attack, and × cancels. **Japan** also swaps □ and △ as the Japanese release does: □ jumps and △ opens the
+menu. Buttons you rebound yourself stay where you put them, and with Original PSX icons on, prompts show the
+layout's symbols.
 
 To rearrange the party, open the menu and press Right from the command list. Select a character with
 ×, then select another to swap them. Press △ to restore the story's order. The first character leads

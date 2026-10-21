@@ -82,3 +82,34 @@ TEST_CASE("Original button icons keep the PlayStation symbols independently of d
 	CHECK(ButtonGlyph(EPadButton::Cross, Bindings, EButtonIconSet::Nintendo).Icon == "A");
 	CHECK(ButtonGlyph(EPadButton::Triangle, Bindings, EButtonIconSet::Xbox).Icon.empty());
 }
+
+TEST_CASE("Original button icons show each button at the place its layout gives it", "[Input]")
+{
+	FControlBindings Bindings = FControlBindings::Defaults();
+	Bindings.bOriginalButtonIcons = true;
+	const auto Icon = [&Bindings](EPadButton Button) { return ButtonGlyph(Button, Bindings, EButtonIconSet::Xbox).Icon; };
+	// The game's buttons by the USA's names: Cross confirms, Circle cancels, Square opens the menu, Triangle jumps.
+	Bindings.ChangeButtonLayout(EButtonLayout::CircleConfirms);
+	CHECK(Icon(EPadButton::Cross) == "Circle");
+	CHECK(Icon(EPadButton::Circle) == "Cross");
+	CHECK(Icon(EPadButton::Square) == "Square");
+	CHECK(Icon(EPadButton::Triangle) == "Triangle");
+	Bindings.ChangeButtonLayout(EButtonLayout::Japan);
+	CHECK(Icon(EPadButton::Cross) == "Circle");
+	CHECK(Icon(EPadButton::Circle) == "Cross");
+	CHECK(Icon(EPadButton::Square) == "Triangle");
+	CHECK(Icon(EPadButton::Triangle) == "Square");
+	CHECK(Icon(EPadButton::L1) == "L1");
+	CHECK(Icon(EPadButton::Start) == "Start");
+	// Even when the player put confirm elsewhere: the layout's place, as the original icons are.
+	Bindings.Rebind(EControlAction::Cross, 0, "Gamepad_LeftShoulder");
+	CHECK(Icon(EPadButton::Cross) == "Circle");
+
+	// Without them each button shows its binding, which the layout moved.
+	FControlBindings Bound = FControlBindings::Defaults();
+	Bound.ChangeButtonLayout(EButtonLayout::Japan);
+	CHECK(ButtonGlyph(EPadButton::Cross, Bound, EButtonIconSet::PlayStation).Icon == "Circle");
+	CHECK(ButtonGlyph(EPadButton::Cross, Bound, EButtonIconSet::Xbox).Icon == "B");
+	CHECK(ButtonGlyph(EPadButton::Triangle, Bound, EButtonIconSet::PlayStation).Icon == "Square");
+	CHECK(ButtonGlyph(EPadButton::Cross, Bound, EButtonIconSet::Keyboard).Icon == "E");
+}
