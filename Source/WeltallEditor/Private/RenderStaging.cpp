@@ -233,8 +233,9 @@ bool FRenderStaging::Parse(const FString& Params, FRenderStaging& Staging)
 		}
 		Staging.bWideMenuArea = Area == TEXT("Wide");
 	}
+	// With its dash: the setting controls.original_button_icons would match the bare name.
 	FString Icons;
-	if (FParse::Value(*Params, TEXT("Icons="), Icons))
+	if (FParse::Value(*Params, TEXT("-Icons="), Icons))
 	{
 		static const TCHAR* const Sets[] = {TEXT("Keyboard"), TEXT("Xbox"), TEXT("PlayStation"), TEXT("Nintendo"), TEXT("SteamDeck")};
 		const int32 Found = TArrayView<const TCHAR* const>(Sets).IndexOfByPredicate([&Icons](const TCHAR* Name) { return Icons == Name; });

@@ -813,6 +813,8 @@ int32 URenderScreenCommandlet::Main(const FString& Params)
 	{
 		return 1;
 	}
+	// The glyphs start from the controls the settings give (-Setting=controls.button_layout=japan among them).
+	Staging.Glyphs.Follow(Presentation.Controls);
 	double Every = 0.0;
 	FParse::Value(*Params, TEXT("Every="), Every);
 	double NextShot = Every;
