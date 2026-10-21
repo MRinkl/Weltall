@@ -161,7 +161,7 @@ namespace Weltall::OptionsText
 		inline constexpr FRow Arena{"Battling", {"Uses Perfect Works' rebalance", "of the Battling arena. Expert", "adds its tweaks for 2 players."}};
 		inline constexpr std::array<std::string_view, 3> ArenaValues{"Original", "Basic", "Expert"};
 		inline constexpr std::string_view Graphics = "Graphics";
-		inline constexpr FRow Portraits{"Portraits", {"Fixed uses Perfect Works'", "portrait fixes. Resized also", "narrows them for 4:3."}};
+		inline constexpr FRow Portraits{"Portraits", {"Fixed uses Perfect Works'", "portraits, Resized for 4:3.", "Portrait packs need Original."}};
 		inline constexpr std::array<std::string_view, 3> PortraitValues{"Original", "Fixed", "Resized"};
 		inline constexpr FRow Roni{"Roni's portrait", {"Uses Perfect Works' portrait", "of Roni.", ""}};
 		inline constexpr FRow Emeralda{"Emeralda", {"Uses Perfect Works' fix for", "Emeralda's sprites when she", "sits down at the cafe."}};

@@ -187,10 +187,14 @@ Build with `--expansion` to include the examples; those archives are marked in t
 
 ## Credits
 
-Four of Weltall's bug fixes come from the fan mod
+Four of Weltall's bug fixes follow fixes first made in the fan mod
 [Perfect Works Build](https://github.com/PWBuild-Team/Perfect_Works_Build). When you use your own copy of the mod,
 Weltall also recreates the mod's changes to the game's code: the battle dialogue windows, the rebalanced party and
-items, and the Battling arena modes. All of this is done with the Perfect Works Build team's permission.
+items, and the Battling arena modes.
+
+Weltall is not affiliated with or endorsed by the Perfect Works Build team. Like a texture pack, the mod is something
+you add from your own copy, so please report problems you have with it in Weltall on Weltall's issues page, not to
+the mod's team.
 
 ## License
 

@@ -310,8 +310,9 @@ files. You can't replace a Gear with an Unreal skeletal mesh or import glTF or F
 ## Perfect Works Build
 
 Weltall can use parts of [Perfect Works Build](https://github.com/PWBuild-Team/Perfect_Works_Build), a fan mod
-with a new translation of the script, rebalanced gameplay and fixes of its own. Weltall doesn't include any of it. To
-use it:
+with a new translation of the script, rebalanced gameplay and fixes of its own. Weltall doesn't include any of it, and
+Weltall isn't affiliated with or endorsed by the Perfect Works Build team. Please report problems you have with the
+mod in Weltall on Weltall's issues page, not to the mod's team. To use it:
 
 1. Download `Xenogears_Perfect_Works_Edition_<version>.7z` from the mod's releases page.
 2. Unpack it into a folder named `PerfectWorks` inside the `Mods` folder next to `Games`, so that
@@ -329,7 +330,8 @@ Your choices apply the next time you start the game. You can use:
 - **Battling**: the mod's rebalance of the Battling arena. Basic gives each Gear its own HP, speed and heat, with the
   mod's rules for hits, knockdowns and the computer's play. Expert adds the mod's tweaks for two players.
 - **Portraits**: Fixed uses the mod's portrait fixes, and Resized also narrows them for 4:3. **Roni's portrait** uses
-  the mod's portrait of Roni.
+  the mod's portrait of Roni. The mod's portraits are pictures of its own, so a texture pack made for the game's
+  portraits, such as the HD Portraits Project, only replaces them while these rows are on Original.
 - **Emeralda**: the mod's fix for Emeralda's sprites when she sits down at the cafe.
 - **Title screen**: the mod's title screen.
 
@@ -338,10 +340,9 @@ on turns the other off. Turn the rebalances on or off when you start a new game,
 items it was made with.
 
 In the mod, some of these parts change the game's program code: the battle dialogue's window sizes, the rebalanced
-party and items, and the arena modes. Weltall makes the same changes in its own code, with the Perfect Works Build
-team's permission. They were checked against version 0.11.4 of the mod. With a different version, the battle dialogue,
-the rebalances and the arena modes stay as in the original game, and the log says so. The other parts use the mod's
-files as they are.
+party and items, and the arena modes. Weltall makes the same changes in its own code. They were checked against
+version 0.11.4 of the mod. With a different version, the battle dialogue, the rebalances and the arena modes stay as
+in the original game, and the log says so. The other parts use the mod's files as they are.
 
 The experience, gold and encounter options, faster text, battle flashes, Japanese voices and controls are Weltall's
 own settings, so they work with or without the mod.
@@ -352,7 +353,7 @@ come from the undub's discs.
 
 The fixes the mod makes in the program code are rows of Weltall's Fixes page, on by default with or without the mod:
 Billy's ether guns, Deus's first fight, the shop pointer, EP in Member Change, names ending in s, Def UP on foot and
-the Gear shop parts. The first four come from the Perfect Works Build team's work.
+the Gear shop parts. The first four follow fixes first made in the mod.
 
 ## Sharing mods
 
