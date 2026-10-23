@@ -2,6 +2,7 @@
 #include "Support/GameDiscs.h"
 #include "Support/GameText.h"
 #include "Text/MesFont.h"
+#include "Text/MesGlyphs.h"
 
 #include <catch_amalgamated.hpp>
 
@@ -18,6 +19,31 @@ namespace
 		std::vector<uint8> Glyph(FMesFont::GlyphBytes, 0);
 		Glyph[0] = 0x80;
 		Font.insert(Font.end(), Glyph.begin(), Glyph.end());
+		const std::vector<uint8> Box(FMesFont::GlyphBytes, 0xFF);
+		auto Parsed = FMesFont::Parse(Font, Box);
+		REQUIRE(Parsed);
+		return *Parsed;
+	}
+
+	/** A font file of Source's one-byte glyphs from 10h to Last, each code's glyph Source's of Glyph(code). */
+	template <typename TGlyphOf>
+	FMesFont CopyFont(const FMesFont& Source, uint8 Last, TGlyphOf&& Glyph)
+	{
+		constexpr uint8 First = 0x10;
+		const uint16 Count = static_cast<uint16>(Last - First + 1);
+		const uint16 SecondPage = static_cast<uint16>(Count * FMesFont::GlyphBytes);
+		std::vector<uint8> Font = {0, 0, 0x0E, 0x00, 0xFE, 0x00, static_cast<uint8>(SecondPage), static_cast<uint8>(SecondPage >> 8), 0x51, 0x00, 0x00,
+			0x00, First, 0x00};
+		for (int32 Code = First; Code <= Last; ++Code)
+		{
+			const std::optional<FMesFont::FGlyphRows> Rows = Source.Rows({0, Glyph(static_cast<uint8>(Code))});
+			REQUIRE(Rows);
+			for (const uint16 Row : *Rows)
+			{
+				Font.push_back(static_cast<uint8>(Row >> 8));
+				Font.push_back(static_cast<uint8>(Row));
+			}
+		}
 		const std::vector<uint8> Box(FMesFont::GlyphBytes, 0xFF);
 		auto Parsed = FMesFont::Parse(Font, Box);
 		REQUIRE(Parsed);
@@ -112,4 +138,31 @@ TEST_CASE("The font's narrow glyphs keep within their 8 pixels: a glyph typed ov
 		}
 		CHECK(Narrow == 80);
 	}
+}
+
+TEST_CASE("The face buttons' glyphs are buttons only where the font draws their pictures at their codes", "[Text][Content]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const FMesResident Resident = Testing::LoadMesResident(*Disc);
+	const FMesFont& Usa = Resident.Font;
+	CHECK(Usa.FaceButton({0, 0x6E}) == EPadButton::Circle);
+	CHECK(Usa.FaceButton({0, 0x6F}) == EPadButton::Square);
+	CHECK(Usa.FaceButton({0, 0x70}) == EPadButton::Triangle);
+	CHECK(Usa.FaceButton({0, 0x7F}) == EPadButton::Cross);
+	CHECK_FALSE(Usa.FaceButton({0, 0x71}));
+	CHECK_FALSE(Usa.FaceButton({0xFE, 0x6E}));
+
+	// As the Spanish translation's font: a letter where the USA's Square is, the Circle's picture moved to another code.
+	const uint8 Letter = MesCodeOfCharacter('o')->Code;
+	const FMesFont Translated = CopyFont(Usa, 0x7F, [Letter](uint8 Code) { return Code == 0x6F ? Letter : Code == 0x71 ? uint8{0x6E} : Code; });
+	CHECK(Translated.FaceButton({0, 0x6E}) == EPadButton::Circle);
+	CHECK_FALSE(Translated.FaceButton({0, 0x6F}));
+	CHECK(Translated.FaceButton({0, 0x70}) == EPadButton::Triangle);
+	CHECK(Translated.FaceButton({0, 0x7F}) == EPadButton::Cross);
+	CHECK_FALSE(Translated.FaceButton({0, 0x71}));
+
+	// A font sheet drawn over the font later changes nothing: the disc's pictures decide.
+	FMesFont Sheet = CopyFont(Usa, 0x7F, [](uint8 Code) { return Code; });
+	REQUIRE(Sheet.SetRows({0, 0x6E}, *Usa.Rows({0, Letter})));
+	CHECK(Sheet.FaceButton({0, 0x6E}) == EPadButton::Circle);
 }

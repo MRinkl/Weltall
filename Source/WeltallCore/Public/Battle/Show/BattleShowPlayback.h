@@ -401,8 +401,6 @@ namespace Weltall
 		/** What the last routine done left its caller (the collapse's count). */
 		int32 Returned = 0;
 		bool bController = false;
-		/** The controller has a performer (+4h), which it has not as it is made. */
-		bool bPerformer = false;
 		FBattlePlayController Play;
 		/** The collapse's list of the knocked-out it collapses, by slot (-1 for one set aside). */
 		std::array<int32, 12> CollapseSlots{};

@@ -119,6 +119,7 @@ TEST_CASE("A message window's line tells where its button glyphs are, for the pl
 	} State;
 	FMesContext Text{&Resident.Font, &Resident.NameTables, &State, {1, 0, 3, 2, 4, 5, 6, 7}, {}};
 	FEventContext Context;
+	Context.Messages.Text.Font = &Resident.Font;
 	FFieldMessageWindow& Window = OpenWindow(Context, 0, 0);
 	Window.OpenTicks = 0;
 	Window.Text.emplace(20, 3);

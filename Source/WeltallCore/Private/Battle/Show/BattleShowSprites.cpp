@@ -825,6 +825,18 @@ namespace Weltall
 		Sprites->EndTask(*Task);
 	}
 
+	void FBattleSprites::FreeProxy(int32 Slot)
+	{
+		FSpriteTask* Task = SlotTask(Slot);
+		if (Task == nullptr)
+		{
+			return;
+		}
+		SlotTasks[static_cast<std::size_t>(Slot)] = nullptr;
+		SlotSprites[static_cast<std::size_t>(Slot)] = nullptr;
+		Sprites->RetireTask(*Task);
+	}
+
 	void FBattleSprites::Forget(const FSpriteTask& Task)
 	{
 		for (int32 Slot = 0; Slot < SlotCount; ++Slot)
@@ -838,6 +850,10 @@ namespace Weltall
 		if (Play.Actor == &Task.Sprite)
 		{
 			Play.Actor = nullptr;
+		}
+		if (Play.Performer == &Task.Sprite)
+		{
+			Play.Performer = nullptr;
 		}
 		if (Play.Caster == &Task.Sprite)
 		{

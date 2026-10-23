@@ -89,6 +89,8 @@ namespace Weltall
 	{
 		/** The sprite performing the action (in the event's variables, +3B4h), none between actions. */
 		FSprite* Actor = nullptr;
+		/** The playback controller's performer (its +4h): the performer slot's sprite as it was set, none as it is made. */
+		FSprite* Performer = nullptr;
 		/** The record played, counted from 1; branch F8 reads the one before it. */
 		int32 Record = 0;
 		/** The targets' sprites in turn, none after the last, and how many. */
@@ -242,6 +244,11 @@ namespace Weltall
 		WELTALLCORE_API FSpriteTask* SlotTask(int32 Slot) const;
 		/** Slot Slot's sprite ended with every child under it (none: nothing). */
 		WELTALLCORE_API void RemoveCombatant(int32 Slot);
+		/**
+		 * Slot Slot's proxy freed as a gear drop frees it: the slot forgets it, while the play's pointers to it (the actor,
+		 * the targets) and its children's still read it as it was (none: nothing).
+		 */
+		WELTALLCORE_API void FreeProxy(int32 Slot);
 		/**
 		 * A battle event's object: a sprite of its own data run as the combatants' sprites
 		 * are and left out of the tasks the playback counts, at Place.

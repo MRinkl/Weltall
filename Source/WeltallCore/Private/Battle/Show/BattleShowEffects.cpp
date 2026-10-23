@@ -198,13 +198,14 @@ namespace Weltall
 		switch (Routine.Resume)
 		{
 		case 0:
-			// The other party slots' proxies end at once (a combatant's sprite has a file of its own and stays).
+			// The other party slots' proxies are freed at once (a combatant's sprite has a file of its own and stays). A
+			// drop of every gear frees the actor's too, which the effect then starts on as its memory was left.
 			for (int32 Slot = 0; Slot < FBattleContext::PartySlotCount; ++Slot)
 			{
-				FSpriteTask* Task = Show.Battle.SlotTask(Slot);
+				const FSpriteTask* Task = Show.Battle.SlotTask(Slot);
 				if (Slot != Kept && Task != nullptr && Task->Sprite.PrimaryFile == nullptr)
 				{
-					Show.Sprites.EndTask(*Task);
+					Show.Battle.FreeProxy(Slot);
 				}
 			}
 			Show.Objects.StartRemovingOtherParty(Kept);

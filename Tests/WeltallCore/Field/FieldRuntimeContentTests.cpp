@@ -218,14 +218,19 @@ TEST_CASE("After a lost battle the field copies the draw buffer showing the pict
 	CHECK((Copy.Rect.X == 0x2C0 && Copy.Rect.Y == 0x100 && Copy.Rect.Width == 0x140 && Copy.Rect.Height == 0xE0));
 	CHECK((Copy.ToX == 0x200 && Copy.ToY == 0));
 	CHECK(Copy.Brightness == 0x80);
-	// The map's first tick has none.
+	CHECK(Render.bDefeatPicture);
+	// The map's first tick has none; the picture stays the defeat's until the next map.
 	Session.Frame();
 	CHECK(Render.PictureMoves.empty());
+	CHECK(Render.bDefeatPicture);
+	REQUIRE_FALSE(Runtime.EnterMap(239, Runtime.KernelState()));
+	CHECK_FALSE(Runtime.Context().Render.bDefeatPicture);
 
 	// The usual entry copies nothing.
 	FRuntimeSession Usual(*Files, Resident);
 	REQUIRE_FALSE(Usual.Runtime.EnterMap(490));
 	CHECK(Usual.Runtime.Context().Render.PictureMoves.empty());
+	CHECK_FALSE(Usual.Runtime.Context().Render.bDefeatPicture);
 }
 
 TEST_CASE("Without a controller the field waits, its sound paused, until one is back, and the wait counts no play time", "[Field][Content]")

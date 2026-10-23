@@ -247,6 +247,8 @@ namespace Weltall
 		 * made): what the frames draw. The scripts' later parameters change nothing drawn.
 		 */
 		FFieldPanorama Backdrop;
+		/** After a lost battle, until the next map: the defeat's picture is where the title's backdrop reads its own. */
+		bool bDefeatPicture = false;
 		FFieldGearLights GearLights;
 		/** FieldSceneryDrift bits. */
 		uint8 SceneryDrift = 0;

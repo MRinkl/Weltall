@@ -361,6 +361,11 @@ namespace Weltall
 		WELTALLCORE_API void DestroyTask(FSpriteTask& Task);
 		/** Takes the task out of the lists and frees it; an end role's last step. */
 		WELTALLCORE_API void RemoveTask(FSpriteTask& Task);
+		/**
+		 * Takes the task out of the lists but keeps its memory as it was, as the kernel's heap keeps a freed block until
+		 * the block is taken again: the game's pointers to the sprite still read it, unchanged. Kept until EndTasks.
+		 */
+		WELTALLCORE_API void RetireTask(FSpriteTask& Task);
 		/** Ends the tasks spawned or linked under the sprite, and its own drawing. */
 		WELTALLCORE_API void KillChildren(const FSprite& Owner);
 		/** Tells the sprite's detachable children it is gone: their parent is none. */
@@ -473,6 +478,8 @@ namespace Weltall
 		std::vector<FKernelTaskEntry> TaskList;
 		/** Ended tasks kept for the next ones, so that spawning allocates only past the most alive at once. */
 		std::vector<std::unique_ptr<FSpriteTask>> FreeTasks;
+		/** Tasks taken out of the lists whose sprites the game still reads (RetireTask). */
+		std::vector<std::unique_ptr<FSpriteTask>> RetiredTasks;
 		/** The VRAM ring's place for the next streamed child's frame: a column and one of three rows. */
 		int32 RingCursorX = 0;
 		int32 RingRow = 0;

@@ -2,6 +2,7 @@
 
 #include "Foundation/Result.h"
 #include "Foundation/Types.h"
+#include "Input/PadState.h"
 
 #include <array>
 #include <optional>
@@ -59,6 +60,13 @@ namespace Weltall
 		/** Draws Rows for Code's glyph from now on; false (changing nothing) for a code the font does not hold. */
 		WELTALLCORE_API bool SetRows(FMesCode Code, const FGlyphRows& Rows);
 
+		/**
+		 * The face button Code's glyph shows. The English text writes the four as glyphs of their own, which count only
+		 * where the font as the disc holds it draws their pictures: a translation may put letters there (the Spanish
+		 * one's ò ó ö) and its own symbols elsewhere.
+		 */
+		WELTALLCORE_API std::optional<EPadButton> FaceButton(FMesCode Code) const;
+
 	private:
 		/** Where Code's glyph is in Glyphs, or the box; none for a code the font does not hold. */
 		std::optional<std::span<const uint8>> GlyphOf(FMesCode Code) const;
@@ -70,6 +78,8 @@ namespace Weltall
 		uint32 NarrowCount = 0;
 		uint32 SecondPageNarrowCount = 0;
 		uint32 FirstCode = 0;
+		/** The face buttons whose pictures the disc's font draws at their codes, a bit each. */
+		uint8 DrawnFaceButtons = 0;
 		/** The glyphs a font sheet gives widths of their own, by their code's lead << 8 | code. */
 		std::unordered_map<uint16, int32> OwnWidths;
 	};

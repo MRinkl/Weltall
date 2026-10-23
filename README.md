@@ -24,7 +24,7 @@ supported yet.
 
 **Status:** Both discs are playable, including field exploration, character and Gear battles, the
 world map, menus, the Battling arena and movies. Gameplay behavior has been checked against the
-original game's code. My own playthrough is still in progress, with over 18 hours played without
+original game's code. My own playthrough is still in progress, with about 24 hours played without
 a hang. Automated tests have run every map and story battle, along with long stretches of the story
 from save to save. You should be able to play from start to finish, and I'm fixing reported issues as
 they come in. If something goes wrong, the game displays an error and tells you which log to include
@@ -182,7 +182,7 @@ builds share the same settings and saves in your user folders.
 `python Scripts/package.py --archive Shipping` also creates a release zip in `out/releases`, without
 disc images, and a separate debug symbols archive.
 
-`python Scripts/release.py 0.8.3` builds both Shipping packages from a pushed commit whose
+`python Scripts/release.py 0.8.4` builds both Shipping packages from a pushed commit whose
 `ProjectVersion` matches that version. It creates the archives and a GitHub draft release with the
 player downloads and release notes, using the GitHub CLI. Publish the draft from the release page.
 

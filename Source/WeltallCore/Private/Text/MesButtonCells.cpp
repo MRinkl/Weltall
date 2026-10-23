@@ -2,19 +2,10 @@
 
 #include "Text/MesFont.h"
 
-#include <array>
-
 namespace Weltall
 {
 	namespace
 	{
-		struct FGlyphButton
-		{
-			uint8 Code = 0;
-			EPadButton Button = EPadButton::Cross;
-		};
-		constexpr std::array<FGlyphButton, 4> GlyphButtons{
-			{{0x6E, EPadButton::Circle}, {0x6F, EPadButton::Square}, {0x70, EPadButton::Triangle}, {0x7F, EPadButton::Cross}}};
 		constexpr int32 ButtonGlyphPixels = 12;
 		constexpr int32 UnitPixels = 4;
 		/** How far a name is read ahead on the line being typed. */
@@ -46,30 +37,29 @@ namespace Weltall
 				Ahead.push_back({Code, Next++});
 			}
 		}
-		Find(Line.Glyphs, First, Pixels, Primitive, Out);
+		Find(Line.Glyphs, First, Pixels, Font, Primitive, Out);
 	}
 
-	void FMesButtonCells::AddTyped(std::span<const FMesPlacedGlyph> Glyphs, int32 Pixels, uint32 Primitive, std::vector<FTextButtonCell>& Out)
+	void FMesButtonCells::AddTyped(std::span<const FMesPlacedGlyph> Glyphs, int32 Pixels, const FMesFont* Font, uint32 Primitive,
+		std::vector<FTextButtonCell>& Out)
 	{
 		Ahead.assign(Glyphs.begin(), Glyphs.end());
-		Find(Glyphs, 0, Pixels, Primitive, Out);
+		Find(Glyphs, 0, Pixels, Font, Primitive, Out);
 	}
 
-	void FMesButtonCells::Find(std::span<const FMesPlacedGlyph> Glyphs, int32 First, int32 Pixels, uint32 Primitive, std::vector<FTextButtonCell>& Out)
+	void FMesButtonCells::Find(std::span<const FMesPlacedGlyph> Glyphs, int32 First, int32 Pixels, const FMesFont* Font, uint32 Primitive,
+		std::vector<FTextButtonCell>& Out)
 	{
 		for (const FMesPlacedGlyph& Glyph : Glyphs)
 		{
 			const int32 At = Glyph.XUnits * UnitPixels - First;
-			if (Glyph.Code.Lead != 0 || At < 0 || At + ButtonGlyphPixels > Pixels)
+			if (Font == nullptr || At < 0 || At + ButtonGlyphPixels > Pixels)
 			{
 				continue;
 			}
-			for (const FGlyphButton& Named : GlyphButtons)
+			if (const std::optional<EPadButton> Button = Font->FaceButton(Glyph.Code))
 			{
-				if (Glyph.Code.Code == Named.Code)
-				{
-					Out.push_back({Primitive, static_cast<int16>(At), ButtonGlyphPixels, Named.Button});
-				}
+				Out.push_back({Primitive, static_cast<int16>(At), ButtonGlyphPixels, *Button});
 			}
 		}
 		FindMesButtonWords(Ahead, Words);

@@ -65,6 +65,7 @@ namespace Weltall
 			Copy.Brightness = Render.Cover.Brightness[0];
 			Render.PictureMoves.push_back(Copy);
 			Render.WroteVram({DefeatPictureX, DefeatPictureY, Copy.Rect.Width, Copy.Rect.Height});
+			Render.bDefeatPicture = true;
 		}
 		FieldContext.Messages.bMapEntering = true;
 		if (Entry.bBattleEventFade && !Entry.bAfterDefeat)

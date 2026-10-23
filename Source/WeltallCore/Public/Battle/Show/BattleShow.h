@@ -59,7 +59,7 @@ namespace Weltall
 		Vram,
 		/** The 3D objects stopped (their Fault names what they met). */
 		Objects,
-		/** A pointer the original keeps to a task that has ended is read (the port keeps none). */
+		/** A pointer the original keeps to a task that has ended is read (the port keeps only the proxies a gear drop frees). */
 		EndedTask,
 		/**
 		 * The playback met what the original does not survive (a playback begun while one plays, a record's slot or

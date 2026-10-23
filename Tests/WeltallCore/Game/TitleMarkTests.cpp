@@ -8,7 +8,7 @@
 
 using namespace Weltall;
 
-TEST_CASE("The title's mark is as bright as the title's picture: its fades, the menu's shade, its backdrop shown", "[Game]")
+TEST_CASE("The title's mark is as bright as the title's picture: its fades, the menu's shade, its backdrop shown and its own", "[Game]")
 {
 	CHECK(FTitleMarkDrawing::Text("0.8.1") == "Weltall 0.8.1");
 	FFieldRenderState Render;
@@ -35,6 +35,14 @@ TEST_CASE("The title's mark is as bright as the title's picture: its fades, the 
 	Render.MenuShade.bShown = false;
 	Render.Panorama.bHidden = true;
 	CHECK(FTitleMarkDrawing::Strength(Render, false) == 0);
+
+	// After a lost battle the title's map shows the defeat's picture in the title's place: the game over has no mark,
+	// nor the title's menu over it.
+	Render.Panorama.bHidden = false;
+	CHECK(FTitleMarkDrawing::Strength(Render, false) == 255);
+	Render.bDefeatPicture = true;
+	CHECK(FTitleMarkDrawing::Strength(Render, false) == 0);
+	CHECK(FTitleMarkDrawing::Strength(Render, true) == 0);
 }
 
 TEST_CASE("The title's mark ends under the logo's last letter, below the logo", "[Game][Content]")

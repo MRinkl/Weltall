@@ -550,6 +550,19 @@ namespace Weltall
 		Erase(static_cast<std::size_t>(Found - TaskList.begin()));
 	}
 
+	void FSpriteSystem::RetireTask(FSpriteTask& Task)
+	{
+		Unqueue(Task.Sprite);
+		const auto Found = std::find_if(TaskList.begin(), TaskList.end(), [&Task](const FKernelTaskEntry& Entry) { return Entry.Sprite.get() == &Task; });
+		if (Found == TaskList.end())
+		{
+			return;
+		}
+		std::unique_ptr<FSpriteTask> Kept = std::move(Found->Sprite);
+		Erase(static_cast<std::size_t>(Found - TaskList.begin()));
+		RetiredTasks.push_back(std::move(Kept));
+	}
+
 	void FSpriteSystem::EndTasks()
 	{
 		while (!TaskList.empty())
@@ -563,5 +576,10 @@ namespace Weltall
 				Erase(0);
 			}
 		}
+		for (std::unique_ptr<FSpriteTask>& Retired : RetiredTasks)
+		{
+			FreeTasks.push_back(std::move(Retired));
+		}
+		RetiredTasks.clear();
 	}
 }

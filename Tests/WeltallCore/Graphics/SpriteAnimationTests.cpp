@@ -210,3 +210,30 @@ TEST_CASE("A sprite counts the animations started on it from outside its script,
 	System.SetAnimation(Sprite, 0);
 	CHECK(Sprite.Starts == Made + 1);
 }
+
+TEST_CASE("A sprite's point at an anchor of a parent that has ended is the point it already has", "[Graphics]")
+{
+	// BCh CFh: the goal at the parent's anchor 5; BCh 8Fh: the place at it; then a step that waits two ticks.
+	const auto File = FSpriteFile::Parse(ScriptFile({0xBC, 0xCF, 0xBC, 0x8F, 0x31, 0x82}, 0));
+	REQUIRE(File);
+	FSpriteSystem System;
+	FSprite Sprite;
+	System.Create(Sprite, *File, 0, 0, 0, 0);
+	Sprite.SavedPoint = {120, -45, 830};
+	Sprite.Position = {0x12345, 0x6789A, -0x23456};
+	System.TickAnimation(Sprite);
+	CHECK_FALSE(System.FaultError());
+	CHECK(Sprite.SavedPoint == std::array<int16, 3>{120, -45, 830});
+	CHECK(Sprite.Position == std::array<int32, 3>{0x10000, 0x60000, -0x30000});
+
+	// With its parent there (a sprite without parts) both are the parent's place.
+	FSprite Parent;
+	Parent.Position = {0x50000, -0x60000, 0x70000};
+	FSprite Child;
+	System.Create(Child, *File, 0, 0, 0, 0);
+	Child.Parent = &Parent;
+	System.TickAnimation(Child);
+	CHECK_FALSE(System.FaultError());
+	CHECK(Child.SavedPoint == std::array<int16, 3>{5, -6, 7});
+	CHECK(Child.Position == Parent.Position);
+}

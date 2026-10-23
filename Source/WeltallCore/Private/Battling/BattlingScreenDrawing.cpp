@@ -329,7 +329,7 @@ namespace Weltall
 			}
 			HelpWidths[Line] = RenderMesString(*Fight.Text, HelpTyping, Fight.Messages->String(Message), HelpImage, static_cast<int32>(Line));
 			HelpButtons[Line].clear();
-			ButtonCells.AddTyped(HelpTyping.TypedGlyphs(), HelpWidths[Line], 0, HelpButtons[Line]);
+			ButtonCells.AddTyped(HelpTyping.TypedGlyphs(), HelpWidths[Line], Fight.Text->Font, 0, HelpButtons[Line]);
 			bHelpTyped = true;
 		}
 		if (bHelpTyped)

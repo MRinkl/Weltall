@@ -1,5 +1,6 @@
 #include "Text/MesFont.h"
 
+#include "Foundation/Crc32.h"
 #include "Foundation/LittleEndian.h"
 
 #include <algorithm>
@@ -13,6 +14,16 @@ namespace Weltall
 		constexpr int32 GlyphColumns = FMesFont::GlyphColumns;
 		constexpr uint8 BoxLead = 0xFF;
 		constexpr uint8 BoxCode = 0xFF;
+
+		struct FFaceButtonGlyph
+		{
+			uint8 Code = 0;
+			/** The CRC-32 of the glyph's bytes in the USA release's font. */
+			uint32 PictureCrc = 0;
+			EPadButton Button = EPadButton::Cross;
+		};
+		constexpr std::array<FFaceButtonGlyph, 4> FaceButtonGlyphs{{{0x6E, 0x7B1ABF8Fu, EPadButton::Circle},
+			{0x6F, 0x0DDA394Bu, EPadButton::Square}, {0x70, 0x27FB8567u, EPadButton::Triangle}, {0x7F, 0xC7E4980Bu, EPadButton::Cross}}};
 
 		/** A glyph pixel: rows are big-endian with the leftmost pixel in bit 15. */
 		bool IsSet(std::span<const uint8> Glyph, int32 X, int32 Y)
@@ -45,7 +56,27 @@ namespace Weltall
 		Result.FirstCode = LittleEndian::ReadU16(Font, 12);
 		Result.Glyphs.assign(Font.begin() + GlyphsOffset, Font.end());
 		std::copy_n(BoxGlyph.begin(), GlyphBytes, Result.Box.begin());
+		for (std::size_t Index = 0; Index < FaceButtonGlyphs.size(); ++Index)
+		{
+			const std::optional<std::span<const uint8>> Glyph = Result.GlyphOf({0, FaceButtonGlyphs[Index].Code});
+			if (Glyph && Crc32(*Glyph) == FaceButtonGlyphs[Index].PictureCrc)
+			{
+				Result.DrawnFaceButtons = static_cast<uint8>(Result.DrawnFaceButtons | 1u << Index);
+			}
+		}
 		return Result;
+	}
+
+	std::optional<EPadButton> FMesFont::FaceButton(FMesCode Code) const
+	{
+		for (std::size_t Index = 0; Index < FaceButtonGlyphs.size(); ++Index)
+		{
+			if (Code.Lead == 0 && Code.Code == FaceButtonGlyphs[Index].Code && (DrawnFaceButtons >> Index & 1) != 0)
+			{
+				return FaceButtonGlyphs[Index].Button;
+			}
+		}
+		return std::nullopt;
 	}
 
 	void FMesFont::SetWidthUnits(FMesCode Code, int32 Units)

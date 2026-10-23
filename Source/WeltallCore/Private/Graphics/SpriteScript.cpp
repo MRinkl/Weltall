@@ -1014,12 +1014,14 @@ namespace Weltall
 			return Lifted;
 		};
 		// A sprite's anchor slot as a point. For a sprite not drawn from parts the kernel leaves the point as its
-		// stack held it; the port takes the sprite's place, as the kernel does for a sprite without anchors.
-		const auto AnchorPoint = [this, &HighHalves, &AnchorOffset](const FSprite* Of, uint32 Slot, std::array<int16, 3>& Result) {
+		// stack held it; the port takes the sprite's place, as the kernel does for a sprite without anchors. With no
+		// sprite at all (a parent that has ended, a target or actor never set) the kernel leaves it so too; the port
+		// takes the point the sprite already has: its goal when the point is stored as one, else its own place.
+		const auto AnchorPoint = [this, &HighHalves, &AnchorOffset, Mode](const FSprite* Of, uint32 Slot, std::array<int16, 3>& Result) {
 			if (Of == nullptr)
 			{
-				System.Report(ESpriteFault::UnsupportedInstruction, 0xBC);
-				return false;
+				Result = (Mode & 0x40) != 0 ? Sprite.SavedPoint : HighHalves(Sprite);
+				return true;
 			}
 			int32 DeltaX = 0;
 			int32 DeltaY = 0;

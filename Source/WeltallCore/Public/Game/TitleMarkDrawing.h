@@ -20,7 +20,7 @@ namespace Weltall
 		/**
 		 * The mark's strength (0 to 255) over the title's field as Render draws it: as bright as its fades leave the picture,
 		 * and the menu's shade where the picture is not the one under an open menu (which shades it itself); none once the
-		 * title's picture, its backdrop, is hidden.
+		 * title's picture, its backdrop, is hidden, nor while the defeat's picture holds its place (the game over).
 		 */
 		WELTALLCORE_API static int32 Strength(const FFieldRenderState& Render, bool bUnderMenu);
 

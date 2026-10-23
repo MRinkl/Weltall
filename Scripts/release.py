@@ -34,30 +34,19 @@ You'll need your own copy of the USA release or a supported English undub. No ga
 
 ## What's new
 
-- PlayStation controllers now work on Windows: the DualShock 4 and the DualSense, including the Edge, over USB or
-  Bluetooth, and the PlayStation Classic controller. Sony's wireless adapter for the DualShock 4 works too. With
-  them, button prompts show the PlayStation symbols, and the DualShock 4 and DualSense vibrate in the Battling arena.
-  Most other gamepads work too. If a button lands in the wrong place, rebind it on the Controls page. If your
-  controller isn't recognized, please report it.
-- Fan translations that only change the game's text, pictures and movies now play, such as the Spanish translation by
-  Romhack Hispano. Patch your USA discs and put the patched images in `Games`. If the originals are there too, the
-  patched ones play. Weltall's own screens, such as Options, stay in English. Translations that also change the
-  game's program, such as the French one by Atelier Traduction, aren't supported yet.
-- Added separate volumes under Options → Sound for the music, sound effects, battle voices and movies, plus a master
-  volume.
-- You can now use the movie subtitles from your own copy of Perfect Works Build, even with the mod turned off. If you
-  have the undub too, Subtitles from under Options → Sound picks which one you read. The Sound page now shows what
-  it found, and says what you need for anything that's missing.
+- Added a Button layout option under Options → Controls, for players used to the Japanese release's controls. With
+  Circle confirms, ○ confirms and is the 3-point attack, and × cancels. Japan also swaps □ and △ as the Japanese
+  release does: □ jumps and △ opens the menu. Buttons you rebound yourself stay where you put them.
+- With Perfect Works Build, a portrait texture pack such as the HD Portraits Project only shows while the mod's
+  Portraits option is set to Original, because the mod's portraits are pictures of its own. The option's help now
+  says so.
 
 ### Fixes
 
-- Fixed the camera shaking when you turn or zoom it slowly on the field.
-- Fixed pieces of character sprites, such as Fei's arm when he runs away from the camera, sitting a few pixels off.
-  This is a mistake in the original game's sprites, and the Sprite frames option on the Fixes page turns the fix off.
-- Fixed the rainy night scene near the start of the game using far more of the graphics card than it should.
-  Battles and the world map are lighter on the graphics card too.
-- Fixed the display's native resolution missing from the list, and the picture being stretched, when Windows display
-  scaling is above 100%. If you picked a window size while scaling was on, it will look smaller now, so pick it again.
+- Fixed battles stopping when Elly uses Thermo Largo, Fei uses Big Bang or Emeralda uses Aqua Dhaum in their Gears.
+- Fixed battles stopping when Citan uses his Tsunami Ice Deathblow.
+- Fixed Weltall's version from the title screen showing on the game over screen.
+- Fixed ó showing as a button icon with the Spanish translation.
 
 ## Playing
 
@@ -74,7 +63,7 @@ controls and more details.
 ## What to expect
 
 Both discs are playable, and gameplay behavior has been checked against the original game's code.
-My own playthrough is still in progress, with over 18 hours played without a hang. Automated tests
+My own playthrough is still in progress, with about 24 hours played without a hang. Automated tests
 have run every map and story battle, along with long stretches of the story from save to save. You
 should be able to play from start to finish, and I'm fixing reported issues as they come in.
 

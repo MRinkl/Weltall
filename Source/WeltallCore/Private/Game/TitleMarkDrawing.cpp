@@ -25,7 +25,7 @@ namespace Weltall
 
 	int32 FTitleMarkDrawing::Strength(const FFieldRenderState& Render, bool bUnderMenu)
 	{
-		if (Render.Panorama.bHidden)
+		if (Render.Panorama.bHidden || Render.bDefeatPicture)
 		{
 			return 0;
 		}

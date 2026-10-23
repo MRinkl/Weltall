@@ -98,8 +98,8 @@ namespace Weltall
 		Rules.Clear();
 		Returned = 0;
 		bController = false;
-		bPerformer = false;
 		Play = FBattlePlayController{};
+		Show.Battle.Play.Performer = nullptr;
 		CollapseSlots.fill(-1);
 		StepPerformer = nullptr;
 		StepTarget = nullptr;
@@ -289,7 +289,7 @@ namespace Weltall
 		{
 		case 0:
 		{
-			StepPerformer = SlotSprite(Play.PerformerSlot);
+			StepPerformer = State.Performer;
 			StepTarget = State.Targets[0];
 			if (StepPerformer == nullptr)
 			{
@@ -902,14 +902,14 @@ namespace Weltall
 
 	FSprite* FBattlePlayback::SetPerformer(int32 Slot)
 	{
-		FSprite* Before = bPerformer ? SlotSprite(Play.PerformerSlot) : nullptr;
-		if (Before != nullptr && Play.PerformerSlot != Slot && !IsHidden(FBattleSprites::SlotOf(*Before)))
+		FSprite*& Performer = Show.Battle.Play.Performer;
+		if (Performer != nullptr && Play.PerformerSlot != Slot && !IsHidden(FBattleSprites::SlotOf(*Performer)))
 		{
-			Show.Sprites.SetAnimation(*Before, Stance(*Before));
+			Show.Sprites.SetAnimation(*Performer, Stance(*Performer));
 		}
 		Play.PerformerSlot = Slot;
-		bPerformer = SlotSprite(Slot) != nullptr;
-		return SlotSprite(Slot);
+		Performer = SlotSprite(Slot);
+		return Performer;
 	}
 
 	void FBattlePlayback::AimAtTargets(FSprite& Sprite)
@@ -1088,7 +1088,7 @@ namespace Weltall
 		case FinishCollapse:
 		{
 			Routine.Value = Play.NextReady;
-			FSprite* Performer = SlotSprite(Play.PerformerSlot);
+			FSprite* Performer = Show.Battle.Play.Performer;
 			if (Performer != nullptr)
 			{
 				Performer->Listener = nullptr;
@@ -1467,7 +1467,7 @@ namespace Weltall
 		}
 		case 3:
 		{
-			FSprite* Sprite = SlotSprite(Play.PerformerSlot);
+			FSprite* Sprite = Show.Battle.Play.Performer;
 			if (!bStays)
 			{
 				Sprite->Listener = &AnimationEnd;
@@ -1533,8 +1533,8 @@ namespace Weltall
 	void FBattlePlayback::CreateController()
 	{
 		bController = true;
-		bPerformer = false;
 		Play = FBattlePlayController{};
+		Show.Battle.Play.Performer = nullptr;
 		Show.Battle.Play.Record = 0;
 		Show.Numbers.bPlaying = true;
 		Show.Sprites.CountedTasks = 0;

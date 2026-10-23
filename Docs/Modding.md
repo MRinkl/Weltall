@@ -292,8 +292,9 @@ The picture can also be the same grid 2 to 16 times as large, and the game reduc
 To add a character, draw it in a cell the English text doesn't use and type the character in that cell's line of
 `font.tsv`. Your messages can then use it. The Japanese kana (the cells from 131 on) only appear in the game's debug
 rooms and a few placeholder names, so they're the ones to redraw. A kana cell is 12 pixels wide, wider than the
-English letters. To make an added letter as narrow as the others, change its width to 8. Font changes apply when the
-game starts.
+English letters. To make an added letter as narrow as the others, change its width to 8. Don't use the cells of the
+four button symbols (○, □, △ and ×) for new characters: wherever the text uses them, the game shows the player's
+buttons instead. Font changes apply when the game starts.
 
 The Battling arena's large capital letters are a picture, not this font. To redraw them, replace the 256 x 39 texture
 in `files/48/0005` of the texture export.
