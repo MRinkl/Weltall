@@ -147,3 +147,62 @@ TEST_CASE("The expanded second disc plays Ramsus' assault on Nisan as Elly, from
 	CHECK(StoryDifferences(Ours, Theirs) == std::vector<std::string>{});
 	CHECK(Ours.Party() == Theirs.Party());
 }
+
+#include "Media/GameFileIndex.h"
+#include "Media/PsxExecutable.h"
+#include "Mods/PerfectWorks.h"
+#include "Story/DiscText.h"
+#include "Text/MesText.h"
+#include "Text/MessageTable.h"
+
+#include <filesystem>
+
+TEST_CASE("The chair's lines the Nisan assault names keep their numbers under Perfect Works Build's script, and read as its words", "[Story][Content][Mods]")
+{
+	REQUIRE_DISC(Disc, EDiscRelease::UsaDisc1);
+	const std::optional<FPerfectWorksRelease> Release = FPerfectWorksRelease::Find(std::filesystem::path(WELTALL_GAMES_DIR).parent_path() / "Mods" / "PerfectWorks");
+	if (!Release)
+	{
+		SKIP("Perfect Works Build not found in Mods/PerfectWorks");
+	}
+	const auto Executable = ReadBootExecutable(*Disc);
+	REQUIRE(Executable);
+	const auto Index = FGameFileIndex::Read(*Executable);
+	REQUIRE(Index);
+	constexpr int32 Chair = 617;
+	constexpr int32 WhereIsHe = 23;
+	constexpr int32 DontFearLove = 48;
+
+	// The original's words.
+	std::string Original;
+	std::string OriginalLast;
+	{
+		const FGameDiscText Text(Disc->Image(), *Index);
+		const auto Table = FMessageTable::Parse(Text.FieldMapMessages(Chair));
+		REQUIRE(Table);
+		REQUIRE(Table->Count() > DontFearLove);
+		Original = MesTextOfCodes(Table->String(WhereIsHe));
+		OriginalLast = MesTextOfCodes(Table->String(DontFearLove));
+	}
+	CHECK(Original.find("Ramsus") != std::string::npos);
+	CHECK(Original.find("Where is he") != std::string::npos);
+	CHECK(OriginalLast.find("Elly") != std::string::npos);
+
+	// The mod's: the same numbers, Ramsus still asking after Fei and Elly still answering, in other words.
+	FPerfectWorksOptions Options;
+	Options.bEnabled = true;
+	const std::vector<FModFile> Files = Release->Files(Options, 1);
+	const Testing::FModFilesGiven Given(*Disc, FDiscModFiles::Make(*Index, 1, Files, Release->Changes(Options, Files)));
+	const FGameDiscText Text(Disc->Image(), *Index);
+	const auto Table = FMessageTable::Parse(Text.FieldMapMessages(Chair));
+	REQUIRE(Table);
+	REQUIRE(Table->Count() > DontFearLove);
+	const std::string Retold = MesTextOfCodes(Table->String(WhereIsHe));
+	const std::string RetoldLast = MesTextOfCodes(Table->String(DontFearLove));
+	INFO(Retold);
+	INFO(RetoldLast);
+	CHECK(Retold.find("Ramsus") != std::string::npos);
+	CHECK(Retold.find("Where is he") != std::string::npos);
+	CHECK(Retold != Original);
+	CHECK(RetoldLast.find("Elly") != std::string::npos);
+}
