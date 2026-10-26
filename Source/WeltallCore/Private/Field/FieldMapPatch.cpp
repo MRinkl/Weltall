@@ -160,6 +160,24 @@ namespace Weltall
 				Patch.EncountersMap = static_cast<int32>(*From);
 				EncountersLine = Number;
 			}
+			else if (Words.front() == "sprite")
+			{
+				// "sprite N from map K slot S": slot N of the map takes slot S of disc map K.
+				const std::optional<int64> Slot = Words.size() == 7 && Words[2] == "from" && Words[3] == "map" && Words[5] == "slot"
+					? NumberText::NumberWithin(Words[1], 0, FieldSpriteSlotCount - 1) : std::nullopt;
+				const std::optional<int64> From = Slot ? NumberText::NumberWithin(Words[4], 0, FieldMapCount - 1) : std::nullopt;
+				const std::optional<int64> Source = From ? NumberText::NumberWithin(Words[6], 0, FieldSpriteSlotCount - 1) : std::nullopt;
+				if (!Source)
+				{
+					return LineError(Number, "'sprite N from map K slot S' takes a slot of the map (0 to 31), a map of the disc and a slot of it");
+				}
+				const bool bTaken = std::any_of(Patch.Borrows.begin(), Patch.Borrows.end(), [&Slot](const FSpriteBorrow& Borrow) { return Borrow.Slot == *Slot; });
+				if (bTaken)
+				{
+					return LineError(Number, "sprite slot " + std::to_string(*Slot) + " is taken from another map once");
+				}
+				Patch.Borrows.push_back({Number, static_cast<int32>(*Slot), static_cast<int32>(*From), static_cast<int32>(*Source)});
+			}
 			else if (Words.front() == "message")
 			{
 				// "message Name from event E message K [page P]": a message of the disc's own, which has no text here.
@@ -239,6 +257,10 @@ namespace Weltall
 		else if (Patch.EncountersMap)
 		{
 			return LineError(EncountersLine, "only a map of its own takes another map's encounters");
+		}
+		else if (!Patch.Borrows.empty())
+		{
+			return LineError(Patch.Borrows.front().Line, "only a map of its own takes another map's sprites");
 		}
 		return Patch;
 	}

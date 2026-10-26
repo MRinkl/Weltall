@@ -1,9 +1,11 @@
 ; Before Nisan's cathedral the night Ramsus comes, played as Elly: the first disc's cathedral front (map 95)
-; by its path from the town. Margie and Renk meet her on the steps; then Vendetta is there, and the words the
-; chair tells in stills are said where they were said. The Gear is felt and heard, not drawn: Nisan's maps have
-; no Gear actors, and the chair's pictures of it are its own. After Ramsus goes, the game is back in the party
-; and the story as the chair's session leaves them, and goes on to the Ministry's scene as the session does.
+; by its path from the town. Margie and Renk meet her on the steps; then Vendetta comes down before the
+; cathedral, the gold Omnigear of the first disc's chase, and the words the chair tells in stills are said where
+; they were said. After Ramsus goes, the game is back in the party and the story as the chair's session leaves
+; them, and goes on to the Ministry's scene as the session does.
 map 741 from 95
+; Renk wears Solaris' uniform: the Shevat hangar's sprite, in the slot of a sprite this map does not use.
+sprite 7 from map 164 slot 2
 
 message Margie
 {
@@ -283,7 +285,7 @@ Margie
 Please.{page}You're hurt."
 }
 
-actors 16
+actors 17
 unsigned 00A-00E 026-02A 030 036 100-12E
 entrances
 ; From the town's path below the steps.
@@ -387,13 +389,14 @@ actor 12 script 1:
     WaitMessageClosed
     MessageAtActor actor14 Renk 0
     WaitMessageClosed
-    ; The ground shakes: Vendetta comes down before the cathedral, out of the player's sight.
+    ; The ground shakes: Vendetta comes down before the cathedral.
     PlaySound #226
     CameraShake #6 #6 #6 #1
     ScreenFade #1 #255 #140 #60 #30
-    Wait #60
+    StartScriptWaitEnd actor16 script8@3
+    Wait #30
     CameraShake #2 #2 #2 #1
-    TurnToActor actor2 actor15
+    TurnToActor actor2 actor16
     MessageAtActorPortrait actor2 Stand 0
     WaitMessageClosed
     MessageCentered Where 1
@@ -463,7 +466,7 @@ actor 12 script 1:
     ; Vendetta away into the night.
     PlaySound #142
     CameraShake #3 #3 #3 #1
-    Wait #45
+    StartScriptWaitEnd actor16 script9@3
     CameraShake #0 #0 #0 #1
     Wait #30
     MessageAtActorPortrait actor2 After 0
@@ -500,9 +503,9 @@ actor 13 script 8:
     FaceActor party0
     End
 
-; Renk, in a townsman's sprite: Nisan's maps have none of Solaris' uniforms.
+; Renk, in Solaris' uniform.
 actor 14 script 0:
-    SetModel #0
+    SetModel #7
     SetWalkmeshLayer 0
     SetPosition #-80 #217
     SetFacingCode 0
@@ -526,6 +529,27 @@ actor 15 script 3:
     SetVarTrue Scene
     StartScript actor12 script1@3
 Begun:
+    End
+
+; Vendetta: the gold Omnigear as the first disc's chase and the Golgoda scene stage a Gear, set down before the
+; cathedral's doors once the scene calls it, and gone again when Ramsus goes.
+actor 16 script 0:
+    SetGearModel #59
+    SetPosition #0 #600
+    SetScale #6144
+    SetNoFloorAlign #1
+    DisableTalk
+    Hide
+    End
+actor 16 script 8:
+    SetMoveAnimation 22
+    SetFacingCode 0
+    Show
+    Wait #30
+    End
+actor 16 script 9:
+    Wait #45
+    Hide
     End
 
 ; What an actor does not do.
@@ -564,4 +588,7 @@ actor 14 script 2:
 actor 14 script 3:
 actor 15 script 1:
 actor 15 script 2:
+actor 16 script 1:
+actor 16 script 2:
+actor 16 script 3:
     End

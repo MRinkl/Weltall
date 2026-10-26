@@ -15,6 +15,15 @@ namespace Weltall
 {
 	class IDiscText;
 
+	/** A sprite slot a map of its own takes from another disc map: that map's slot's sprite file and images, in place of its base map's. */
+	struct FSpriteBorrow
+	{
+		int32 Line = 0;
+		int32 Slot = 0;
+		int32 Map = 0;
+		int32 SourceSlot = 0;
+	};
+
 	/** The sections a map of its own has of its own: its script section and its message table. */
 	struct FFieldMapOfItsOwn
 	{
@@ -48,6 +57,7 @@ namespace Weltall
 	 *
 	 *   map 1000 from 613                           the disc map whose archive and textures it takes
 	 *   encounters from 273                         another disc map's encounters and formations, when given
+	 *   sprite 9 from map 164 slot 2                another disc map's sprite in one of its slots, when given
 	 *   message Ramsus                              its messages, numbered from 0 in their order
 	 *   { ... }
 	 *   actors 3                                    its whole script section (EventAssembly.h), from address 0
@@ -82,6 +92,8 @@ namespace Weltall
 		bool KeepsBaseScripts() const { return bKeepsBaseScripts; }
 		/** For a map of its own, the disc map whose encounter section it takes; none: its base map's. */
 		std::optional<int32> EncountersFrom() const { return EncountersMap; }
+		/** For a map of its own, the sprite slots it takes from other disc maps, in the text's order. */
+		const std::vector<FSpriteBorrow>& SpritesFrom() const { return Borrows; }
 
 		/**
 		 * Adds the patch to a map's scripts and messages, for a map over its base to the base map's: false, changing
@@ -138,6 +150,7 @@ namespace Weltall
 		std::optional<int32> BaseMap;
 		bool bKeepsBaseScripts = false;
 		std::optional<int32> EncountersMap;
+		std::vector<FSpriteBorrow> Borrows;
 		std::vector<FSite> Sites;
 		std::vector<FNamedMessage> Messages;
 		/** The text's script lines, every other line empty so that an error's line is the text's. */

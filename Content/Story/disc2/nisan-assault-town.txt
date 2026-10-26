@@ -3,6 +3,8 @@
 ; where the assault's scene is. The chair tells this in two pages ("A trembling... There was a sudden explosion
 ; in the city of Nisan"); here the explosion is heard and the walk is the player's.
 map 740 from 93
+; Renk's men wear Solaris' uniform: the Shevat hangar's sprite, in the slot of a Nisan sprite this map does not use.
+sprite 9 from map 164 slot 2
 
 message Returned
 {
@@ -227,9 +229,9 @@ actor 13 script 1:
 Stay:
     End
 
-; Renk's men from Solaris, holding the square in the town's own sprites: there are none of theirs in Nisan.
+; Renk's men from Solaris, holding the square.
 actor 14 script 0:
-    SetModel #0
+    SetModel #9
     SetWalkmeshLayer 0
     SetPosition #-174 #1577
     SetFacingCode 2
@@ -243,7 +245,7 @@ actor 14 script 2:
     End
 
 actor 15 script 0:
-    SetModel #0
+    SetModel #9
     SetWalkmeshLayer 0
     SetPosition #174 #1439
     SetFacingCode 6
@@ -257,7 +259,7 @@ actor 15 script 2:
     End
 
 actor 16 script 0:
-    SetModel #1
+    SetModel #9
     SetWalkmeshLayer 0
     SetPosition #64 #1024
     SetFacingCode 4
@@ -271,7 +273,7 @@ actor 16 script 2:
     End
 
 actor 17 script 0:
-    SetModel #1
+    SetModel #9
     SetWalkmeshLayer 0
     SetPosition #-222 #1015
     SetFacingCode 1
