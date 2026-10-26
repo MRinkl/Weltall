@@ -7,3 +7,6 @@ story 253 to map 617 entrance 2 story 252
 
 ; Elly in Nisan the night Ramsus comes: the chair's session that tells of it, at Nisan the refuge's value.
 story 269 to map 617 entrance 3 story 268
+
+; The party inside the Soylent System facility: the stills of it, at the value the original tells them at.
+story 259 to map 621 entrance 0 story 258

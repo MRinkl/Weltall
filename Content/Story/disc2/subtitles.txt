@@ -7,6 +7,7 @@ subtitles
 ; Inside "Break the Seal": the front in Ignas and Nortune's battleship; the peace, the outbreak, the first facility.
 story 254 Secret Battleship
 story 258 Soylent System
+story 259 The Howling
 ; Inside "Soul Vessel": Nisan the refuge; the search for the relics.
 story 268 Holy Mother Returns
 story 269 Gold In The Fire
