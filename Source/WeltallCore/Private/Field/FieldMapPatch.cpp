@@ -183,13 +183,15 @@ namespace Weltall
 				// "message Name from event E message K [page P]": a message of the disc's own, which has no text here.
 				const bool bDisc = Words.size() > 2 && Words[2] == "from";
 				const bool bPage = Words.size() == 9 && Words[7] == "page";
-				const bool bDiscShaped = bDisc && (Words.size() == 7 || bPage) && Words[3] == "event" && Words[5] == "message";
-				const std::optional<int64> Event = bDiscShaped ? NumberText::NumberWithin(Words[4], 0, LastBattleEvent) : std::nullopt;
+				const bool bOfMap = bDisc && Words.size() > 3 && Words[3] == "map";
+				const bool bDiscShaped = bDisc && (Words.size() == 7 || bPage) && (Words[3] == "event" || bOfMap) && Words[5] == "message";
+				const std::optional<int64> Event = bDiscShaped && !bOfMap ? NumberText::NumberWithin(Words[4], 0, LastBattleEvent) : std::optional<int64>(0);
+				const std::optional<int64> OfMap = bDiscShaped && bOfMap ? NumberText::NumberWithin(Words[4], 0, FieldMapCount - 1) : std::optional<int64>(-1);
 				const std::optional<int64> DiscMessage = bDiscShaped ? NumberText::NumberWithin(Words[6], 0, LastMessage) : std::nullopt;
 				const std::optional<int64> Page = bPage ? NumberText::NumberWithin(Words[8], 1, LastMessage) : std::optional<int64>(0);
-				if (bDisc && (!IsName(Words[1]) || !Event || !DiscMessage || !Page))
+				if (bDisc && (!IsName(Words[1]) || !Event || !OfMap || !DiscMessage || !Page))
 				{
-					return LineError(Number, "a message of the disc's own reads 'message Name from event E message K', or with 'page P' after it");
+					return LineError(Number, "a message of the disc's own reads 'message Name from event E message K' or 'message Name from map M message K', or with 'page P' after it");
 				}
 				const bool bSized = Words.size() == 5 && Words[2] == "size";
 				const std::optional<int64> Width = bSized ? NumberText::NumberWithin(Words[3], 0, 0xFF) : std::nullopt;
@@ -205,7 +207,7 @@ namespace Weltall
 				if (bDisc)
 				{
 					Patch.Messages.push_back({std::string(Words[1]), {},
-						FDiscMessage{Number, static_cast<int32>(*Event), static_cast<int32>(*DiscMessage), static_cast<int32>(*Page)}});
+						FDiscMessage{Number, static_cast<int32>(*Event), static_cast<int32>(*OfMap), static_cast<int32>(*DiscMessage), static_cast<int32>(*Page)}});
 				}
 				else
 				{
@@ -277,6 +279,19 @@ namespace Weltall
 		return Definitions;
 	}
 
+	std::vector<int32> FFieldMapPatch::DiscMessages() const
+	{
+		std::vector<int32> OfDisc;
+		for (std::size_t Message = 0; Message < Messages.size(); ++Message)
+		{
+			if (Messages[Message].Disc)
+			{
+				OfDisc.push_back(static_cast<int32>(Message));
+			}
+		}
+		return OfDisc;
+	}
+
 	TResult<bool> FFieldMapPatch::AddedMessages(const IDiscText* Disc, std::vector<FAddedMessage>& Out) const
 	{
 		for (const FNamedMessage& Message : Messages)
@@ -291,7 +306,7 @@ namespace Weltall
 			{
 				return LineError(Named.Line, "a message of the disc's own, and no disc's text to read it from");
 			}
-			const TResult<FMessageTable> Table = FMessageTable::Parse(Disc->BattleEventMessages(Named.Event));
+			const TResult<FMessageTable> Table = FMessageTable::Parse(Named.Map >= 0 ? Disc->FieldMapMessages(Named.Map) : Disc->BattleEventMessages(Named.Event));
 			if (!Table || Named.Message >= Table->Count())
 			{
 				return false;

@@ -45,6 +45,7 @@ namespace Weltall
 	 *   { ... }
 	 *   message Met from event 19 message 0 page 1  a message of the disc's own, named and not carried: a battle
 	 *                                               event's message, or one page of it, in a window of its size
+	 *   message Where from map 617 message 23       the same, a field map's message: the script the game plays with
 	 *   expect @0x00B4 If var[2CE] & #-32768 else @0x00C4      the map's own instruction there
 	 *   detour @0x024A to Hands If var[014] == #1 else @0x0329   the same, and the map goes to Hands instead
 	 *   Hands:                                      every other line: event scripts (EventAssembly.h),
@@ -92,6 +93,8 @@ namespace Weltall
 		bool KeepsBaseScripts() const { return bKeepsBaseScripts; }
 		/** For a map of its own, the disc map whose encounter section it takes; none: its base map's. */
 		std::optional<int32> EncountersFrom() const { return EncountersMap; }
+		/** Which of the text's messages, by their place among them from 0, are the disc's own (named, not carried): the game's text, not the port's. */
+		WELTALLCORE_API std::vector<int32> DiscMessages() const;
 		/** For a map of its own, the sprite slots it takes from other disc maps, in the text's order. */
 		const std::vector<FSpriteBorrow>& SpritesFrom() const { return Borrows; }
 
@@ -119,11 +122,12 @@ namespace Weltall
 			std::string Label;
 		};
 
-		/** A message of the disc's own: a battle event's message, or one page of it (0: all of them). */
+		/** A message of the disc's own: a battle event's or a field map's message (Map from 0; -1: the event's), or one page of it (0: all of them). */
 		struct FDiscMessage
 		{
 			int32 Line = 0;
 			int32 Event = 0;
+			int32 Map = -1;
 			int32 Message = 0;
 			int32 Page = 0;
 		};
