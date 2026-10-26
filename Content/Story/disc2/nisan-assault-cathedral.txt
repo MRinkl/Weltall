@@ -1,0 +1,567 @@
+; Before Nisan's cathedral the night Ramsus comes, played as Elly: the first disc's cathedral front (map 95)
+; by its path from the town. Margie and Renk meet her on the steps; then Vendetta is there, and the words the
+; chair tells in stills are said where they were said. The Gear is felt and heard, not drawn: Nisan's maps have
+; no Gear actors, and the chair's pictures of it are its own. After Ramsus goes, the game is back in the party
+; and the story as the chair's session leaves them, and goes on to the Ministry's scene as the session does.
+map 741 from 95
+
+message Margie
+{
+Margie
+"Elly!{wait 0A} You came back!{page}Everyone's inside.{wait 0A}
+The sisters, the sick,
+the children..."
+}
+
+message Renk
+{
+Renk
+"Boss! It's heading
+straight here!{page}We can't stop it.{wait 0A}
+Nothing we have can
+stop that thing!"
+}
+
+message Stand
+{
+Elly
+"Stay behind me.{wait 0A}
+Both of you."
+}
+
+; The chair's words, as the disc has them, from where it says "I stood before him."
+message Where
+{
+Ramsus
+"Where!{wait 05} Where is he!?{wait 05}
+I know it!{wait 05} He's here!{page}Why does he not
+come out!?"
+}
+
+message NotHere
+{
+Elly
+"Ramsus!{wait 0F}
+The Fei you seek is
+not here!{page}So please, stop this
+meaningless violence!"
+}
+
+message YouWillDo
+{
+Ramsus
+"You{wait 05}...{wait 0F}
+Yes{wait 05}...{wait 05}
+You will do{wait 05}..."
+}
+
+message ComeOut
+{
+Ramsus
+"Come out!{wait 05} Fei!{wait 0F}
+If you will not come out,{wait 05}
+I will crush Elhaym!"
+}
+
+message Hurt
+{
+Elly
+"Uuhg{wait 05}...{wait 05}!"
+}
+
+message MargieElly
+{
+Margie
+"Elly!"
+}
+
+message Boss
+{
+Renk
+"Boss{wait 05}...{wait 05}"
+}
+
+message KeepBack
+{
+Elly
+"Keep back{wait 05}...{wait 05}"
+}
+
+message HaveItYourWay
+{
+Ramsus
+"Not coming out, eh{wait 05}...{wait 05}
+Have it your way.{page}Then from tonight on you
+will be crying with this
+woman's dead body in your
+arms!"
+}
+
+message Cry
+{
+{speed FF}Elly
+"Uuuaaahhh!"{close 3C}
+}
+
+message CantMove
+{
+Ramsus
+"H, how the!?{wait 05}
+What happened!?{wait 0F}
+Why can't I move!?"
+}
+
+message MargieAgain
+{
+Margie
+"Elly!"
+}
+
+message Okay
+{
+Renk
+"Are you okay!?"
+}
+
+message LikesOfYou
+{
+Ramsus
+"H,{wait 05} how could I...{wait 05}to
+the likes of you{wait 05}...?"
+}
+
+message Inferior
+{
+Ramsus
+"N,{wait 05} not only to him,{wait 05} but
+I am also inferior to
+you{wait 05}...!?{wait 05} Me!?"
+}
+
+message WhatHappened
+{
+Elly
+"What happened to
+you, Ramsus{wait 05}...?"
+}
+
+message WhyFei
+{
+Elly
+"Why are you caught up
+with Fei so much...{page}Why are you so bothered by
+who is more superior?"
+}
+
+message Created
+{
+Ramsus
+"I was originally created
+to be the intregation of
+all human abilities{wait 05}...{page}...{wait 05}To be able to align
+with all of the Anima
+Relics{wait 05}...{page}I was created to have the
+powers equivalent to those
+of Emperor Cain.{page}You could say I was to be
+the ideal form which all
+people strive to become{wait 05}...{page}However{wait 05}...{wait 05}once he was born{wait 05}
+...{wait 05}I was{wait 05}...{wait 05}rejected{wait 05}...{wait 05}
+...{wait 05}I was given life in a
+pile of {wait 05}trash{wait 05}...{page}...{wait 05}Born in the dark,{wait 05} cold{wait 05}
+abyss of {wait 05}worthlessness{wait 05}..."
+}
+
+message Crawled
+{
+Ramsus
+"But I was able to crawl
+out of there!{wait 0F}
+I was able to survive{page}on my own strength!{page}In order to get back at
+all those who have
+forsaken me!{wait 0F}{page}Despite all of that,{wait 05} I was
+able to get this far!{page}I was able to provide
+myself with the warmth
+that I required to
+continue living!"
+}
+
+message Intervene
+{
+Ramsus
+"But, he had to come and
+intervene in my life one
+more time!{page}He tried to take that
+very warmth away from
+me again!{wait 1E}{page}As long as he exists{wait 05}...{wait 0A}
+I don't belong
+anywhere{wait 05}..."
+}
+
+message Fixated
+{
+Elly
+"I think I now know why
+you are so fixated with
+Fei{wait 05}...{page}You do not really know
+what you should be doing
+with your life right now.{page}You're simply trying to
+protect yourself by
+attacking Fei{wait 05}...{page}By attacking others,{wait 05} you
+are confirming your own
+existence."
+}
+
+message Void
+{
+Elly
+"That's why you strive to
+be above everyone else{wait 05}...{page}Because, otherwise, you'd
+be enveloped by a void{wait 05}...{wait 0F}
+Because you yourself will
+disappear{wait 05}...{page}Because that emptiness
+within your heart will
+only grow{wait 05}...{page}Because you want to hang
+on to love{wait 05}..."
+}
+
+message Silence
+{
+Ramsus
+"Silence!"
+}
+
+message Warmth
+{
+Ramsus
+"Even you are trying to
+take it away from me!?{wait 0F}
+...{wait 05}That warmth!{page}That very warmth I've
+finally obtained!"
+}
+
+message NoOne
+{
+Elly
+"Ramsus{wait 05}...{wait 0F}
+No one is attacking you.{page}No one is trying to take
+away what is so precious
+to you{wait 05}...{page}No one is threatening your
+existence..."
+}
+
+message DontFear
+{
+Elly
+"It's all in your mind.{wait 05}
+So don't hide the feelings
+that are in your heart{wait 05}...{page}Don't fear love{wait 05}..."
+}
+
+message Gone
+{
+Ramsus
+"Y, you{wait 05}...{wait 05}
+Now you{wait 05}...{wait 0F}
+Aaarrrgghhh!"
+}
+
+message After
+{
+Elly
+"He was afraid{wait 05}...{page}Afraid of losing the
+place he belonged to.{wait 0A}
+Afraid Fei would take
+it from him.{page}He thought love was
+something you take{wait 05}...{page}He craved it more than
+anyone{wait 05}..."
+}
+
+message GoInside
+{
+Margie
+"Elly{wait 05}...{wait 0A} come inside.{wait 0A}
+Please.{page}You're hurt."
+}
+
+actors 16
+unsigned 00A-00E 026-02A 030 036 100-12E
+entrances
+; From the town's path below the steps.
+entrance x 0 z -1335 layer 0 camera keep facing 0
+; At the steps, where the scene begins at once (the tests' way in; the walk from the town reaches the same place).
+entrance x 0 z -700 layer 0 camera keep facing 0
+
+define Scene var[402]
+actor 0 script 0:
+    SetHiddenModel
+    DisableTalk
+    SetCameraBounds -460 1069 900 2300
+    SetClearColor #0 #0 #0
+    CameraSet #255 #30 #448
+    CameraZoom #4096 0
+    CameraGroundClampOff
+    MusicLoad #57
+    If var[002] == #1 else Walking
+    SetVarTrue Scene
+Walking:
+    End
+
+; The party, whoever is in it: Elly alone until the end.
+actor 1 script 0:
+    SetPartyCharacter #0
+    SetMessageFace #0
+    End
+actor 2 script 0:
+    SetPartyCharacter #1
+    SetMessageFace #1
+    End
+actor 3 script 0:
+    SetPartyCharacter #2
+    SetMessageFace #2
+    End
+actor 4 script 0:
+    SetPartyCharacter #3
+    SetMessageFace #3
+    End
+actor 5 script 0:
+    SetPartyCharacter #4
+    SetMessageFace #4
+    End
+actor 6 script 0:
+    SetPartyCharacter #5
+    SetMessageFace #5
+    End
+actor 7 script 0:
+    SetPartyCharacter #6
+    SetMessageFace #6
+    End
+actor 8 script 0:
+    SetPartyCharacter #7
+    SetMessageFace #7
+    End
+actor 9 script 0:
+    SetPartyCharacter #8
+    SetMessageFace #8
+    End
+actor 10 script 0:
+    SetPartyCharacter #9
+    SetMessageFace #9
+    End
+actor 11 script 0:
+    SetPartyCharacter #10
+    SetMessageFace #10
+    End
+actor 1 script 1:
+actor 2 script 1:
+actor 3 script 1:
+actor 4 script 1:
+actor 5 script 1:
+actor 6 script 1:
+actor 7 script 1:
+actor 8 script 1:
+actor 9 script 1:
+actor 10 script 1:
+actor 11 script 1:
+    If Scene == #0 else Held
+    PlayerControlStep
+    End
+Held:
+    Stop
+    End
+
+; The scene: Margie and Renk down the steps to Elly, the Gear's arrival, the words, and the way back to the story.
+actor 12 script 0:
+    SetHiddenModel
+    DisableTalk
+    If Scene == #1 else Calm
+    End
+Calm:
+    FreezeActor actor12
+    End
+actor 12 script 1:
+    DisablePlayer
+    Wait #20
+    StartScript actor14 script8@3
+    StartScriptWaitEnd actor13 script8@3
+    MessageAtActor actor13 Margie 0
+    WaitMessageClosed
+    MessageAtActor actor14 Renk 0
+    WaitMessageClosed
+    ; The ground shakes: Vendetta comes down before the cathedral, out of the player's sight.
+    PlaySound #226
+    CameraShake #6 #6 #6 #1
+    ScreenFade #1 #255 #140 #60 #30
+    Wait #60
+    CameraShake #2 #2 #2 #1
+    TurnToActor actor2 actor15
+    MessageAtActorPortrait actor2 Stand 0
+    WaitMessageClosed
+    MessageCentered Where 1
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 NotHere 0
+    WaitMessageClosed
+    MessageCentered YouWillDo 1
+    WaitMessageClosed
+    MessageCentered ComeOut 1
+    WaitMessageClosed
+    ; The Gear's hand closes: Elly held, Margie and Renk helpless.
+    PlaySound #119
+    ScreenFade #1 #255 #60 #60 #10
+    MessageAtActorPortrait actor2 Hurt 0
+    WaitMessageClosed
+    MessageAtActor actor13 MargieElly 0
+    WaitMessageClosed
+    MessageAtActor actor14 Boss 0
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 KeepBack 0
+    WaitMessageClosed
+    MessageCentered HaveItYourWay 1
+    WaitMessageClosed
+    ; Her ether, loosed: the screen goes white and the shaking stops.
+    MessageAtActorPortrait actor2 Cry 0
+    WaitMessageClosed
+    PlaySound #465
+    ScreenFade #1 #255 #255 #255 #10
+    Wait #60
+    CameraShake #0 #0 #0 #1
+    ScreenFade #2 #255 #255 #255 #40
+    Wait #40
+    MessageCentered CantMove 1
+    WaitMessageClosed
+    MessageAtActor actor13 MargieAgain 0
+    WaitMessageClosed
+    MessageAtActor actor14 Okay 0
+    WaitMessageClosed
+    MessageCentered LikesOfYou 1
+    WaitMessageClosed
+    MessageCentered Inferior 1
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 WhatHappened 0
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 WhyFei 0
+    WaitMessageClosed
+    MessageCentered Created 1
+    WaitMessageClosed
+    MessageCentered Crawled 1
+    WaitMessageClosed
+    MessageCentered Intervene 1
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 Fixated 0
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 Void 0
+    WaitMessageClosed
+    MessageCentered Silence 1
+    WaitMessageClosed
+    MessageCentered Warmth 1
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 NoOne 0
+    WaitMessageClosed
+    MessageAtActorPortrait actor2 DontFear 0
+    WaitMessageClosed
+    MessageCentered Gone 1
+    WaitMessageClosed
+    ; Vendetta away into the night.
+    PlaySound #142
+    CameraShake #3 #3 #3 #1
+    Wait #45
+    CameraShake #0 #0 #0 #1
+    Wait #30
+    MessageAtActorPortrait actor2 After 0
+    WaitMessageClosed
+    MessageAtActor actor13 GoInside 0
+    WaitMessageClosed
+    ScreenFade #1 #0 #0 #0 #45
+    Wait #45
+    ; As the chair's session leaves the story and the party for the Ministry's scene.
+    SetVar var[000] #268
+    PartyRemove 255
+    PartyRemove 254
+    PartyRemove 253
+    PartyAdd 0
+    PartyAddWait
+    PartyAdd 9
+    PartyAddWait
+    SetCharacterGear #9 #11
+    PartyAdd 1
+    PartyAddWait
+    ChangeMap #273 #12
+    StopAndHalt
+
+; Margie, in her own sprite and face, at the steps; down to Elly for the scene.
+actor 13 script 0:
+    SetModel #1
+    SetMessageFace #18
+    SetWalkmeshLayer 0
+    SetPosition #80 #72
+    SetFacingCode 0
+    End
+actor 13 script 8:
+    WalkTo #60 #-620
+    FaceActor party0
+    End
+
+; Renk, in a townsman's sprite: Nisan's maps have none of Solaris' uniforms.
+actor 14 script 0:
+    SetModel #0
+    SetWalkmeshLayer 0
+    SetPosition #-80 #217
+    SetFacingCode 0
+    End
+actor 14 script 8:
+    WalkTo #-60 #-600
+    FaceActor party0
+    End
+
+; Where the scene begins for a player walking up from the town: a bar across the path, touched.
+actor 15 script 0:
+    SetHiddenModel
+    SetPosition #0 #-760
+    SetStateFlags 0 0x2000
+    SetStateFlags 3 0x4
+    SetCollisionSize 220 10 100 0
+    SetCollisionFlags #1
+    End
+actor 15 script 3:
+    If Scene == #0 else Begun
+    SetVarTrue Scene
+    StartScript actor12 script1@3
+Begun:
+    End
+
+; What an actor does not do.
+actor 0 script 1:
+actor 0 script 2:
+actor 0 script 3:
+actor 1 script 2:
+actor 1 script 3:
+actor 2 script 2:
+actor 2 script 3:
+actor 3 script 2:
+actor 3 script 3:
+actor 4 script 2:
+actor 4 script 3:
+actor 5 script 2:
+actor 5 script 3:
+actor 6 script 2:
+actor 6 script 3:
+actor 7 script 2:
+actor 7 script 3:
+actor 8 script 2:
+actor 8 script 3:
+actor 9 script 2:
+actor 9 script 3:
+actor 10 script 2:
+actor 10 script 3:
+actor 11 script 2:
+actor 11 script 3:
+actor 12 script 2:
+actor 12 script 3:
+actor 13 script 1:
+actor 13 script 2:
+actor 13 script 3:
+actor 14 script 1:
+actor 14 script 2:
+actor 14 script 3:
+actor 15 script 1:
+actor 15 script 2:
+    End

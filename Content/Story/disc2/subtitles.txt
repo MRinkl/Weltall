@@ -9,6 +9,7 @@ story 254 Secret Battleship
 story 258 Soylent System
 ; Inside "Soul Vessel": Nisan the refuge; the search for the relics.
 story 268 Holy Mother Returns
+story 269 Gold In The Fire
 story 273 Anima Vessel
 ; Inside "The Stars Know": the journey north to the last relic.
 story 282 The Essence of Humans

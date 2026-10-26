@@ -4,3 +4,6 @@ way back
 
 ; Elly on her way to the Mass Driver: the chair's narration of it, before the launch.
 story 253 to map 617 entrance 2 story 252
+
+; Elly in Nisan the night Ramsus comes: the chair's session that tells of it, at Nisan the refuge's value.
+story 269 to map 617 entrance 3 story 268
