@@ -14,3 +14,9 @@ story 259 to map 621 entrance 0 story 258
 ; The party in Nortune for the Central District: the original's scene at the gate, the rising and the battle, at
 ; the value the original plays it at (the chair's session before it has already set its bit by then).
 story 254 to map 198 entrance 8 story 252
+
+; The party inside Mahanon's wreck: the original's flight through it, at the value the original tells it at.
+story 289 to map 653 entrance 0 story 288
+
+; The party on Razael's cavern's floor: the original's scene of the cavern, at the value the original plays it at.
+story 291 to map 655 entrance 0 story 290
