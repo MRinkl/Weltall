@@ -179,7 +179,7 @@ actor 12 script 1:
     WaitMessageClosed
     SetVarFalse Seen
     EnablePlayer
-    End
+    StopAndHalt
 
 ; The far door, to the holding hall.
 actor 13 script 0:

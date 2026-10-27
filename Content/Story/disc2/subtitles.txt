@@ -14,6 +14,8 @@ story 269 Gold In The Fire
 story 273 Anima Vessel
 ; Inside "The Stars Know": the journey north to the last relic.
 story 282 The Essence of Humans
+; Inside "Above Mahanon": the bridge on the eve.
+story 286 The Night Before
 ; Inside "Paradise": the wreck of the ship that was Mahanon; and, inside "Golgoda", the walk to Razael's Tree.
 story 289 The Wreckage
 story 291 Razael's Tree

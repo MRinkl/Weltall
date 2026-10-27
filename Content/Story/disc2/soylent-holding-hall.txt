@@ -131,6 +131,7 @@ entrance x -300 z 0 layer 0 camera keep facing 2
 entrance x -290 z 0 layer 0 camera keep facing 2
 
 define Scene var[402]
+define Met var[404]
 actor 0 script 0:
     SetHiddenModel
     DisableTalk
@@ -210,7 +211,8 @@ actor 12 script 0:
     SetCollisionFlags #1
     End
 actor 12 script 3:
-    If Scene == #0 else Begun
+    If Met == #0 else Begun
+    SetVarTrue Met
     SetVarTrue Scene
     StartScript actor13 script4@3
 Begun:

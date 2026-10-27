@@ -1,7 +1,7 @@
 ; Shevat's hangar on the night Elly leaves for Golgoda, played: the hangar map that has her unit's own sprites (map
-; 164, the hangar the story brings her unit to), with them waiting by the last Omnigear. The chair has told of her
-; climb and of Krelian's call and of her departure in its own pages; here her unit's farewell is the chair's own
-; scene (map 617's messages 60 to 84), spoken where they stand. From the Omnigear the game goes to Golgoda, the
+; 164, the hangar the story brings her unit to), with them waiting by the last Omnigear. The chair's pages of her
+; climb and Krelian's call are read at her arrival and its page of her departure at the end, from the disc; her
+; unit's farewell is the chair's own scene (map 617's messages 60 to 84), spoken where they stand. From the Omnigear the game goes to Golgoda, the
 ; chair's session that plays it (map 619, entrance 3), the story at the original's value.
 map 751 from 164
 
@@ -30,6 +30,9 @@ message Line81 from map 617 message 81
 message Line82 from map 617 message 82
 message Line83 from map 617 message 83
 message Line84 from map 617 message 84
+
+message Ascend from map 617 message 58
+message Depart from map 617 message 59
 
 message RenkIdle
 {
@@ -87,7 +90,7 @@ there since the call
 came in.{page}Nobody told them to."
 }
 
-actors 20
+actors 21
 unsigned 00A-00E 026-02A 030 036 080-0BE 402-40A
 entrances
 ; The hangar's west end, where Elly comes in.
@@ -272,10 +275,23 @@ actor 19 script 0:
     SetCollisionSize 20 10 120 0
     SetCollisionFlags #1
     End
-; Her arrival: the player has her at once (the chair has told of the climb and the call).
-actor 19 script 1:
-    SetVarFalse Scene
+; Her arrival: the chair's page of the climb and the call, read beside her (a window closes at once when its speaker
+; is off screen, so the page's actor stands where she comes in).
+actor 20 script 0:
+    SetHiddenModel
+    DisableTalk
+    SetPosition #-1031 #-268
     End
+actor 20 script 1:
+    DisablePlayer
+    Wait #30
+    SetWindowLayoutVar #0 #0 #0 #0 #1
+    MessageCentered Ascend 83
+    WaitMessageClosed
+    SetWindowLayoutVar #0 #0 #0 #0 #0
+    SetVarFalse Scene
+    EnablePlayer
+    StopAndHalt
 actor 19 script 3:
     If Scene == #0 else Begun
     SetVarTrue Scene
@@ -332,6 +348,10 @@ actor 19 script 3:
     MessageAtActorPortrait actor2 Line84 1
     WaitMessageClosed
     Wait #30
+    SetWindowLayoutVar #0 #0 #0 #0 #1
+    MessageCentered Depart 83
+    WaitMessageClosed
+    SetWindowLayoutVar #0 #0 #0 #0 #0
     ScreenFade #1 #0 #0 #0 #45
     Wait #45
     GearMode 1
@@ -384,5 +404,8 @@ actor 17 script 1:
 actor 17 script 3:
 actor 18 script 1:
 actor 18 script 3:
+actor 19 script 1:
 actor 19 script 2:
+actor 20 script 2:
+actor 20 script 3:
     End

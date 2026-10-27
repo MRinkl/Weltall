@@ -23,3 +23,6 @@ story 291 to map 655 entrance 0 story 290
 
 ; Elly in Shevat's hangar before Golgoda: the chair's session that tells of it, at the value the original plays it at.
 story 292 to map 617 entrance 5 story 290
+
+; Fei on the Yggdrasil's bridge the night before Mahanon: the deck, where the original's night plays, at its value.
+story 286 to map 303 entrance 3 story 285

@@ -5,7 +5,7 @@
 ; hangar's floor, a map of its own, with Elly alone and the story at her decision's value, and from there goes to
 ; the same Golgoda session with the story back at the original's value.
 map 617
-detour @0x1BD0 to Hangar StartScriptWaitEnd actor11 script5@1
+detour @0x099A to Hangar SetVar var[400] #1
 Hangar:
     SetVar var[000] #292
     ChangeMap #751 #0

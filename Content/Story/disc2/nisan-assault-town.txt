@@ -215,7 +215,7 @@ actor 12 script 1:
     WaitMessageClosed
     SetVarFalse Seen
     EnablePlayer
-    End
+    StopAndHalt
 
 ; The way up: the first disc's cathedral zone leads on to the assault's scene before the cathedral.
 actor 13 script 0:

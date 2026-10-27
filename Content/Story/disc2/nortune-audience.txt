@@ -228,7 +228,7 @@ actor 12 script 1:
     WaitMessageClosed
     SetVarFalse Scene
     EnablePlayer
-    End
+    StopAndHalt
 
 ; The south door, to the tactical command room.
 actor 13 script 0:

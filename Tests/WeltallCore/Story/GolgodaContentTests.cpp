@@ -178,6 +178,12 @@ namespace
 		return ByEighth[static_cast<std::size_t>(((Pad + 0x100) >> 9) & 7)];
 	}
 
+	/** Until a scene in Map has taken the player. */
+	std::function<bool(const FEventContext*)> SceneHoldsIn(int32 Map)
+	{
+		return [Map](const FEventContext* Context) { return Context != nullptr && Context->RunningMap == Map && Context->PlayerLock != 0; };
+	}
+
 	/** Walks the leader from where it stands into a trigger at (X, Z) until the trigger has taken the player or the map has changed. */
 	void WalkIntoTrigger(Testing::FGameLoopSession& Game, int32 Map, int32 X, int32 Z)
 	{
@@ -213,9 +219,10 @@ TEST_CASE("The expanded second disc plays Elly's leaving for Golgoda in Shevat's
 	CHECK(Theirs.SavedEventVariable(0) == ChapterProgress);
 	CHECK(Theirs.Party() == std::array<uint8, 3>{Elly, NoOne, NoOne});
 
-	// The expanded game: the chair's two pages, then the hangar, Elly alone, the story at her decision's value, the player given her.
+	// The expanded game: from the chair to the hangar, Elly alone, the story at her decision's value; the chair's page read there, then the player given her.
 	std::unique_ptr<Testing::FGameLoopSession> Expanded = StartAtSession(*Disc, EStoryMode::Expanded);
-	CHECK(PlayFieldUntil(*Expanded, PlayerHasPartyIn(HangarMap), FrameLimit) == std::vector<int32>{ChairMap, HangarMap});
+	CHECK(PlayFieldUntil(*Expanded, SceneHoldsIn(HangarMap), FrameLimit) == std::vector<int32>{ChairMap, HangarMap});
+	CHECK(PlayFieldUntil(*Expanded, PlayerHasPartyIn(HangarMap), FrameLimit) == std::vector<int32>{HangarMap});
 	FGameState& Ours = Expanded->Session->Game();
 	CHECK(Ours.SavedEventVariable(0) == DecisionProgress);
 	CHECK(Ours.Party() == std::array<uint8, 3>{Elly, NoOne, NoOne});
