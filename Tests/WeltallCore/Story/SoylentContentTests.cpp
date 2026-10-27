@@ -9,6 +9,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <numbers>
 #include <cstdio>
 #include <functional>
 #include <string>
@@ -70,17 +72,48 @@ namespace
 			[](const FFieldMessageWindow& Window) { return Window.bOpen && Window.bTextWaits; });
 	}
 
-	/** Plays the field on, confirming each message, until Done; the field maps played. */
+	/** Whether an open choice window's cursor is not yet on its last option (the chair's "Don't save" and "Start"). */
+	bool ChoiceBelowLast(const FEventContext* Context)
+	{
+		return Context != nullptr && std::any_of(Context->Messages.Windows.begin(), Context->Messages.Windows.end(),
+			[](const FFieldMessageWindow& Window) { return Window.bOpen && Window.bChoice && Window.ChoiceCursor < Window.ChoiceCount - 1; });
+	}
+
+	/** What the field is at, for the report of a play that goes nowhere. */
+	std::string Whereabouts(const FEventContext* Context)
+	{
+		if (Context == nullptr)
+		{
+			return "no field running";
+		}
+		std::string Where = "map " + std::to_string(Context->RunningMap) + " lock " + std::to_string(Context->PlayerLock) + (Context->bMenuLocked ? " menu-locked" : "");
+		for (const FFieldMessageWindow& Window : Context->Messages.Windows)
+		{
+			if (Window.bOpen)
+			{
+				Where += " window(owner " + std::to_string(Window.Owner) + " speaker " + std::to_string(Window.Speaker) + " focus " + std::to_string(Window.bFocus)
+					+ " waits " + std::to_string(Window.bTextWaits) + " choice " + std::to_string(Window.ChoiceCursor) + "/" + std::to_string(Window.ChoiceCount) + ")";
+			}
+		}
+		return Where;
+	}
+
+	/**
+	 * Plays the field on, confirming each message and taking the last option of each choice (the chair's save prompt
+	 * is declined and the game continued, the same in both ways of playing), until Done; the field maps played.
+	 */
 	std::vector<int32> PlayFieldUntil(Testing::FGameLoopSession& Game, const std::function<bool(const FEventContext*)>& Done, int32 FrameLimit)
 	{
 		constexpr FPadState CrossHeld{FPadState::Bit(EPadButton::Cross)};
+		constexpr FPadState DownHeld{FPadState::Bit(EPadButton::Down)};
 		constexpr int32 FramesAPress = 8;
 		std::vector<int32> Maps;
 		for (int32 Frame = 0;; ++Frame)
 		{
-			REQUIRE(Frame < FrameLimit);
 			const FFieldProgram* Field = Game.Loop->Field();
 			const FEventContext* Context = Field != nullptr ? &Field->Runtime().Context() : nullptr;
+			INFO(Whereabouts(Context));
+			REQUIRE(Frame < FrameLimit);
 			if (Context != nullptr && (Maps.empty() || Maps.back() != Context->RunningMap))
 			{
 				Maps.push_back(Context->RunningMap);
@@ -89,7 +122,8 @@ namespace
 			{
 				return Maps;
 			}
-			const std::optional<FError> Error = Game.Frame((Frame / FramesAPress) % 2 == 0 ? CrossHeld : FPadState{});
+			const FPadState Pressed = ChoiceBelowLast(Context) ? DownHeld : CrossHeld;
+			const std::optional<FError> Error = Game.Frame((Frame / FramesAPress) % 2 == 0 ? Pressed : FPadState{});
 			INFO((Error ? Error->Message : std::string()));
 			REQUIRE_FALSE(Error);
 		}
@@ -127,13 +161,52 @@ namespace
 		return Differing;
 	}
 
-	/** Enters Map by its scene entrance, where the map's scene begins at once. */
-	void EnterScene(Testing::FGameLoopSession& Game, int32 Map)
+	/** An angle of the game's (4096 a turn) of the way along Across and Along, as atan2 gives it. */
+	int32 GameAngle(double Across, double Along)
 	{
+		return static_cast<int32>(std::lround(std::atan2(Across, Along) * 2048.0 / std::numbers::pi));
+	}
+
+	/** The d-pad buttons that walk the field's leader most nearly toward (X, Z) (as MassDriverContentTests has them). */
+	uint16 FieldPadToward(const FEventContext& Context, int32 X, int32 Z)
+	{
+		constexpr uint16 Up = FPadState::Bit(EPadButton::Up);
+		constexpr uint16 Right = FPadState::Bit(EPadButton::Right);
+		constexpr uint16 Down = FPadState::Bit(EPadButton::Down);
+		constexpr uint16 Left = FPadState::Bit(EPadButton::Left);
+		static constexpr std::array<uint16, 8> ByEighth = {Right, Right | Down, Down, Down | Left, Left, Left | Up, Up, Up | Right};
+		const FFieldPoint& At = Context.States[Context.LeaderActor].Position;
+		const int32 Way = GameAngle(-(Z - (At[2] >> 16)), X - (At[0] >> 16));
+		const int32 Pad = (Way + Context.Camera.GoalViewYaw + Context.ViewTurn) & 0xFFF;
+		return ByEighth[static_cast<std::size_t>(((Pad + 0x100) >> 9) & 7)];
+	}
+
+	/**
+	 * Enters Map by Entrance, a step before a trigger at (X, Z), and walks the leader into it until the trigger has
+	 * taken the player (a scene begun) or the map has changed.
+	 */
+	void WalkIntoTrigger(Testing::FGameLoopSession& Game, int32 Map, uint16 Entrance, int32 X, int32 Z)
+	{
+		constexpr int32 WalkFrames = 1500;
 		FGameState& State = Game.Session->Game();
-		State.SetSavedEventVariable(1, SceneEntrance);
-		State.SetFieldEntrance(SceneEntrance);
+		State.SetSavedEventVariable(1, Entrance);
+		State.SetFieldEntrance(Entrance);
 		Game.EnterField(Map);
+		for (int32 Frame = 0;; ++Frame)
+		{
+			const FFieldProgram* Field = Game.Loop->Field();
+			const FEventContext* Context = Field != nullptr ? &Field->Runtime().Context() : nullptr;
+			if (Context == nullptr || Context->RunningMap != Map || Context->PlayerLock != 0)
+			{
+				return;
+			}
+			const FFieldPoint& At = Context->States[Context->LeaderActor].Position;
+			INFO("walking into the trigger at " << X << ", " << Z << " of map " << Map << ", the leader at " << (At[0] >> 16) << ", " << (At[2] >> 16));
+			REQUIRE(Frame < WalkFrames);
+			const std::optional<FError> Error = Game.Frame(FPadState{FieldPadToward(*Context, X, Z)});
+			INFO((Error ? Error->Message : std::string()));
+			REQUIRE_FALSE(Error);
+		}
 	}
 }
 
@@ -157,13 +230,13 @@ TEST_CASE("The expanded second disc plays the Soylent System facility, from Krel
 	CHECK(Ours.SavedEventVariable(0) == FacilityProgress);
 	CHECK(Ours.Party() == std::array<uint8, 3>{Fei, Elly, Citan});
 
-	// The holding hall: the soldier's scene plays through and leaves the player the party.
-	EnterScene(*Expanded, HoldingHallMap);
+	// The holding hall: the soldier's scene, walked into, plays through and leaves the player the party.
+	WalkIntoTrigger(*Expanded, HoldingHallMap, SceneEntrance, -230, 0);
 	CHECK(PlayFieldUntil(*Expanded, PlayerHasPartyIn(HoldingHallMap), FrameLimit) == std::vector<int32>{HoldingHallMap});
 	CHECK(Ours.SavedEventVariable(0) == FacilityProgress);
 
-	// The processing line: the outbreak, then the Sufal Mass's room by its fight entrance, the story the original's.
-	EnterScene(*Expanded, ProcessingLineMap);
+	// The processing line: the outbreak, walked into, then the Sufal Mass's room by its fight entrance, the story the original's.
+	WalkIntoTrigger(*Expanded, ProcessingLineMap, SceneEntrance, -400, -250);
 	CHECK(PlayFieldUntil(*Expanded, Reached(SufalRoomMap), FrameLimit) == std::vector<int32>{ProcessingLineMap, SufalRoomMap});
 	CHECK(Ours.SavedEventVariable(1) == FightEntrance);
 	CHECK(Ours.SavedEventVariable(0) == StillsProgress);

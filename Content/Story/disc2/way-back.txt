@@ -10,3 +10,7 @@ story 269 to map 617 entrance 3 story 268
 
 ; The party inside the Soylent System facility: the stills of it, at the value the original tells them at.
 story 259 to map 621 entrance 0 story 258
+
+; The party in Nortune for the Central District: the original's scene at the gate, the rising and the battle, at
+; the value the original plays it at (the chair's session before it has already set its bit by then).
+story 254 to map 198 entrance 8 story 252

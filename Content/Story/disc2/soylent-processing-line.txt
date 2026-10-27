@@ -66,8 +66,8 @@ unsigned 00A-00E 026-02A 030 036
 entrances
 ; From the holding hall: where the original's scene enters.
 entrance x -885 z -136 layer 0 camera keep facing 2
-; Before the queue, where the outbreak begins at once (the tests' way in).
-entrance x -400 z -250 layer 0 camera keep facing 2
+; A step before the queue, where the outbreak begins (the tests' way in).
+entrance x -460 z -250 layer 0 camera keep facing 2
 
 define Scene var[402]
 define Broken var[404]
@@ -143,7 +143,6 @@ Held:
 ; Before the queue: the outbreak's scene begins when the party reaches it.
 actor 12 script 0:
     SetHiddenModel
-    DisableTalk
     SetPosition #-400 #-250
     SetStateFlags 0 0x2000
     SetStateFlags 3 0x4
@@ -153,7 +152,7 @@ actor 12 script 0:
 actor 12 script 3:
     If Scene == #0 else Begun
     SetVarTrue Scene
-    StartScript actor13 script1@3
+    StartScript actor13 script4@3
 Begun:
     End
 
@@ -161,7 +160,7 @@ actor 13 script 0:
     SetHiddenModel
     DisableTalk
     End
-actor 13 script 1:
+actor 13 script 4:
     DisablePlayer
     Wait #20
     MessageAtActor actor15 Next 0
@@ -348,6 +347,7 @@ actor 11 script 2:
 actor 11 script 3:
 actor 12 script 1:
 actor 12 script 2:
+actor 13 script 1:
 actor 13 script 2:
 actor 13 script 3:
 actor 14 script 1:
