@@ -212,6 +212,7 @@ TEST_CASE("Every message the port's story adds opens a window that holds it, bes
 		if (Own != nullptr && !bOverBase)
 		{
 			auto Made = Own->Patch.Build(&DiscText);
+			INFO((Made ? std::string() : Made.Error().Message));
 			REQUIRE(Made);
 			Loaded->EventScripts = std::move(Made->EventScripts);
 			Loaded->Messages = std::move(Made->Messages);

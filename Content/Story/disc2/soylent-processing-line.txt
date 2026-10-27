@@ -147,7 +147,7 @@ actor 12 script 0:
     SetPosition #-400 #-250
     SetStateFlags 0 0x2000
     SetStateFlags 3 0x4
-    SetCollisionSize 40 10 300 0
+    SetCollisionSize 40 10 250 0
     SetCollisionFlags #1
     End
 actor 12 script 3:

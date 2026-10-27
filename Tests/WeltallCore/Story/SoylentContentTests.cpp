@@ -40,9 +40,14 @@ namespace
 	constexpr uint8 Fei = 0;
 	constexpr uint8 Elly = 1;
 	constexpr uint8 Citan = 9;
-	/** The saved variables of the field's place and time, not of what the story has done (as StoryContentTests has them). */
+	/**
+	 * The saved variables of the field's place and time, not of what the story has done (as StoryContentTests has them),
+	 * the entrance (0x002) among them: the expanded game enters the Sufal Mass's room by its fight entrance, the original
+	 * by the stills', and the test checks that itself.
+	 */
+	constexpr uint16 EntranceVariable = 0x002;
 	constexpr uint16 MapLeftVariable = 0x004;
-	constexpr std::array<uint16, 15> PlaceAndTimeVariables = {MapLeftVariable, 0x006, 0x008, 0x00C, 0x00E, 0x012, 0x01E, 0x020, 0x022, 0x024, 0x02A, 0x02C, 0x02E, 0x048, 0x04A};
+	constexpr std::array<uint16, 16> PlaceAndTimeVariables = {EntranceVariable, MapLeftVariable, 0x006, 0x008, 0x00C, 0x00E, 0x012, 0x01E, 0x020, 0x022, 0x024, 0x02A, 0x02C, 0x02E, 0x048, 0x04A};
 
 	/** A game of the second disc's story mode Mode at the laboratory's scene, the story at the stills' value. */
 	std::unique_ptr<Testing::FGameLoopSession> StartAtLaboratory(const FIso9660& Disc, EStoryMode Mode)

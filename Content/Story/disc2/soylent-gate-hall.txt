@@ -84,13 +84,7 @@ made into one.{page}Is that what salvation
 looks like?"
 }
 
-message Howl
-{
-Wel
-"...Hungry..."
-}
-
-actors 21
+actors 20
 unsigned 00A-00E 026-02A 030 036 0C0-0CC
 entrances
 ; The gate, where the still's last entrance is.
@@ -291,21 +285,6 @@ actor 19 script 2:
     EnableControls
     End
 
-actor 20 script 0:
-    SetModel #6
-    SetPosition #843 #1486
-    End
-actor 20 script 1:
-    WanderStep
-    End
-actor 20 script 2:
-    DisableControls
-    FaceActor party0
-    MessageAtActor self Howl 0
-    WaitMessageClosed
-    EnableControls
-    End
-
 ; What an actor does not do.
 actor 0 script 1:
 actor 0 script 2:
@@ -342,5 +321,4 @@ actor 16 script 3:
 actor 17 script 3:
 actor 18 script 3:
 actor 19 script 3:
-actor 20 script 3:
     End
